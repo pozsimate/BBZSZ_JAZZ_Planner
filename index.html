@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BartokKonzi JAZZ — Timetable Builder</title>
+<link rel="stylesheet" href="./src/styles.css">
+
+</head>
+<body>
+
+<div class="page-frame">
+
+<header>
+  <h1>Bartók JAZZ <span class="smear">planner 2026</span></h1>
+</header>
+
+<nav class="tabs">
+  <div class="tabs-left">
+    <button class="tab-btn active" data-tab="students">Students</button>
+    <button class="tab-btn" data-tab="lessons">Lesson groups</button>
+    <button class="tab-btn" data-tab="bands">Bands</button>
+    <button class="tab-btn" data-tab="tavail">Teacher availability</button>
+    <button class="tab-btn" data-tab="cavail">Class Reservations</button>
+    <button class="tab-btn" data-tab="breaks">Break Management</button>
+    <button class="tab-btn" data-tab="ref">Reference tables</button>
+    <button class="tab-btn" data-tab="cloud">☁ Cloud database</button>
+  </div>
+  <button class="tab-btn tab-btn-timetable" data-tab="timetable">Timetable</button>
+</nav>
+
+<main>
+
+  <section id="tab-students" class="tab-panel">
+    <div class="panel">
+      <h2>Students</h2>
+      <button type="button" class="hint-toggle"><span class="hint-toggle-icon">ⓘ</span> About this section <span class="hint-toggle-arrow">▸</span></button><p class="hint hint-collapsed">One row per student (STUDENTS sheet). Instrument, class, and the seven subject-group columns are dropdowns from Reference tables, filtered to the matching TYPE (e.g. RHIMPR only offers RHYTHM groups). Picking a name stores the ID automatically; a blank group means that student isn't enrolled in that subject.</p>
+      <div class="row">
+        <button class="btn small" id="addStudentBtn">+ Add student</button>
+        <button class="btn secondary small" id="exportStudentsBtn">Export CSV</button>
+        <span class="tag ok" id="studentCountTag"></span>
+      </div>
+      <div class="table-wrap">
+        <table class="data" id="studentsTable"></table>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-lessons" class="tab-panel" style="display:none">
+    <div class="panel">
+      <h2>Lesson groups</h2>
+      <button type="button" class="hint-toggle"><span class="hint-toggle-icon">ⓘ</span> About this section <span class="hint-toggle-arrow">▸</span></button><p class="hint hint-collapsed">One row per teachable group (LESSON sheet). GROUP and TEACHER are dropdowns from Reference tables — the scheduler pulls every student in that group and finds a slot where the teacher and all of them are free. Tick <b style="color:var(--lavender-deep)">ROOM 321</b> if it needs that room (no two ROOM 321 lessons ever overlap, any teacher). Fill in <b style="color:var(--lavender-deep)">FIXED DAY / START / END</b> to pin this lesson to an exact slot — no searching, but it still fails if the teacher is unavailable, a student has a class reservation then, or it double-books a person / ROOM 321.</p>
+      <div class="row">
+        <button class="btn small" id="addLessonBtn">+ Add lesson group</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data" id="lessonsTable"></table>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-tavail" class="tab-panel" style="display:none">
+    <div class="panel">
+      <h2>Teacher availability</h2>
+      <button type="button" class="hint-toggle"><span class="hint-toggle-icon">ⓘ</span> About this section <span class="hint-toggle-arrow">▸</span></button><p class="hint hint-collapsed">One row per teacher/day (TEACHER availability sheet). Blank START/END defaults to 08:00–20:00. TYPE ranks priority: AVAILABLE / PREFERRED beat FALLBACK, which beats CANDIDATE. AVOID excludes that day entirely, even if another row lists it.</p>
+      <div class="row">
+        <button class="btn small" id="addAvailBtn">+ Add availability row</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data" id="availTable"></table>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-cavail" class="tab-panel" style="display:none">
+    <div class="panel">
+      <h2>Class Reservations</h2>
+      <button type="button" class="hint-toggle"><span class="hint-toggle-icon">ⓘ</span> About this section <span class="hint-toggle-arrow">▸</span></button><p class="hint hint-collapsed">One row per <b style="color:var(--lavender-deep)">reserved</b> (busy) block for a class/day, matching CLASS_CONST — the opposite of an availability sheet. Whatever's left over that day (within 08:00–20:00) is free for a jazz lesson. A class/day with no rows is treated as free all day (currently true for 1j/2j/3j and all of grade 13).</p>
+      <div class="row">
+        <button class="btn small" id="addCAvailBtn">+ Add reservation row</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data" id="cavailTable"></table>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-breaks" class="tab-panel" style="display:none">
+    <div class="panel">
+      <h2>Break Management</h2>
+      <button type="button" class="hint-toggle"><span class="hint-toggle-icon">ⓘ</span> About this section <span class="hint-toggle-arrow">▸</span></button><p class="hint hint-collapsed">Matches the BREAK MANAGEMENT sheet — only lists teachers who get a break allowance, not the full staff. A listed teacher may spend up to <b style="color:var(--lavender-deep)">BREAK COUNT</b> units of <b style="color:var(--lavender-deep)">BREAK MIN</b> across their whole week — as separate gaps or combined, same day or different days (45 × 2 means two 45-minute gaps, or one 90-minute gap). Any other length is illegal. Not listed = never a gap.</p>
+      <div class="table-wrap" style="max-height:460px">
+        <table class="data" id="breaksTable"></table>
+      </div>
+      <div class="row" style="margin-top:12px;">
+        <select id="breaksAddSelect" style="flex:1;max-width:320px;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--surface-solid);font-family:var(--serif);"></select>
+        <button class="btn secondary small" id="breaksAddBtn">+ Add</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-ref" class="tab-panel" style="display:none">
+    <div class="panel">
+      <h2>Reference tables</h2>
+      <button type="button" class="hint-toggle"><span class="hint-toggle-icon">ⓘ</span> About this section <span class="hint-toggle-arrow">▸</span></button><p class="hint hint-collapsed">The four lookup sheets (TEACHER_ID, CLASSID, GROUP, INSTR) feeding every dropdown in the app — edit an ID here and it updates everywhere. <b style="color:var(--lavender-deep)">Classes</b>: JCLASS TYPE marks interchangeable grades (9a/9b/9c → "9"), used to cluster same-grade lessons together. <b style="color:var(--lavender-deep)">Groups</b>: TYPE controls which Students column it can be picked in. <b style="color:var(--lavender-deep)">Instruments</b>: TYPE (sol/acc/bass/drum) drives the Bands tab. Break settings live on <b style="color:var(--lavender-deep)">Break Management</b>; band quotas live on the <b style="color:var(--lavender-deep)">Bands</b> tab.</p>
+      <div class="ref-grid">
+        <div>
+          <h3>Teachers <span class="tag ok" id="refTeacherCount"></span></h3>
+          <div class="row"><button class="btn small" id="addRefTeacher">+ Add</button></div>
+          <div class="table-wrap" style="max-height:260px"><table class="data" id="refTeachersTable"></table></div>
+        </div>
+        <div>
+          <h3>Classes <span class="tag ok" id="refClassCount"></span></h3>
+          <div class="row"><button class="btn small" id="addRefClass">+ Add</button></div>
+          <div class="table-wrap" style="max-height:260px"><table class="data" id="refClassesTable"></table></div>
+        </div>
+        <div>
+          <h3>Groups <span class="tag ok" id="refGroupCount"></span></h3>
+          <div class="row"><button class="btn small" id="addRefGroup">+ Add</button></div>
+          <div class="table-wrap" style="max-height:260px"><table class="data" id="refGroupsTable"></table></div>
+        </div>
+        <div>
+          <h3>Instruments <span class="tag ok" id="refInstrCount"></span></h3>
+          <div class="row"><button class="btn small" id="addRefInstr">+ Add</button></div>
+          <div class="table-wrap" style="max-height:260px"><table class="data" id="refInstrumentsTable"></table></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-cloud" class="tab-panel" style="display:none">
+    <div class="panel">
+      <h2>Save & load</h2>
+      <div class="row">
+        <button class="btn secondary small" id="exportDbBtn">⬇ Save all edits (.json)</button>
+        <label class="btn secondary small" id="importDbLabel">⬆ Load saved edits (.json)
+          <input type="file" id="importDbInput" accept="application/json">
+        </label>
+      </div>
+      <p class="dataio-hint">Edits only live in this browser tab. JSON saves everything — tables, bands, timetable, search log, quotas, accepted schedule, UI — then import restores it all.</p>
+    </div>
+    <div class="panel">
+      <h2>Google Sheets</h2>
+      <button type="button" class="hint-toggle"><span class="hint-toggle-icon">ⓘ</span> About this section <span class="hint-toggle-arrow">▸</span></button><p class="hint hint-collapsed">Reads and writes the <b style="color:var(--lavender-deep)">DATABASE_2627</b> Drive workbook — tabs <b style="color:var(--lavender-deep)">STUDENTS</b>, <b style="color:var(--lavender-deep)">TEACHER_CONST</b>, <b style="color:var(--lavender-deep)">CLASS_CONST</b>, <b style="color:var(--lavender-deep)">LESSONS</b>, <b style="color:var(--lavender-deep)">BAND_QUOTAS</b>, <b style="color:var(--lavender-deep)">TEACHERS</b>, <b style="color:var(--lavender-deep)">BREAK_MANAGEMENT</b>, <b style="color:var(--lavender-deep)">CLASS / GROUPS / INSTR</b>. Load from the pre-filled link (must stay <b style="color:var(--lavender-deep)">Anyone with the link → Viewer</b>) or upload a downloaded <b style="color:var(--lavender-deep)">.xlsx</b>. Export downloads the same tabs and columns, so you can upload it to Drive or File → Import over the existing sheet. Loading replaces the working tables; bands and the timetable are cleared. A missing tab keeps what is already in the app.</p>
+      <div class="cloud-form">
+        <label class="cloud-field">
+          <span>Spreadsheet URL</span>
+          <input type="text" id="sheetsUrlInput" value="https://docs.google.com/spreadsheets/d/1VmcZq9AyYb-c3iYHSv0Q8Lh90UwnceAxaQvy6lfJyXU/edit?usp=sharing" placeholder="https://docs.google.com/spreadsheets/d/…" class="cloud-input">
+        </label>
+        <div class="row" style="margin-bottom:0">
+          <button class="btn" id="sheetsLoadBtn">⬆ Load from Google Sheets</button>
+          <label class="btn secondary" id="sheetsXlsxLabel">⬆ Upload .xlsx
+            <input type="file" id="sheetsXlsxInput" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+          </label>
+          <button class="btn secondary" id="sheetsExportBtn">⬇ Download .xlsx</button>
+        </div>
+        <p class="dataio-hint" id="sheetsStatus"></p>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Cloud database</h2>
+      <button type="button" class="hint-toggle"><span class="hint-toggle-icon">ⓘ</span> About this section <span class="hint-toggle-arrow">▸</span></button><p class="hint hint-collapsed">Talks straight to a Supabase project from this browser — no server of our own. One table, <b style="color:var(--lavender-deep)">planner_state</b>, holds a single row (<code>id='main'</code>) whose <b style="color:var(--lavender-deep)">data</b> column is the same JSON blob as “Save all edits”. The URL and key stay in this browser’s localStorage; the timetable itself lives in Supabase, so every device that connects with the same keys shares it. Connect does not auto-load — you choose when to pull cloud data over what you’re looking at.</p>
+      <div class="cloud-form">
+        <label class="cloud-field">
+          <span>Project URL</span>
+          <input type="text" id="cloudUrlInput" placeholder="https://xxxx.supabase.co" class="cloud-input">
+        </label>
+        <label class="cloud-field">
+          <span>Publishable key</span>
+          <input type="password" id="cloudKeyInput" placeholder="sb_publishable_… or legacy anon key" class="cloud-input">
+        </label>
+        <div class="row" style="margin-bottom:0">
+          <button class="btn secondary" id="cloudConnectBtn">🔌 Connect</button>
+          <button class="btn" id="cloudSaveBtn" disabled>☁ Save All to Cloud</button>
+          <button class="btn secondary" id="cloudLoadBtn" disabled>⬇ Load from Cloud</button>
+        </div>
+        <p class="dataio-hint" id="cloudStatus"></p>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-timetable" class="tab-panel" style="display:none">
+    <div class="panel">
+      <h2>Generate</h2>
+      <button type="button" class="hint-toggle"><span class="hint-toggle-icon">ⓘ</span> About this section <span class="hint-toggle-arrow">▸</span></button><p class="hint hint-collapsed">Builds the week from every tab above, teacher by teacher. Available days are grouped by rank (PREFERRED/AVAILABLE → FALLBACK → CANDIDATE); lessons split evenly across a rank's days before spilling into the next, and pack back-to-back within a day. <b style="color:var(--lavender-deep)">Hard rules:</b> no gap between a teacher's lessons unless <b style="color:var(--lavender-deep)">Break Management</b> allows it (BREAK MIN or a multiple, totaling at most BREAK COUNT units in that teacher's week); <b style="color:var(--lavender-deep)">ROOM 321</b> lessons never overlap; a lesson may softly snap next to another sharing its <b style="color:var(--lavender-deep)">JCLASS TYPE</b>. <b style="color:var(--lavender-deep)">Bands</b> get their own pass: a free slot is found from members' availability, then a teacher is matched from <b style="color:var(--lavender-deep)">⚙ Band Quotas</b> (Bands tab) — unless you set a manual override, which schedules it the normal teacher-first way instead. Each click tries up to 15 layouts and keeps every distinct one — browse them in the <b style="color:var(--lavender-deep)">Solution</b> dropdown. <b style="color:var(--lavender-deep)">Search log</b> shows how that click walked the constraints. Repeated clicks only add to the pool, never lose a result already found. <b style="color:var(--lavender-deep)">✓ Accept this schedule</b> saves it as the current timetable and writes each band's teacher back to its override dropdown.</p>
+      <div class="row">
+        <button class="btn" id="generateBtn">▶ Generate timetable</button>
+        <button class="btn secondary" id="downloadBtn">Download schedule (CSV)</button>
+        <button class="btn secondary" id="exportCalendarBtn">⬇ Export to Google Calendar</button>
+        <button class="btn secondary" id="acceptScheduleBtn">✓ Accept this schedule</button>
+        <button class="btn secondary" id="searchLogBtn" disabled>Search log</button>
+      </div>
+      <div class="row" id="variantRow" style="display:none">
+        <label style="font-size:12px;color:var(--ink-dim)">Solution:</label>
+        <select id="variantSelect"></select>
+      </div>
+      <p class="dataio-hint" id="acceptedStatus" style="margin:0 0 4px 0;"></p>
+      <div id="statsRow" class="stat-row" style="display:none"></div>
+    </div>
+
+    <div class="modal-overlay" id="searchLogOverlay" style="display:none">
+      <div class="modal-box search-log-box">
+        <h3 id="searchLogTitle" style="margin-top:0">Search log</h3>
+        <p id="searchLogHint" class="dataio-hint" style="margin:0 0 12px 0;">Walkthrough of the currently selected variant. Switch the variant dropdown to see that layout's log.</p>
+        <div id="searchLogBody" class="search-log"></div>
+        <div class="row" style="margin-top:16px;justify-content:flex-end;">
+          <button class="btn" id="searchLogCloseBtn">Done</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="resultsPanel" style="display:none">
+      <h2>Weekly grid</h2>
+      <div class="row">
+        <label style="font-size:12px;color:var(--ink-dim)">View by:</label>
+        <select id="viewMode">
+          <option value="teacher">Single teacher</option>
+          <option value="all" selected>All teachers (colour-coded)</option>
+          <option value="group">All lessons (chronological)</option>
+        </select>
+        <select id="teacherFilter" style="display:none"></select>
+      </div>
+      <div id="ttLegend" class="legend" style="display:none"></div>
+      <div class="grid-wrap">
+        <div id="ttGrid"></div>
+      </div>
+    </div>
+
+    <div class="panel" id="unresolvedPanel" style="display:none">
+      <h2>Could not be scheduled</h2>
+      <button type="button" class="hint-toggle"><span class="hint-toggle-icon">ⓘ</span> About this section <span class="hint-toggle-arrow">▸</span></button><p class="hint hint-collapsed">No free slot satisfied every constraint (teacher availability, class windows, no clash with other lessons). Loosen a constraint above and regenerate.</p>
+      <ul class="unresolved-list" id="unresolvedList"></ul>
+    </div>
+  </section>
+
+  <section id="tab-bands" class="tab-panel" style="display:none">
+    <div class="panel">
+      <h2>Generate bands</h2>
+      <button type="button" class="hint-toggle"><span class="hint-toggle-icon">ⓘ</span> About this section <span class="hint-toggle-arrow">▸</span></button><p class="hint hint-collapsed">Builds combos: every band gets a BASS, DRUM, ACC (guitar/piano), and SOL (vocal/trump/sax/violin) player, from the Instruments TYPE column. <b style="color:var(--lavender-deep)">Priority 1:</b> same JCLASS TYPE. <b style="color:var(--lavender-deep)">Priority 2:</b> nobody left out — bass/drum may repeat up to twice, extra acc/sol get added as extra members. Students with no CLASS are skipped (no grade to match). Every band is editable: <b style="color:var(--lavender-deep)">duration</b>, <b style="color:var(--lavender-deep)">Room 321</b> toggle, remove/add members, or set a manual <b style="color:var(--lavender-deep)">Teacher override</b> — otherwise the Timetable auto-matches a teacher from <b style="color:var(--lavender-deep)">⚙ Band Quotas</b>. Anyone in two bands is highlighted <b style="color:#d9a00a">yellow</b>. <b style="color:var(--lavender-deep)">+ Add band manually</b> starts an empty band to hand-pick; ✕ deletes one entirely.</p>
+      <div class="row">
+        <label style="font-size:12px;color:var(--ink-dim)">Number of bands:</label>
+        <input type="number" id="bandCountInput" value="16" min="1" max="60" style="width:70px;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--surface-solid);font-family:var(--serif);">
+        <button class="btn" id="generateBandsBtn">▶ Generate bands</button>
+        <button class="btn secondary" id="addBandBtn">+ Add band manually</button>
+        <button class="btn secondary" id="bandQuotasBtn">⚙ Band Quotas</button>
+        <button class="btn secondary" id="downloadBandsBtn">Download bands (CSV)</button>
+      </div>
+      <div id="bandsStatsRow" class="stat-row" style="display:none"></div>
+    </div>
+
+    <div class="modal-overlay" id="bandQuotasOverlay" style="display:none">
+      <div class="modal-box">
+        <h3 style="margin-top:0">Band Quotas</h3>
+        <p class="dataio-hint" style="margin:0 0 12px 0;">Only teachers listed here can ever be auto-matched to a band — matches the BAND_QUOTAS sheet, which only lists teachers who actually take bands, not the full staff.</p>
+        <div class="table-wrap" style="max-height:400px">
+          <table class="data" id="bandQuotasTable"></table>
+        </div>
+        <div class="row" style="margin-top:12px;">
+          <select id="bandQuotasAddSelect" style="flex:1;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--surface-solid);font-family:var(--serif);"></select>
+          <button class="btn secondary small" id="bandQuotasAddBtn">+ Add</button>
+        </div>
+        <div class="row" style="margin-top:14px;justify-content:space-between;">
+          <span class="dataio-hint">Total: <b id="bandQuotasTotal">0</b></span>
+          <button class="btn" id="bandQuotasCloseBtn">Done</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="bandsResultsPanel" style="display:none">
+      <h2>Bands</h2>
+      <div id="bandsGrid" class="bands-grid"></div>
+    </div>
+
+    <div class="panel" id="bandsExcludedPanel" style="display:none">
+      <h2>Not assigned (no class type)</h2>
+      <button type="button" class="hint-toggle"><span class="hint-toggle-icon">ⓘ</span> About this section <span class="hint-toggle-arrow">▸</span></button><p class="hint hint-collapsed">No CLASS assigned in Students — no grade to match, so left out of every band on purpose.</p>
+      <ul class="unresolved-list" id="bandsExcludedList"></ul>
+    </div>
+  </section>
+
+</main>
+
+</div>
+
+<script id="seed-data" type="application/json"></script>
+
+<script>
+(async () => {
+  const response = await fetch('./public/seed-data.json');
+  if (!response.ok) throw new Error(`Failed to load seed data: ${response.status}`);
+  document.getElementById('seed-data').textContent = await response.text();
+
+  const app = document.createElement('script');
+  app.src = './src/app.js';
+  app.defer = false;
+  document.body.appendChild(app);
+})();
+</script>
+
+</body>
+</html>
