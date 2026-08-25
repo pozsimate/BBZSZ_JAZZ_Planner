@@ -47,10 +47,17 @@ function breakSettings(db, teacherId){
   };
 }
 
+function bandByLessonId(bands, lessonId){
+  if(!bands || !lessonId) return null;
+  const found = bands.find(b => b.id === lessonId);
+  if(found) return found;
+  if(bands.some(b => b.id)) return null;
+  const idx = parseInt(String(lessonId).replace(/^BAND/i, ''), 10) - 1;
+  return idx >= 0 ? bands[idx] || null : null;
+}
 function membersOf(db, bands, lessonId){
   if(String(lessonId).startsWith('BAND')){
-    const idx = parseInt(String(lessonId).slice(4), 10) - 1;
-    const band = bands && bands[idx];
+    const band = bandByLessonId(bands, lessonId);
     if(!band) return [];
     return BAND_TYPES.flatMap(t => band[t] || []);
   }
@@ -61,8 +68,8 @@ function membersOf(db, bands, lessonId){
 
 function sourceOf(db, bands, lessonId){
   if(String(lessonId).startsWith('BAND')){
-    const idx = parseInt(String(lessonId).slice(4), 10) - 1;
-    return bands && bands[idx] ? {kind:'band', id:lessonId, src:bands[idx]} : null;
+    const band = bandByLessonId(bands, lessonId);
+    return band ? {kind:'band', id:lessonId, src:band} : null;
   }
   const lesson = (db.lessons || []).find(l => l.id === lessonId);
   return lesson ? {kind:'lesson', id:lessonId, src:lesson} : null;
@@ -111,7 +118,7 @@ export function checkSchedule(db, bands, result){
   bandList.forEach((b, i) => {
     const members = BAND_TYPES.flatMap(t => b[t] || []);
     if(members.length === 0) return;
-    const id = 'BAND' + (i+1);
+    const id = b.id || ('BAND' + (i+1));
     const placed = scheduled.some(p => p.lessonId === id);
     const failed = unresolved.some(u => u.lesson && u.lesson.id === id);
     if(!placed && !failed) errors.push(`${id} has members but is missing from scheduled and unresolved`);

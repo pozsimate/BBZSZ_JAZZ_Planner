@@ -1,0 +1,64 @@
+{
+  "refTeachers": [
+    {"ID": "TEAC1", "NAME": "Csuhaj"}
+  ],
+  "refClasses": [
+    {"CLASS_ID": "CL1", "CLASS": "9a", "JCLASS_TYPE": "9"}
+  ],
+  "refGroups": [
+    {"GROUP_ID": "GR1", "TYPE": "IMPR", "NAME": "impr9"}
+  ],
+  "refInstruments": [
+    {"INSTR_ID": "INST6", "TYPE": "acc", "INSTR": "piano"}
+  ],
+  "students": [
+    {
+      "ID": "S1",
+      "NAME1": "Ann",
+      "NAME2": "A",
+      "NAME3": "",
+      "INSTR": "piano",
+      "CLASS": "9a",
+      "IMPR": "impr9"
+    }
+  ],
+  "lessons": [
+    {
+      "LESSON_ID": "L1",
+      "LESSON_NAME": "Improv 9",
+      "GROUP": "impr9",
+      "TEACHER": "Csuhaj",
+      "DURATION_MIN": "45",
+      "ROOM_321": "TRUE",
+      "FIXED_DAY": "Hétfő",
+      "FIXED_START": "14:00",
+      "FIXED_END": "15:00"
+    }
+  ],
+  "teacherAvail": [
+    {
+      "TEACHER": "Csuhaj",
+      "DAY": "Kedd",
+      "START": "8:00",
+      "END": "16:00",
+      "TYPE": "AVAILABLE"
+    }
+  ],
+  "classAvail": [
+    {
+      "CLASS": "9a",
+      "DAY": "Hétfő",
+      "START": "9:00",
+      "END": "13:00"
+    }
+  ],
+  "oneToOne": [
+    {
+      "STUDENT_ID": "S1",
+      "NAME1": "Ann",
+      "INSTR": "piano",
+      "Csuhaj": "1,5",
+      "NotATeacher": "2"
+    }
+  ]
+}

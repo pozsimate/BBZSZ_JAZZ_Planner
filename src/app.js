@@ -76,7 +76,12 @@ function renderTable(tableEl, rows, colDefs, onChange){
         TYPE_OPTIONS.forEach(t => { optHtml += `<option value="${t}" ${t===val?'selected':''}>${t}</option>`; });
         html += `<td style="${widthStyle}"><select data-field="${c.key}" data-idx="${i}">${optHtml}</select></td>`;
       } else if(c.type === 'readonly'){
-        html += `<td style="${widthStyle}"><input data-field="${c.key}" data-idx="${i}" value="${escapeAttr(val)}" disabled></td>`;
+        const shown = typeof c.value === 'function' ? c.value(row) : val;
+        if(c.plain){
+          html += `<td style="${widthStyle}white-space:nowrap">${escapeAttr(shown)}</td>`;
+        } else {
+          html += `<td style="${widthStyle}"><input data-field="${c.key}" data-idx="${i}" value="${escapeAttr(shown)}" disabled></td>`;
+        }
       } else if(c.type === 'checkbox'){
         html += `<td style="text-align:center;${widthStyle}"><input type="checkbox" data-field="${c.key}" data-idx="${i}" ${val ? 'checked' : ''}></td>`;
       } else {
@@ -93,6 +98,7 @@ function renderTable(tableEl, rows, colDefs, onChange){
     inp.addEventListener('input', e => {
       const idx = parseInt(e.target.dataset.idx,10);
       rows[idx][e.target.dataset.field] = e.target.value;
+      markWorkDirty();
     });
     // Fire the dependent-tab refresh on blur (not on every keystroke, to avoid
     // re-rendering other tabs while still mid-edit) — this is what makes an edit here
@@ -104,6 +110,8 @@ function renderTable(tableEl, rows, colDefs, onChange){
         if(endInp) endInp.value = rows[idx].fixedEnd;
       }
       if(onChange) onChange();
+      markWorkDirty();
+      updateFixedPinsBanner();
     });
   });
   tableEl.querySelectorAll('input[type=checkbox]').forEach(cb => {
@@ -111,6 +119,7 @@ function renderTable(tableEl, rows, colDefs, onChange){
       const idx = parseInt(e.target.dataset.idx,10);
       rows[idx][e.target.dataset.field] = e.target.checked;
       if(onChange) onChange();
+      markWorkDirty();
     });
   });
   tableEl.querySelectorAll('select').forEach(sel => {
@@ -125,6 +134,8 @@ function renderTable(tableEl, rows, colDefs, onChange){
         rows[idx][syncField] = found ? found.name : '';
       }
       if(onChange) onChange();
+      markWorkDirty();
+      updateFixedPinsBanner();
       render(); // re-render this table so the synced readonly field updates
     });
   });
@@ -134,6 +145,8 @@ function renderTable(tableEl, rows, colDefs, onChange){
     btn.addEventListener('click', e => {
       const idx = parseInt(e.target.dataset.del,10);
       rows.splice(idx,1);
+      markWorkDirty();
+      updateFixedPinsBanner();
       renderTable(tableEl, rows, colDefs, onChange);
     });
   });
@@ -176,6 +189,10 @@ const LESSON_COLDEFS = [
   {key:'fixedDay', label:'FIXED DAY', type:'daySelect'},
   {key:'fixedStart', label:'FIXED START', type:'text', width:'90px'},
   {key:'fixedEnd', label:'FIXED END', type:'text', width:'90px'},
+  {key:'scheduledDay', label:'SCHEDULED DAY', type:'readonly', width:'90px'},
+  {key:'scheduledStart', label:'SCHEDULED START', type:'readonly', width:'90px'},
+  {key:'scheduledEnd', label:'SCHEDULED END', type:'readonly', width:'90px'},
+  {key:'scheduledData', label:'SCHEDULED DATA', type:'readonly', plain:true, width:'220px', value: (row) => formatLessonScheduledData(row)},
 ];
 
 const AVAIL_COLDEFS = [
@@ -226,6 +243,7 @@ function renderStudents(){
 }
 function renderLessons(){
   renderTable(document.getElementById('lessonsTable'), DB.lessons, LESSON_COLDEFS);
+  updateFixedPinsBanner();
 }
 function renderAvail(){
   renderTable(document.getElementById('availTable'), DB.teacherAvail, AVAIL_COLDEFS);
@@ -269,6 +287,7 @@ function renderBreaksTable(){
     inp.addEventListener('input', e => {
       const idx = parseInt(e.target.dataset.idx, 10);
       DB.breaks[idx][e.target.dataset.field] = e.target.value;
+      markWorkDirty();
     });
   });
   el.querySelectorAll('[data-remove]').forEach(btn => {
@@ -276,6 +295,7 @@ function renderBreaksTable(){
       const idx = parseInt(e.target.dataset.remove, 10);
       DB.breaks.splice(idx, 1);
       renderBreaksTable();
+      markWorkDirty();
     });
   });
 
@@ -334,7 +354,7 @@ document.getElementById('exportStudentsBtn').addEventListener('click', () => {
 });
 document.getElementById('addLessonBtn').addEventListener('click', () => {
   const n = DB.lessons.length + 1;
-  DB.lessons.push({id:'LES'+n,name:'',group:'',groupId:'',teacher:'',teacherId:'',duration:90,room321:false,fixedDay:'',fixedStart:'',fixedEnd:''});
+  DB.lessons.push({id:'LES'+n,name:'',group:'',groupId:'',teacher:'',teacherId:'',duration:90,room321:false,fixedDay:'',fixedStart:'',fixedEnd:'',scheduledDay:'',scheduledStart:'',scheduledEnd:''});
   renderLessons();
 });
 document.getElementById('addAvailBtn').addEventListener('click', () => {
@@ -361,10 +381,22 @@ document.getElementById('addRefInstr').addEventListener('click', () => {
 // ---------- Tabs ----------
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
+    if(btn.dataset.tab === 'oneone' && !hasAcceptedRecord()){
+      alert('Accept a timetable first. 1/1 packs individual lessons into the holes of that week.');
+      return;
+    }
+    if(btn.dataset.tab === 'rjpiano' && !hasAcceptedOneOne()){
+      alert('Accept 1/1 first. Required Jazz Piano packs piano hours into the leftover holes of that week.');
+      return;
+    }
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
     document.querySelectorAll('.tab-panel').forEach(p=>p.style.display='none');
-    document.getElementById('tab-'+btn.dataset.tab).style.display='block';
+    const panel = document.getElementById('tab-'+btn.dataset.tab);
+    if(panel) panel.style.display='block';
+    if(btn.dataset.tab === 'timetable' && LAST_RESULT) renderGrid();
+    if(btn.dataset.tab === 'oneone') renderOneOneTab();
+    if(btn.dataset.tab === 'rjpiano') renderRjPianoTab();
   });
 });
 
@@ -390,15 +422,59 @@ function lessonStudents(l){
 // as a fixed override and the band is scheduled the normal teacher-first way instead.
 // Recomputed fresh every time the timetable is generated, so edits on the Bands tab are
 // always picked up. Bands with no members are skipped.
+function bandIdSeq(id){
+  const m = /^BAND(\d+)$/i.exec(String(id || ''));
+  return m ? parseInt(m[1], 10) : 0;
+}
+function bandShortLabel(band){
+  const n = bandIdSeq(band && band.id);
+  return n ? ('Band ' + n) : 'Band';
+}
+function bandDisplayName(band){
+  return bandShortLabel(band) + ' rehearsal';
+}
+function emptyBandRecord(id){
+  return {
+    id: id || '',
+    bass:[], drum:[], acc:[], sol:[],
+    teacherId:'', room321:true, duration:90,
+    fixedDay:'', fixedStart:'', fixedEnd:'',
+    scheduledDay:'', scheduledStart:'', scheduledEnd:'',
+    scheduledTeacherId:'', scheduledTeacher:''
+  };
+}
+function ensureBandIdentities(state){
+  if(!state) return state;
+  state.bands = state.bands || [];
+  let maxN = 0;
+  state.bands.forEach((b, i) => {
+    if(!b.id) b.id = 'BAND' + (i + 1);
+    maxN = Math.max(maxN, bandIdSeq(b.id));
+  });
+  const stored = parseInt(state.nextBandSeq, 10) || 0;
+  state.nextBandSeq = Math.max(maxN + 1, stored, 1);
+  return state;
+}
+function mintBandId(state){
+  ensureBandIdentities(state);
+  const id = 'BAND' + state.nextBandSeq;
+  state.nextBandSeq += 1;
+  return id;
+}
+function findBandById(lessonId){
+  if(!LAST_BANDS || !LAST_BANDS.bands) return null;
+  return LAST_BANDS.bands.find(b => b.id === lessonId) || null;
+}
 function getBandLessons(){
   if(!LAST_BANDS || !LAST_BANDS.bands) return [];
+  ensureBandIdentities(LAST_BANDS);
   const out = [];
-  LAST_BANDS.bands.forEach((band, i) => {
+  LAST_BANDS.bands.forEach(band => {
     const memberIds = BAND_TYPES.flatMap(t => band[t].map(s => s.ID));
     if(memberIds.length === 0) return;
     out.push({
-      id: 'BAND' + (i+1),
-      name: 'Band ' + (i+1) + ' rehearsal',
+      id: band.id,
+      name: bandDisplayName(band),
       group: 'BAND', groupId: '',
       teacherId: band.teacherId || '', teacher: band.teacherId ? teacherName(band.teacherId) : '',
       duration: parseInt(band.duration,10) || 90,
@@ -458,6 +534,53 @@ function classWindow(classId, day){
   if(gaps.length === 0) return null; // reserved the entire day: no free window
   gaps.sort((a,b) => (b[1]-b[0]) - (a[1]-a[0])); // largest free gap wins
   return gaps[0];
+}
+
+function classFreeGaps(classId, day){
+  if(!classId) return [[DEFAULT_START, DEFAULT_END]];
+  const reserved = DB.classAvail
+    .filter(r => r.classId === classId && r.day === day && (r.start || r.end))
+    .map(r => [toMin(r.start) ?? DEFAULT_START, toMin(r.end) ?? DEFAULT_END])
+    .sort((a,b) => a[0]-b[0]);
+  const merged = [];
+  reserved.forEach(iv => {
+    const last = merged[merged.length-1];
+    if(last && iv[0] <= last[1]) last[1] = Math.max(last[1], iv[1]);
+    else merged.push(iv.slice());
+  });
+  let cursor = DEFAULT_START;
+  const gaps = [];
+  merged.forEach(iv => {
+    if(iv[0] > cursor) gaps.push([cursor, iv[0]]);
+    cursor = Math.max(cursor, iv[1]);
+  });
+  if(cursor < DEFAULT_END) gaps.push([cursor, DEFAULT_END]);
+  return gaps.filter(g => g[1] > g[0]);
+}
+
+function intersectIntervals(a, b){
+  const out = [];
+  (a || []).forEach(([as,ae]) => {
+    (b || []).forEach(([bs,be]) => {
+      const s = Math.max(as, bs), e = Math.min(ae, be);
+      if(e > s) out.push([s, e]);
+    });
+  });
+  return out;
+}
+function subtractBusyFromIntervals(intervals, busy){
+  const cuts = (busy || []).slice().sort((x,y) => x.start - y.start);
+  let cur = (intervals || []).map(iv => iv.slice());
+  cuts.forEach(b => {
+    const next = [];
+    cur.forEach(([s,e]) => {
+      if(b.end <= s || b.start >= e){ next.push([s,e]); return; }
+      if(b.start > s) next.push([s, Math.min(b.start, e)]);
+      if(b.end < e) next.push([Math.max(b.end, s), e]);
+    });
+    cur = next.filter(([s,e]) => e > s);
+  });
+  return cur;
 }
 
 // A teacher's allowed break: `minutes` is the unit, `count` is how many units they
@@ -953,7 +1076,7 @@ function showLogForSelected(){
   const logBtn = document.getElementById('searchLogBtn');
   if(logBtn) logBtn.disabled = LAST_SEARCH_LOG.length === 0;
   const overlay = document.getElementById('searchLogOverlay');
-  if(overlay && overlay.style.display === 'flex') renderSearchLogBody();
+  if(overlayIsOpen(overlay)) renderSearchLogBody();
 }
 
 function resultLogLine(result){
@@ -1566,6 +1689,7 @@ function runScheduler(randomize){
 
 // ---------- Rendering results ----------
 let LAST_RESULT = null;
+let LAST_AUDIT = null; // latest constraint-check of LAST_RESULT.scheduled (rebuilt after generate / every drag)
 let LAST_VARIANTS = []; // every distinct valid full-schedule solution found so far, best first
 let LAST_FINGERPRINT = null; // detects whether the source data changed since the last Generate click
 
@@ -1577,12 +1701,19 @@ let LAST_FINGERPRINT = null; // detects whether the source data changed since th
 // accumulated variants are correctly discarded and the search starts clean.
 function computeScheduleFingerprint(){
   const bandsSummary = (LAST_BANDS && LAST_BANDS.bands) ? LAST_BANDS.bands.map(b => ({
+    id: b.id||'',
     bass: b.bass.map(s=>s.ID), drum: b.drum.map(s=>s.ID), acc: b.acc.map(s=>s.ID), sol: b.sol.map(s=>s.ID),
     teacherId: b.teacherId||'', room321: !!b.room321, duration: b.duration||90,
     fixedDay: b.fixedDay||'', fixedStart: b.fixedStart||'', fixedEnd: b.fixedEnd||''
   })) : null;
+  const lessonsSummary = (DB.lessons || []).map(l => ({
+    id: l.id, name: l.name, group: l.group, groupId: l.groupId,
+    teacher: l.teacher, teacherId: l.teacherId, duration: l.duration,
+    room321: !!l.room321,
+    fixedDay: l.fixedDay||'', fixedStart: l.fixedStart||'', fixedEnd: l.fixedEnd||''
+  }));
   return JSON.stringify({
-    students: DB.students, lessons: DB.lessons, teacherAvail: DB.teacherAvail, classAvail: DB.classAvail,
+    students: DB.students, lessons: lessonsSummary, teacherAvail: DB.teacherAvail, classAvail: DB.classAvail,
     refTeachers: DB.refTeachers, refClasses: DB.refClasses, refGroups: DB.refGroups, refInstruments: DB.refInstruments,
     bandQuotas: DB.bandQuotas, breaks: DB.breaks,
     bands: bandsSummary
@@ -1750,10 +1881,125 @@ function runSchedulerSearchAll(){
   return variants;
 }
 
-document.getElementById('generateBtn').addEventListener('click', () => {
+function discardVariantDragEdits(){
+  const list = LAST_VARIANTS && LAST_VARIANTS.length ? LAST_VARIANTS : (LAST_RESULT ? [LAST_RESULT] : []);
+  list.forEach(v => {
+    if(!v) return;
+    if(v.dragBaseline) applyLessonSlots(v.scheduled, v.dragBaseline);
+    v.dragUndo = [];
+    v.dragBaseline = null;
+  });
+}
+function hasAcceptedRecord(){
+  return !!(DB.acceptedTimetable
+    || (DB.acceptedSchedule && DB.acceptedSchedule.length)
+    || (DB.lessons || []).some(l => l.scheduledDay)
+    || (LAST_BANDS && LAST_BANDS.bands && LAST_BANDS.bands.some(b => b.scheduledDay)));
+}
+function hasUnacceptedDrags(){
+  const v = LAST_RESULT;
+  if(!v) return false;
+  if(v.dragUndo && v.dragUndo.length) return true;
+  if(v.dragBaseline && !lessonSlotsMatch(v.scheduled, v.dragBaseline)) return true;
+  return false;
+}
+let PENDING_GENERATE = 'timetable';
+const GENERATE_CONFIRM_BODY = {
+  timetable: 'Generate can search again and leave the frozen roster in place, or clear it (and the SCHEDULED columns) so the next search starts unconstrained. Generate still only reads FIXED times and band Teacher override.',
+  bands: 'New bands replace the current roster and clear the generated timetable grid. You can leave the frozen accepted roster in place, or clear it (and the SCHEDULED columns) so the next search starts unconstrained. Generate still only reads FIXED times and band Teacher override.'
+};
+const GENERATE_CONFIRM_EXTRA = {
+  timetable: 'The current grid also has dragged times that were not accepted — a new search replaces the grid.',
+  bands: 'The current generated timetable is cleared either way — new bands change who is in each rehearsal.'
+};
+function overlayIsOpen(el){
+  return !!(el && (el.classList.contains('is-open') || el.style.display === 'flex'));
+}
+function setModalOverlay(id, open){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.classList.toggle('is-open', !!open);
+  el.style.display = open ? 'flex' : 'none';
+  el.setAttribute('aria-hidden', open ? 'false' : 'true');
+  if(open && document.body) document.body.appendChild(el);
+}
+function hideGenerateConfirm(){
+  setModalOverlay('generateConfirmOverlay', false);
+}
+function isGenerateConfirmOpen(){
+  return overlayIsOpen(document.getElementById('generateConfirmOverlay'));
+}
+function showGenerateConfirm(kind){
+  abortCalendarInteraction();
+  setModalOverlay('searchLogOverlay', false);
+  setModalOverlay('bandQuotasOverlay', false);
+  PENDING_GENERATE = kind === 'bands' ? 'bands' : 'timetable';
+  const extra = document.getElementById('generateConfirmExtra');
+  const body = document.getElementById('generateConfirmBody');
+  if(body) body.textContent = GENERATE_CONFIRM_BODY[PENDING_GENERATE];
+  if(extra){
+    extra.textContent = GENERATE_CONFIRM_EXTRA[PENDING_GENERATE];
+    extra.style.display = PENDING_GENERATE === 'bands' || hasUnacceptedDrags() ? 'block' : 'none';
+  }
+  setModalOverlay('generateConfirmOverlay', true);
+}
+function queuePendingGenerate(clearAccepted){
+  if(PENDING_GENERATE === 'bands') queueGenerateBands(clearAccepted);
+  else queueGenerateTimetable(clearAccepted);
+}
+function setGenerateBusy(busy){
+  const btn = document.getElementById('generateBtn');
+  if(!btn) return;
+  btn.disabled = !!busy;
+  btn.textContent = busy ? 'Generating…' : '▶ Generate group lessons';
+}
+function setBandsBusy(busy){
+  const btn = document.getElementById('generateBandsBtn');
+  if(!btn) return;
+  btn.disabled = !!busy;
+  btn.textContent = busy ? 'Generating…' : '▶ Generate bands';
+}
+function clearGeneratedTimetableGrid(){
+  LAST_RESULT = null;
+  LAST_VARIANTS = [];
+  LAST_FINGERPRINT = null;
+  LAST_SEARCH_LOG = [];
+  LAST_SEARCH_OVERVIEW = [];
+  LAST_AUDIT = null;
+  SearchLog.lines = [];
+  const resultsPanel = document.getElementById('resultsPanel');
+  const unresolvedPanel = document.getElementById('unresolvedPanel');
+  const statsRow = document.getElementById('statsRow');
+  const variantRow = document.getElementById('variantRow');
+  if(resultsPanel) resultsPanel.style.display = 'none';
+  if(unresolvedPanel) unresolvedPanel.style.display = 'none';
+  if(statsRow) statsRow.style.display = 'none';
+  if(variantRow) variantRow.style.display = 'none';
+  const searchLogBtn = document.getElementById('searchLogBtn');
+  if(searchLogBtn) searchLogBtn.disabled = true;
+  updateTimetableAcceptBtn();
+}
+function queueGenerateTimetable(clearAccepted){
+  hideGenerateConfirm();
+  setGenerateBusy(true);
+  setTimeout(() => {
+    try {
+      runGenerateTimetable(clearAccepted);
+    } finally {
+      setGenerateBusy(false);
+    }
+  }, 0);
+}
+function runGenerateTimetable(clearAccepted){
+  hideGenerateConfirm();
+  discardVariantDragEdits();
+  const hadScheduled = hasAcceptedRecord();
+  if(clearAccepted && hadScheduled) clearAcceptedScheduledRecord();
   SearchLog.reset();
   const fp = computeScheduleFingerprint();
-  SearchLog.section('Generate timetable');
+  SearchLog.section('Generate group lessons');
+  if(clearAccepted && hadScheduled) SearchLog.info('SCHEDULED columns from the last Accept were cleared — this search starts unconstrained');
+  else if(hadScheduled) SearchLog.info('Accepted schedule kept — this search does not read SCHEDULED columns');
   if(fp !== LAST_FINGERPRINT){
     SearchLog.info('Inputs changed (or first run) — previous solution pool cleared, search starts clean');
     LAST_VARIANTS = [];
@@ -1769,7 +2015,13 @@ document.getElementById('generateBtn').addEventListener('click', () => {
     const sa = resultScore(a), sb = resultScore(b);
     return sa[0] !== sb[0] ? sa[0]-sb[0] : sa[1]-sb[1];
   }).slice(0, 30); // cap so this can't grow unbounded across many clicks
+  LAST_VARIANTS.forEach(v => { if(v) v.accepted = false; });
   LAST_RESULT = LAST_VARIANTS[0];
+  if(LAST_RESULT){
+    LAST_RESULT.accepted = false;
+    LAST_RESULT.dragUndo = [];
+    LAST_RESULT.dragBaseline = null;
+  }
   if(LAST_VARIANTS.length > freshVariants.length){
     SearchLog.info(`Pool now has ${LAST_VARIANTS.length} distinct layouts (including ones from earlier clicks)`);
   }
@@ -1777,6 +2029,32 @@ document.getElementById('generateBtn').addEventListener('click', () => {
   showLogForSelected();
   populateVariantSelector();
   renderResults(LAST_RESULT);
+  markWorkDirty();
+}
+function requestGenerateTimetable(){
+  abortCalendarInteraction();
+  if(hasAcceptedRecord()){
+    showGenerateConfirm('timetable');
+    return;
+  }
+  if(hasUnacceptedDrags()){
+    if(!confirm('This layout has dragged lessons that were not Accepted. Generate will replace the grid. Continue?')) return;
+  }
+  queueGenerateTimetable(false);
+}
+document.getElementById('generateBtn').addEventListener('click', requestGenerateTimetable);
+document.getElementById('generateCancelBtn').addEventListener('click', hideGenerateConfirm);
+document.getElementById('generateKeepAcceptedBtn').addEventListener('click', () => queuePendingGenerate(false));
+document.getElementById('generateClearAcceptedBtn').addEventListener('click', () => queuePendingGenerate(true));
+document.getElementById('generateConfirmOverlay').addEventListener('click', (e) => {
+  if(e.target.id === 'generateConfirmOverlay') hideGenerateConfirm();
+});
+document.addEventListener('keydown', (e) => {
+  if(e.key !== 'Escape') return;
+  if(CAL_DRAG) return;
+  if(!isGenerateConfirmOpen()) return;
+  e.preventDefault();
+  hideGenerateConfirm();
 });
 
 function populateVariantSelector(){
@@ -1824,13 +2102,13 @@ function renderSearchLogBody(){
 }
 document.getElementById('searchLogBtn').addEventListener('click', () => {
   renderSearchLogBody();
-  document.getElementById('searchLogOverlay').style.display = 'flex';
+  setModalOverlay('searchLogOverlay', true);
 });
 document.getElementById('searchLogCloseBtn').addEventListener('click', () => {
-  document.getElementById('searchLogOverlay').style.display = 'none';
+  setModalOverlay('searchLogOverlay', false);
 });
 document.getElementById('searchLogOverlay').addEventListener('click', (e) => {
-  if(e.target.id === 'searchLogOverlay') document.getElementById('searchLogOverlay').style.display = 'none';
+  if(e.target.id === 'searchLogOverlay') setModalOverlay('searchLogOverlay', false);
 });
 
 document.getElementById('variantSelect').addEventListener('change', (e) => {
@@ -1842,6 +2120,7 @@ document.getElementById('variantSelect').addEventListener('change', (e) => {
 
 function renderResults(result){
   const {scheduled, unresolved} = result;
+  ensureDragBaseline(result);
   document.getElementById('resultsPanel').style.display = 'block';
   document.getElementById('unresolvedPanel').style.display = unresolved.length ? 'block' : 'none';
 
@@ -1876,7 +2155,7 @@ function renderResults(result){
   }).join('') || '<li>None — every lesson group was placed.</li>';
 
   const quotasOverlay = document.getElementById('bandQuotasOverlay');
-  if(quotasOverlay && quotasOverlay.style.display === 'flex') renderBandQuotasModal();
+  if(overlayIsOpen(quotasOverlay)) renderBandQuotasModal();
 }
 
 document.getElementById('viewMode').addEventListener('change', renderGrid);
@@ -1887,6 +2166,8 @@ document.querySelector('#viewMode').addEventListener('change', (e)=>{
 
 function renderGrid(){
   if(!LAST_RESULT) return;
+  abortCalendarInteraction();
+  LAST_AUDIT = auditTimetable(timetableAuditItems(LAST_RESULT.scheduled));
   const mode = document.getElementById('viewMode').value;
   const grid = document.getElementById('ttGrid');
   const legend = document.getElementById('ttLegend');
@@ -1899,13 +2180,19 @@ function renderGrid(){
     renderCalendar(grid, items, false);
   } else if(mode === 'all'){
     legend.style.display = 'flex';
-    renderTeacherLegend(legend, items);
+    renderTeacherLegend(legend, LAST_RESULT.scheduled);
     renderCalendar(grid, items, true);
   } else {
     legend.style.display = 'none';
     renderChronoList(grid, items);
   }
+  const dragHint = document.getElementById('ttDragHint');
+  if(dragHint) dragHint.style.display = mode === 'group' ? 'none' : 'block';
   attachHoverTooltips(grid);
+  attachCalendarDrag(grid);
+  renderAuditPanel();
+  updateDragEditButtons();
+  updateTimetableAcceptBtn();
 }
 
 // A single floating tooltip element, positioned with the mouse via JS (position:fixed),
@@ -1934,6 +2221,7 @@ function attachHoverTooltips(container){
   }
   container.querySelectorAll('[data-tooltip]').forEach(el => {
     el.addEventListener('mouseenter', e => {
+      if(CAL_DRAG) return;
       tip.textContent = el.dataset.tooltip;
       tip.style.display = 'block';
       place(e);
@@ -2005,7 +2293,7 @@ function layoutColumns(dayItems){
 
 const CAL_DAY_START = 8*60, CAL_DAY_END = 20*60, CAL_PX_PER_MIN = 1.15;
 
-function renderCalendar(container, items, colorByTeacher){
+function renderCalendar(container, items, colorByTeacher, dragSource){
   const totalHeight = (CAL_DAY_END - CAL_DAY_START) * CAL_PX_PER_MIN;
 
   let ticksHtml = '<div class="cal-headerpad"></div>';
@@ -2023,15 +2311,21 @@ function renderCalendar(container, items, colorByTeacher){
       const height = Math.max((i.end - i.start) * CAL_PX_PER_MIN - 2, 14);
       const widthPct = 100 / i._totalCols;
       const leftPct = i._col * widthPct;
-      const style = colorByTeacher ? (() => {
+      const style = (colorByTeacher && !i.source) ? (() => {
         const c = colorForTeacher(i.teacherId);
         return `background:${c.bg};border-left-color:${c.border};`;
       })() : '';
-      const teacherLine = colorByTeacher ? `<span class="meta">${i.teacher||i.teacherId}</span>` : '';
+      const teacherLine = (colorByTeacher && !i.source) ? `<span class="meta">${i.teacher||i.teacherId}</span>` : '';
       const roomTag = i.room321 ? ' 🔒321' : '';
       const studentTitle = escapeAttr((i.studentNames && i.studentNames.length) ? `${i.name} — ${i.studentNames.length} students:\n${i.studentNames.join('\n')}` : i.name);
-      blocksHtml += `<div class="cal-block" data-tooltip="${studentTitle}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);width:calc(${widthPct}% - 4px);${style}">
-        <b>${i.name}${roomTag}</b>${teacherLine}<span class="meta">${toHHMM(i.start)}–${toHHMM(i.end)} · ${i.studentCount} students</span>
+      const sourceCls = i.source === 'accepted' ? ' is-accepted-bg'
+        : (i.source === 'oneone' ? ' is-oneone'
+        : (i.source === 'rjpiano' ? ' is-rjpiano' : ''));
+      const canDrag = dragSource ? i.source === dragSource : !i.source;
+      const conflictCls = itemHasConflict(i) ? ' has-conflict' : '';
+      const countLabel = i.studentCount === 1 ? '1 student' : `${i.studentCount} students`;
+      blocksHtml += `<div class="cal-block${conflictCls}${sourceCls}${canDrag ? ' is-draggable' : ''}" data-lesson-id="${escapeAttr(i.lessonId)}" data-source="${escapeAttr(i.source || '')}" data-draggable="${canDrag ? '1' : ''}" data-tooltip="${studentTitle}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);width:calc(${widthPct}% - 4px);${style}">
+        <b>${i.name}${roomTag}</b>${teacherLine}<span class="meta">${toHHMM(i.start)}–${toHHMM(i.end)} · ${countLabel}</span>
       </div>`;
     });
     daysHtml += `<div class="cal-day">
@@ -2053,7 +2347,7 @@ function renderChronoList(containerEl, items){
     html += `<tr>
       <td class="tt-time">${DAY_LABEL[i.day]}</td>
       <td class="tt-time">${toHHMM(i.start)}–${toHHMM(i.end)}</td>
-      <td><div class="lesson-block" data-tooltip="${studentTitle}"><b>${i.name}${i.room321 ? ' 🔒321' : ''}</b><span class="meta">${i.group} · ${i.lessonId}</span></div></td>
+      <td><div class="lesson-block${itemHasConflict(i) ? ' has-conflict' : ''}" data-tooltip="${studentTitle}"><b>${i.name}${i.room321 ? ' 🔒321' : ''}</b><span class="meta">${i.group} · ${i.lessonId}</span></div></td>
       <td>${i.teacher||i.teacherId}</td>
       <td>${i.studentCount}</td>
     </tr>`;
@@ -2062,13 +2356,554 @@ function renderChronoList(containerEl, items){
   containerEl.innerHTML = html;
 }
 
-document.getElementById('downloadBtn').addEventListener('click', () => {
-  if(!LAST_RESULT){ alert('Generate the timetable first.'); return; }
-  const rows = [toCsvRow(["LESSON_ID","NAME","GROUP","TEACHER","DAY","START","END","STUDENT_COUNT"])];
-  LAST_RESULT.scheduled.forEach(i => {
-    rows.push(toCsvRow([i.lessonId, i.name, i.group, i.teacher||i.teacherId, i.day, toHHMM(i.start), toHHMM(i.end), i.studentCount]));
+function lookupLessonForScheduled(item){
+  if(!item || !item.lessonId) return null;
+  if(String(item.lessonId).startsWith('BAND')){
+    return getBandLessons().find(l => l.id === item.lessonId) || null;
+  }
+  return DB.lessons.find(l => l.id === item.lessonId) || null;
+}
+function studentsForScheduledItem(item){
+  const l = lookupLessonForScheduled(item);
+  if(l) return lessonStudents(l);
+  if(item.groupId) return studentsInGroup(item.groupId);
+  const raw = item.studentIds || item.studentId || '';
+  const ids = String(raw).split(/[,;]+/).map(x => String(x).trim()).filter(Boolean);
+  if(!ids.length) return [];
+  return ids.map(id => (DB.students || []).find(s => s.ID === id)).filter(Boolean);
+}
+function frozenIndividualItems(){
+  const out = [];
+  if(typeof hasAcceptedOneOne === 'function' && hasAcceptedOneOne()){
+    out.push.apply(out, (LAST_ONEONE && LAST_ONEONE.scheduled) || []);
+  }
+  if(typeof hasAcceptedRjPiano === 'function' && hasAcceptedRjPiano()){
+    out.push.apply(out, (LAST_RJPIANO && LAST_RJPIANO.scheduled) || []);
+  }
+  return out.filter(i => i && i.day && i.start != null && i.end != null);
+}
+function generatedIndividualItems(){
+  return ((LAST_ONEONE && LAST_ONEONE.scheduled) || [])
+    .concat((LAST_RJPIANO && LAST_RJPIANO.scheduled) || [])
+    .filter(i => i && i.day && i.start != null && i.end != null);
+}
+function acceptedGroupItems(){
+  return (DB.acceptedSchedule || []).filter(r => r.status === 'scheduled' && r.day && toMin(r.start) != null && toMin(r.end) != null).map(r => ({
+    lessonId: r.lessonId || ('ACC-' + r.name),
+    name: r.name || '',
+    teacherId: r.teacherId,
+    teacher: r.teacher,
+    day: r.day,
+    start: typeof r.start === 'number' ? r.start : toMin(r.start),
+    end: typeof r.end === 'number' ? r.end : toMin(r.end),
+    studentCount: r.studentCount,
+    studentNames: r.students ? String(r.students).split(/[,;]+/).map(x => x.trim()).filter(Boolean) : [],
+    studentIds: r.studentIds || '',
+    room321: !!r.room321,
+    source: 'accepted'
+  }));
+}
+function combinedWeekItems(){
+  return acceptedGroupItems().concat(generatedIndividualItems());
+}
+function timetableAuditItems(scheduled){
+  return (scheduled || []).concat(frozenIndividualItems());
+}
+function itemHasConflict(item){
+  return !!(LAST_AUDIT && item && item.lessonId && LAST_AUDIT.conflictIds.has(item.lessonId));
+}
+function overlapRangeLabel(a, b){
+  return `${DAY_LABEL[a.day]} ${toHHMM(Math.max(a.start, b.start))}–${toHHMM(Math.min(a.end, b.end))}`;
+}
+function itemSlotLabel(item){
+  return `${DAY_LABEL[item.day]} ${toHHMM(item.start)}–${toHHMM(item.end)}`;
+}
+
+// Re-checks every hard scheduler rule against the current placements. Moves are never
+// rejected — this only reports what's broken so the editor can show it under the grid.
+// Gap / break-budget problems are warnings (yellow, listed after red errors) and do
+// not paint the calendar blocks red.
+function auditTimetable(scheduled){
+  const entries = [];
+  const conflictIds = new Set();
+  function addEntry(level, html, lessonIds){
+    const ids = lessonIds.filter(Boolean);
+    if(level !== 'warning') ids.forEach(id => conflictIds.add(id));
+    entries.push({html, ids, level: level || 'error'});
+  }
+  function addIssue(html, ...lessonIds){ addEntry('error', html, lessonIds); }
+  function addWarning(html, ...lessonIds){ addEntry('warning', html, lessonIds); }
+  const list = Array.isArray(scheduled) ? scheduled : [];
+  const studentsOf = new Map();
+  list.forEach(item => { studentsOf.set(item, studentsForScheduledItem(item)); });
+
+  list.forEach(item => {
+    const isIndividual = item.source === 'oneone' || item.source === 'rjpiano';
+    if(!isIndividual && (item.start < DEFAULT_START || item.end > DEFAULT_END)){
+      addIssue(`<b>${item.name}</b> sits outside the 08:00–20:00 school day (${itemSlotLabel(item)})`, item.lessonId);
+    }
+    const tw = teacherWindowClash(item.teacherId, item.teacher, item.day, item.start, item.end);
+    if(tw) addIssue(`<b>${item.name}</b> ${itemSlotLabel(item)} — ${tw}`, item.lessonId);
+    const sr = studentReservationClash(studentsOf.get(item) || [], item.day, item.start, item.end);
+    if(sr) addIssue(`<b>${item.name}</b> ${itemSlotLabel(item)} — ${sr}`, item.lessonId);
   });
-  downloadFile('bartokkonzi_jazz_timetable.csv', rows.join('\r\n'));
+
+  for(let i=0;i<list.length;i++){
+    for(let j=i+1;j<list.length;j++){
+      const a = list[i], b = list[j];
+      if(a.day !== b.day || !intervalsOverlap(a.start, a.end, b.start, b.end)) continue;
+      const when = overlapRangeLabel(a, b);
+      if(a.teacherId && a.teacherId === b.teacherId){
+        const label = a.teacher || b.teacher || teacherName(a.teacherId) || a.teacherId;
+        addIssue(`<b>${a.name}</b> and <b>${b.name}</b> both need teacher ${label} at ${when}`, a.lessonId, b.lessonId);
+      }
+      if(a.room321 && b.room321){
+        addIssue(`<b>${a.name}</b> and <b>${b.name}</b> both need ROOM 321 at ${when}`, a.lessonId, b.lessonId);
+      }
+      const sa = studentsOf.get(a) || [];
+      const sbIds = new Set((studentsOf.get(b) || []).map(s => s.ID));
+      const shared = sa.filter(s => sbIds.has(s.ID));
+      if(shared.length){
+        const names = shared.map(studentDisplayName).join(', ');
+        const who = shared.length === 1 ? names : `${shared.length} students (${names})`;
+        addIssue(`<b>${a.name}</b> and <b>${b.name}</b> both include ${who} at ${when}`, a.lessonId, b.lessonId);
+      }
+    }
+  }
+
+  const byTeacher = {};
+  list.forEach(item => {
+    if(!item.teacherId) return;
+    (byTeacher[item.teacherId] = byTeacher[item.teacherId] || []).push(item);
+  });
+  Object.entries(byTeacher).forEach(([tid, items]) => {
+    const bs = teacherBreakSettings(tid);
+    const label = teacherName(tid) || tid;
+    let units = 0;
+    DAYS.forEach(day => {
+      const dayItems = items.filter(it => it.day === day).slice().sort((a,b)=> a.start-b.start || a.end-b.end);
+      for(let i=1;i<dayItems.length;i++){
+        const prev = dayItems[i-1], cur = dayItems[i];
+        const gap = cur.start - prev.end;
+        if(gap < 0) continue;
+        const extra = breakUnitsForGap(gap, bs.minutes);
+        if(gap > 0 && extra === null){
+          const allowed = (bs.minutes === 0 || bs.count === 0)
+            ? 'no gap (this teacher has no break budget)'
+            : `0 or a multiple of ${bs.minutes} min`;
+          addWarning(`Teacher ${label}: ${gap} min gap on ${DAY_LABEL[day]} between <b>${prev.name}</b> (${toHHMM(prev.end)}) and <b>${cur.name}</b> (${toHHMM(cur.start)}) — allowed gaps are ${allowed}`, prev.lessonId, cur.lessonId);
+        } else if(extra){
+          units += extra;
+        }
+      }
+    });
+    if(units > bs.count){
+      const budget = (bs.minutes === 0 || bs.count === 0)
+        ? '0 (no gaps allowed)'
+        : `${bs.minutes} min × ${bs.count}`;
+      const involved = items.map(it => it.lessonId);
+      addWarning(`Teacher ${label} used ${units} break unit(s) this week; budget is ${budget}`, ...involved);
+    }
+  });
+
+  entries.sort((a,b) => (a.level === 'warning' ? 1 : 0) - (b.level === 'warning' ? 1 : 0));
+  return {issues: entries.map(e => e.html), entries, conflictIds};
+}
+
+function renderAuditPanel(opts){
+  const prefix = (opts && opts.prefix) || 'tt';
+  const wrap = document.getElementById(prefix + 'AuditWrap');
+  const list = document.getElementById(prefix + 'AuditList');
+  const ok = document.getElementById(prefix + 'AuditOk');
+  const title = document.getElementById(prefix + 'AuditTitle');
+  const warnBox = document.getElementById(prefix + 'AuditWarnings');
+  const warnList = document.getElementById(prefix + 'AuditWarnList');
+  const warnLabel = warnBox && warnBox.querySelector
+    ? warnBox.querySelector('.tt-audit-warnings-label')
+    : null;
+  if(!wrap) return;
+  if(prefix === 'tt' && !LAST_RESULT){
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = 'block';
+  const allow = opts && opts.lessonIds ? new Set(opts.lessonIds) : null;
+  let entries = (LAST_AUDIT && LAST_AUDIT.entries) || [];
+  if(allow) entries = entries.filter(e => e.ids.some(id => allow.has(id)));
+  entries = entries.slice().sort((a,b) => (a.level === 'warning' ? 1 : 0) - (b.level === 'warning' ? 1 : 0));
+  const errors = entries.filter(e => e.level !== 'warning');
+  const warnings = entries.filter(e => e.level === 'warning');
+  if(title){
+    title.textContent = errors.length
+      ? `Constraint check — ${errors.length} issue${errors.length===1?'':'s'}`
+      : 'Constraint check';
+  }
+  if(!entries.length){
+    if(ok){
+      ok.style.display = 'block';
+      ok.textContent = prefix === 'tt'
+        ? 'No constraint issues. Drag any lesson to another day or time — the move always sticks, and this list will show whatever breaks, including clashes with frozen 1/1 and Required Jazz Piano. Gap problems sit under WARNINGS — hover to read them.'
+        : 'No constraint issues. Drag a lesson — the move always sticks. This list re-checks teacher windows, class reservations, double-bookings, ROOM 321, and break gaps against the accepted week plus 1/1 and Required Jazz Piano. Gap problems sit under WARNINGS — hover to read them.';
+    }
+    if(list){
+      list.innerHTML = '';
+      list.style.display = 'none';
+    }
+    if(warnBox) warnBox.hidden = true;
+    return;
+  }
+  if(ok) ok.style.display = 'none';
+  if(list){
+    if(errors.length){
+      list.style.display = 'block';
+      list.innerHTML = errors.map(e => `<li class="is-error">${e.html}</li>`).join('');
+    } else {
+      list.innerHTML = '';
+      list.style.display = 'none';
+    }
+  }
+  if(warnBox && warnList){
+    if(warnings.length){
+      warnBox.hidden = false;
+      if(warnLabel) warnLabel.textContent = `WARNINGS · ${warnings.length}`;
+      warnList.innerHTML = warnings.map(e =>
+        `<li class="is-warning"><span class="tt-audit-level">WARNING</span> ${e.html}</li>`
+      ).join('');
+    } else {
+      warnBox.hidden = true;
+      warnList.innerHTML = '';
+    }
+  }
+}
+
+function cloneLessonSlots(scheduled){
+  return (scheduled || []).map(i => ({lessonId: i.lessonId, day: i.day, start: i.start, end: i.end}));
+}
+function applyLessonSlots(scheduled, slots){
+  if(!scheduled || !slots) return;
+  const byId = {};
+  slots.forEach(s => { byId[s.lessonId] = s; });
+  scheduled.forEach(item => {
+    const s = byId[item.lessonId];
+    if(!s) return;
+    item.day = s.day;
+    item.start = s.start;
+    item.end = s.end;
+  });
+}
+function lessonSlotsMatch(scheduled, slots){
+  if(!scheduled || !slots || scheduled.length !== slots.length) return false;
+  const byId = {};
+  slots.forEach(s => { byId[s.lessonId] = s; });
+  return scheduled.every(item => {
+    const s = byId[item.lessonId];
+    return s && s.day === item.day && s.start === item.start && s.end === item.end;
+  });
+}
+function ensureDragBaseline(result){
+  if(!result) return;
+  if(!result.dragBaseline) result.dragBaseline = cloneLessonSlots(result.scheduled);
+  if(!Array.isArray(result.dragUndo)) result.dragUndo = [];
+}
+function updateTimetableAcceptBtn(){
+  const btn = document.getElementById('acceptScheduleBtn');
+  if(!btn) return;
+  const ready = !!(LAST_RESULT && (LAST_RESULT.scheduled || []).length);
+  const accepted = !!(ready && LAST_RESULT.accepted);
+  btn.disabled = !ready || accepted;
+  btn.textContent = accepted ? '✓ Schedule accepted' : '✓ Accept this schedule';
+}
+function markLayoutNeedsAccept(kind){
+  if(kind === 'oneone' && LAST_ONEONE){
+    LAST_ONEONE.accepted = false;
+    return;
+  }
+  if(kind === 'rjpiano' && LAST_RJPIANO){
+    LAST_RJPIANO.accepted = false;
+    return;
+  }
+  if(LAST_RESULT) LAST_RESULT.accepted = false;
+  updateTimetableAcceptBtn();
+}
+function updateDragEditButtons(){
+  const undoBtn = document.getElementById('ttUndoBtn');
+  const resetBtn = document.getElementById('ttResetBtn');
+  if(!undoBtn && !resetBtn) return;
+  const result = LAST_RESULT;
+  const canUndo = !!(result && result.dragUndo && result.dragUndo.length);
+  const canReset = !!(result && result.dragBaseline && !lessonSlotsMatch(result.scheduled, result.dragBaseline));
+  if(undoBtn) undoBtn.disabled = !canUndo;
+  if(resetBtn) resetBtn.disabled = !canReset;
+}
+function undoLastDrag(){
+  if(!LAST_RESULT || !LAST_RESULT.dragUndo || !LAST_RESULT.dragUndo.length) return;
+  const step = LAST_RESULT.dragUndo.pop();
+  const item = scheduledItemById(step.lessonId);
+  if(item && step.from){
+    item.day = step.from.day;
+    item.start = step.from.start;
+    item.end = step.from.end;
+  }
+  renderGrid();
+  markWorkDirty();
+}
+function undoIndividualDrag(kind){
+  const state = kind === 'rjpiano' ? LAST_RJPIANO : LAST_ONEONE;
+  if(!state || !state.dragUndo || !state.dragUndo.length) return;
+  const step = state.dragUndo.pop();
+  const item = (state.scheduled || []).find(it => String(it.lessonId) === String(step.lessonId));
+  if(item && step.from){
+    item.day = step.from.day;
+    item.start = step.from.start;
+    item.end = step.from.end;
+  }
+  if(kind === 'rjpiano') renderRjPianoTab();
+  else renderOneOneTab();
+  markWorkDirty();
+}
+function updateIndividualUndo(kind){
+  const btn = document.getElementById(kind === 'rjpiano' ? 'rjpianoUndoBtn' : 'oneoneUndoBtn');
+  if(!btn) return;
+  const state = kind === 'rjpiano' ? LAST_RJPIANO : LAST_ONEONE;
+  btn.disabled = !(state && state.dragUndo && state.dragUndo.length);
+}
+function resetVariantDrags(){
+  if(!LAST_RESULT || !LAST_RESULT.dragBaseline) return;
+  applyLessonSlots(LAST_RESULT.scheduled, LAST_RESULT.dragBaseline);
+  LAST_RESULT.dragUndo = [];
+  markLayoutNeedsAccept('timetable');
+  renderGrid();
+  markWorkDirty();
+}
+
+const CAL_SNAP_MIN = 5;
+let CAL_DRAG = null;
+
+function snapMinutes(mins){
+  return Math.round(mins / CAL_SNAP_MIN) * CAL_SNAP_MIN;
+}
+function clampLessonStart(start, duration){
+  const maxStart = CAL_DAY_END - duration;
+  return Math.max(CAL_DAY_START, Math.min(start, maxStart));
+}
+function scheduledItemById(lessonId){
+  const lists = [
+    LAST_RESULT && LAST_RESULT.scheduled,
+    LAST_ONEONE && LAST_ONEONE.scheduled,
+    LAST_RJPIANO && LAST_RJPIANO.scheduled
+  ];
+  for(let i=0;i<lists.length;i++){
+    const list = lists[i];
+    if(!list) continue;
+    const hit = list.find(it => String(it.lessonId) === String(lessonId));
+    if(hit) return hit;
+  }
+  return null;
+}
+function hitCalendarDay(clientX, clientY, dayBodies){
+  for(let i=0;i<dayBodies.length;i++){
+    const rect = dayBodies[i].getBoundingClientRect();
+    if(clientX >= rect.left && clientX < rect.right){
+      return {dayIndex:i, day: DAYS[i], body: dayBodies[i], rect};
+    }
+  }
+  return null;
+}
+function startFromPointerY(clientY, bodyRect, duration, grabOffsetMin){
+  const y = clientY - bodyRect.top;
+  const raw = CAL_DAY_START + y / CAL_PX_PER_MIN - (grabOffsetMin || 0);
+  return clampLessonStart(snapMinutes(raw), duration);
+}
+function clearDropPreview(container){
+  if(!container) return;
+  container.querySelectorAll('.cal-drop-preview').forEach(el => el.remove());
+}
+function showDropPreview(dayBody, start, duration){
+  let el = dayBody.querySelector('.cal-drop-preview');
+  if(!el){
+    el = document.createElement('div');
+    el.className = 'cal-drop-preview';
+    dayBody.appendChild(el);
+  }
+  const top = (start - CAL_DAY_START) * CAL_PX_PER_MIN;
+  const height = Math.max(duration * CAL_PX_PER_MIN - 2, 14);
+  el.style.top = top + 'px';
+  el.style.height = height + 'px';
+}
+function abortCalendarInteraction(){
+  if(CAL_DRAG) endCalendarDrag(false);
+  else {
+    document.body.classList.remove('cal-drag-active');
+    window.removeEventListener('pointermove', onCalendarPointerMove);
+    window.removeEventListener('pointerup', onCalendarPointerUp);
+    window.removeEventListener('pointercancel', onCalendarPointerUp);
+    window.removeEventListener('keydown', onCalendarDragKey);
+  }
+  const tip = document.getElementById('hoverTooltip');
+  if(tip) tip.style.display = 'none';
+}
+function endCalendarDrag(apply){
+  if(!CAL_DRAG) return;
+  const drag = CAL_DRAG;
+  CAL_DRAG = null;
+  document.body.classList.remove('cal-drag-active');
+  window.removeEventListener('pointermove', onCalendarPointerMove);
+  window.removeEventListener('pointerup', onCalendarPointerUp);
+  window.removeEventListener('pointercancel', onCalendarPointerUp);
+  window.removeEventListener('keydown', onCalendarDragKey);
+  if(drag.block && drag.block.releasePointerCapture){
+    try{ drag.block.releasePointerCapture(drag.pointerId); }catch(e){}
+  }
+  if(drag.block) drag.block.classList.remove('is-dragging');
+  clearDropPreview(drag.container);
+  if(!apply || !drag.active || !drag.hover) return;
+  const item = scheduledItemById(drag.lessonId);
+  if(!item) return;
+  const duration = Math.max(CAL_SNAP_MIN, item.end - item.start);
+  const start = drag.hover.start;
+  const end = start + duration;
+  if(item.day === drag.hover.day && item.start === start && item.end === end) return;
+  const kind = drag.kind || 'timetable';
+  if(kind === 'oneone' || kind === 'rjpiano'){
+    const state = kind === 'oneone' ? LAST_ONEONE : LAST_RJPIANO;
+    if(!state) return;
+    ensureDragBaseline(state);
+    state.dragUndo.push({
+      lessonId: item.lessonId,
+      from: {day: item.day, start: item.start, end: item.end},
+      to: {day: drag.hover.day, start, end}
+    });
+    item.day = drag.hover.day;
+    item.start = start;
+    item.end = end;
+    markLayoutNeedsAccept(kind);
+    markWorkDirty();
+    if(kind === 'oneone') renderOneOneTab();
+    else renderRjPianoTab();
+    return;
+  }
+  if(!LAST_RESULT) return;
+  ensureDragBaseline(LAST_RESULT);
+  LAST_RESULT.dragUndo.push({
+    lessonId: item.lessonId,
+    from: {day: item.day, start: item.start, end: item.end},
+    to: {day: drag.hover.day, start, end}
+  });
+  item.day = drag.hover.day;
+  item.start = start;
+  item.end = end;
+  markLayoutNeedsAccept('timetable');
+  markWorkDirty();
+  renderGrid();
+}
+function onCalendarPointerMove(e){
+  if(!CAL_DRAG) return;
+  const drag = CAL_DRAG;
+  const dx = e.clientX - drag.originX, dy = e.clientY - drag.originY;
+  if(!drag.active && (dx*dx + dy*dy) < 36) return;
+  if(!drag.active){
+    drag.active = true;
+    document.body.classList.add('cal-drag-active');
+    drag.block.classList.add('is-dragging');
+    const tip = document.getElementById('hoverTooltip');
+    if(tip) tip.style.display = 'none';
+    try{ drag.block.setPointerCapture(drag.pointerId); }catch(err){}
+  }
+  e.preventDefault();
+  const scrollWrap = drag.container.closest('.grid-wrap');
+  if(scrollWrap){
+    const r = scrollWrap.getBoundingClientRect();
+    const margin = 36;
+    if(e.clientY > r.bottom - margin) scrollWrap.scrollTop += 18;
+    else if(e.clientY < r.top + margin) scrollWrap.scrollTop -= 18;
+    if(e.clientX > r.right - margin) scrollWrap.scrollLeft += 18;
+    else if(e.clientX < r.left + margin) scrollWrap.scrollLeft -= 18;
+  }
+  const hit = hitCalendarDay(e.clientX, e.clientY, drag.dayBodies);
+  if(!hit){
+    drag.hover = null;
+    clearDropPreview(drag.container);
+    return;
+  }
+  const start = startFromPointerY(e.clientY, hit.rect, drag.duration, drag.grabOffsetMin);
+  drag.hover = {day: hit.day, start, body: hit.body};
+  if(drag.previewBody && drag.previewBody !== hit.body) clearDropPreview(drag.container);
+  drag.previewBody = hit.body;
+  showDropPreview(hit.body, start, drag.duration);
+}
+function onCalendarPointerUp(e){
+  if(!CAL_DRAG) return;
+  if(e && CAL_DRAG.active) e.preventDefault();
+  endCalendarDrag(true);
+}
+function onCalendarDragKey(e){
+  if(e.key === 'Escape') endCalendarDrag(false);
+}
+function onCalendarBlockPointerDown(e){
+  if(e.button != null && e.button !== 0) return;
+  const block = e.currentTarget;
+  if(block.dataset.draggable !== '1') return;
+  const lessonId = block.dataset.lessonId;
+  const item = scheduledItemById(lessonId);
+  if(!item) return;
+  const container = block.closest('#ttGrid') || block.closest('#oneoneGrid') || block.closest('#rjpianoGrid') || block.closest('.cal-wrap');
+  if(!container) return;
+  const wrap = container.querySelector ? (container.querySelector('.cal-wrap') || container) : container;
+  const dayBodies = [...wrap.querySelectorAll('.cal-day-body')];
+  if(!dayBodies.length) return;
+  const blockRect = block.getBoundingClientRect();
+  const source = block.dataset.source || '';
+  CAL_DRAG = {
+    pointerId: e.pointerId,
+    block,
+    container: wrap,
+    dayBodies,
+    lessonId,
+    kind: source === 'oneone' || source === 'rjpiano' ? source : 'timetable',
+    duration: Math.max(CAL_SNAP_MIN, item.end - item.start),
+    grabOffsetMin: (e.clientY - blockRect.top) / CAL_PX_PER_MIN,
+    originX: e.clientX,
+    originY: e.clientY,
+    active: false,
+    hover: null,
+    previewBody: null
+  };
+  window.addEventListener('pointermove', onCalendarPointerMove, {passive:false});
+  window.addEventListener('pointerup', onCalendarPointerUp);
+  window.addEventListener('pointercancel', onCalendarPointerUp);
+  window.addEventListener('keydown', onCalendarDragKey);
+}
+function attachCalendarDrag(container){
+  if(!container) return;
+  container.querySelectorAll('.cal-block[data-lesson-id]').forEach(block => {
+    block.addEventListener('pointerdown', onCalendarBlockPointerDown);
+    block.addEventListener('dragstart', e => e.preventDefault());
+  });
+}
+
+document.getElementById('ttUndoBtn')?.addEventListener('click', undoLastDrag);
+document.getElementById('ttResetBtn')?.addEventListener('click', resetVariantDrags);
+document.addEventListener('keydown', (e) => {
+  if(!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z' || e.shiftKey) return;
+  const tag = (e.target && e.target.tagName) || '';
+  if(tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target && e.target.isContentEditable)) return;
+  const tab = document.querySelector('.tab-btn.active');
+  const tabId = tab && tab.dataset.tab;
+  if(tabId === 'oneone'){
+    if(!LAST_ONEONE || !LAST_ONEONE.dragUndo || !LAST_ONEONE.dragUndo.length) return;
+    e.preventDefault();
+    undoIndividualDrag('oneone');
+    return;
+  }
+  if(tabId === 'rjpiano'){
+    if(!LAST_RJPIANO || !LAST_RJPIANO.dragUndo || !LAST_RJPIANO.dragUndo.length) return;
+    e.preventDefault();
+    undoIndividualDrag('rjpiano');
+    return;
+  }
+  if(!LAST_RESULT || !LAST_RESULT.dragUndo || !LAST_RESULT.dragUndo.length) return;
+  e.preventDefault();
+  undoLastDrag();
 });
 
 // Official iCalendar (.ics) — Google Calendar: Settings → Import & export → Import.
@@ -2105,9 +2940,8 @@ function icsFold(line){
 function scheduledStudentNames(i){
   if(i.studentNames && i.studentNames.length) return i.studentNames.slice();
   if(i.groupId) return studentsInGroup(i.groupId).map(studentDisplayName).sort();
-  if(i.lessonId && String(i.lessonId).startsWith('BAND') && LAST_BANDS && LAST_BANDS.bands){
-    const idx = parseInt(String(i.lessonId).replace('BAND',''),10) - 1;
-    const band = LAST_BANDS.bands[idx];
+  if(i.lessonId && String(i.lessonId).startsWith('BAND')){
+    const band = findBandById(i.lessonId);
     if(band) return BAND_TYPES.flatMap(t => band[t] || []).map(studentDisplayName).sort();
   }
   return [];
@@ -2164,12 +2998,31 @@ function buildTimetableIcs(scheduled, fromDate){
   lines.push('END:VCALENDAR');
   return lines.join('\r\n')+'\r\n';
 }
+function acceptedItemsForExport(){
+  const frozen = DB.acceptedTimetable && Array.isArray(DB.acceptedTimetable.scheduled)
+    ? DB.acceptedTimetable.scheduled : [];
+  if(frozen.length) return frozen;
+  return (DB.acceptedSchedule || []).filter(r => r.status === 'scheduled').map(r => ({
+    lessonId: r.lessonId,
+    name: r.name,
+    teacher: r.teacher,
+    teacherId: r.teacherId,
+    group: r.group,
+    groupId: r.groupId,
+    day: r.day,
+    start: typeof r.start === 'number' ? r.start : toMin(r.start),
+    end: typeof r.end === 'number' ? r.end : toMin(r.end),
+    studentNames: r.students ? String(r.students).split(/[,;]+/).map(s => s.trim()).filter(Boolean) : [],
+    room321: !!r.room321
+  }));
+}
 document.getElementById('exportCalendarBtn').addEventListener('click', () => {
-  if(!LAST_RESULT || !LAST_RESULT.scheduled || !LAST_RESULT.scheduled.length){
-    alert('Generate the timetable first.');
+  const scheduled = acceptedItemsForExport().filter(i => i && i.day && i.start != null && i.end != null);
+  if(!scheduled.length){
+    alert('Accept a schedule first.');
     return;
   }
-  const ics = buildTimetableIcs(LAST_RESULT.scheduled, new Date());
+  const ics = buildTimetableIcs(scheduled, new Date());
   downloadFile('bartokkonzi_jazz_timetable.ics', ics, 'text/calendar;charset=utf-8');
   alert('Saved bartokkonzi_jazz_timetable.ics — in Google Calendar open Settings → Import & export → Import. Weekly events run through 15 June 2027. Import into a new calendar if you want to delete the whole set later.');
 });
@@ -2179,43 +3032,284 @@ function renderAcceptedStatus(){
   if(!el) return;
   if(DB.acceptedTimetable && DB.acceptedTimetable.acceptedAt){
     const d = new Date(DB.acceptedTimetable.acceptedAt);
-    el.textContent = `✓ Current accepted timetable saved ${d.toLocaleString()} — ${DB.acceptedTimetable.scheduled.length} lessons, ${DB.acceptedTimetable.unresolved.length} unresolved. Included next time you export "Save all edits".`;
+    const n = (DB.acceptedSchedule || []).filter(r => r.status === 'scheduled').length;
+    const u = (DB.acceptedSchedule || []).filter(r => r.status === 'unresolved').length;
+    el.textContent = `✓ Accepted ${d.toLocaleString()} — ${n} rows in Accepted schedule${u ? `, ${u} unresolved` : ''}. SCHEDULED columns on Lesson groups / Bands were filled; FIXED times and teacher overrides were left alone.`;
   } else {
     el.textContent = '';
   }
+  updateOneOneTabLock();
+  updateRjPianoTabLock();
 }
 
-document.getElementById('acceptScheduleBtn').addEventListener('click', () => {
+function formatScheduledWho(students){
+  return Array.isArray(students) ? students.filter(Boolean).join(', ') : String(students || '').trim();
+}
+function formatLessonScheduledData(lesson){
+  if(!lesson || !lesson.scheduledDay) return '';
+  return formatScheduledWho(studentsInGroup(lesson.groupId).map(studentDisplayName).sort());
+}
+function formatAcceptedScheduledData(r){
+  return r ? formatScheduledWho(r.students) : '';
+}
+
+function buildAcceptedScheduleRows(result){
+  const rows = [];
+  const dayRank = (d) => { const i = DAYS.indexOf(d); return i < 0 ? 99 : i; };
+  (result.scheduled || []).forEach(item => {
+    const students = studentsForScheduledItem(item);
+    const names = (item.studentNames && item.studentNames.length)
+      ? item.studentNames.slice()
+      : students.map(studentDisplayName).sort();
+    const kind = String(item.lessonId || '').startsWith('BAND') ? 'band' : 'lesson';
+    const duration = (item.end != null && item.start != null) ? (item.end - item.start) : lessonDurationMinutes(item);
+    rows.push({
+      lessonId: item.lessonId || '',
+      name: item.name || '',
+      kind,
+      group: item.group || '',
+      groupId: item.groupId || '',
+      teacher: item.teacher || teacherName(item.teacherId) || '',
+      teacherId: item.teacherId || '',
+      day: item.day || '',
+      start: item.start != null ? toHHMM(item.start) : '',
+      end: item.end != null ? toHHMM(item.end) : '',
+      duration,
+      room321: !!item.room321,
+      studentCount: names.length,
+      students: names.join(', '),
+      studentIds: students.map(s => s.ID).filter(Boolean).join(', '),
+      status: 'scheduled',
+      note: '',
+    });
+  });
+  rows.sort((a,b) => dayRank(a.day)-dayRank(b.day) || String(a.start).localeCompare(String(b.start)) || String(a.name).localeCompare(String(b.name)));
+  (result.unresolved || []).forEach(u => {
+    const l = u.lesson || {};
+    const students = u.students || [];
+    const names = students.map(studentDisplayName).sort();
+    const kind = String(l.id || '').startsWith('BAND') ? 'band' : 'lesson';
+    rows.push({
+      lessonId: l.id || '',
+      name: l.name || '',
+      kind,
+      group: l.group || '',
+      groupId: l.groupId || '',
+      teacher: l.teacher || teacherName(l.teacherId) || '',
+      teacherId: l.teacherId || '',
+      day: '', start: '', end: '',
+      duration: lessonDurationMinutes(l),
+      room321: !!l.room321,
+      studentCount: names.length,
+      students: names.join(', '),
+      studentIds: students.map(s => s.ID).filter(Boolean).join(', '),
+      status: 'unresolved',
+      note: String(u.customReason || 'no free slot found within availability + class-time windows.').replace(/<[^>]+>/g, ''),
+    });
+  });
+  return rows;
+}
+
+function clearScheduledFields(obj){
+  if(!obj) return;
+  obj.scheduledDay = '';
+  obj.scheduledStart = '';
+  obj.scheduledEnd = '';
+  obj.scheduledTeacherId = '';
+  obj.scheduledTeacher = '';
+}
+function clearAcceptedScheduledRecord(){
+  (DB.lessons || []).forEach(clearScheduledFields);
+  if(LAST_BANDS && LAST_BANDS.bands) LAST_BANDS.bands.forEach(clearScheduledFields);
+  DB.acceptedSchedule = [];
+  DB.acceptedTimetable = null;
+  LAST_ONEONE = null;
+  LAST_RJPIANO = null;
+  renderLessons();
+  if(LAST_BANDS) renderBandsResults(LAST_BANDS);
+  renderAcceptedSchedule();
+  renderAcceptedStatus();
+  renderOneOneTab();
+  renderRjPianoTab();
+}
+function writeAcceptedToSourceTables(result){
+  // SCHEDULED_* is a record of the last Accept — the generator never reads it.
+  // FIXED / teacher override stay as the user's search constraints.
+  (DB.lessons || []).forEach(clearScheduledFields);
+  if(LAST_BANDS && LAST_BANDS.bands) LAST_BANDS.bands.forEach(clearScheduledFields);
+  let lessonsWritten = 0;
+  let bandsWritten = 0;
+  (result.scheduled || []).forEach(item => {
+    const startH = item.start != null ? toHHMM(item.start) : '';
+    const endH = item.end != null ? toHHMM(item.end) : '';
+    if(item.lessonId && String(item.lessonId).startsWith('BAND')){
+      const band = findBandById(item.lessonId);
+      if(!band) return;
+      band.scheduledTeacherId = item.teacherId || '';
+      band.scheduledTeacher = item.teacher || teacherName(item.teacherId) || '';
+      band.scheduledDay = item.day || '';
+      band.scheduledStart = startH;
+      band.scheduledEnd = endH;
+      bandsWritten++;
+      return;
+    }
+    const lesson = (DB.lessons || []).find(l => l.id === item.lessonId);
+    if(!lesson) return;
+    lesson.scheduledDay = item.day || '';
+    lesson.scheduledStart = startH;
+    lesson.scheduledEnd = endH;
+    lessonsWritten++;
+  });
+  return {lessonsWritten, bandsWritten};
+}
+
+const ACCEPTED_SCHEDULE_CSV_HEADERS = ['LESSON_ID','NAME','KIND','TEACHER','TEACHER_ID','DAY','START','END','DURATION_MIN','ROOM_321','STUDENT_COUNT','STUDENTS','STUDENT_IDS','STATUS','NOTE','SCHEDULED_DATA'];
+function acceptedScheduleTime(v){
+  if(v == null || v === '') return '';
+  if(typeof v === 'number' && Number.isFinite(v)) return toHHMM(v);
+  return toHHMM(toMin(v)) || String(v);
+}
+function individualAcceptedRows(state, kind){
+  const dayRank = (d) => { const i = DAYS.indexOf(d); return i < 0 ? 99 : i; };
+  const rows = [];
+  ((state && state.scheduled) || []).forEach(item => {
+    const names = (item.studentNames && item.studentNames.length)
+      ? item.studentNames.slice()
+      : (item.students ? String(item.students).split(/[,;]+/).map(s => s.trim()).filter(Boolean) : [item.name].filter(Boolean));
+    const startMin = typeof item.start === 'number' ? item.start : toMin(item.start);
+    const endMin = typeof item.end === 'number' ? item.end : toMin(item.end);
+    const duration = item.duration || ((startMin != null && endMin != null) ? (endMin - startMin) : '');
+    rows.push({
+      lessonId: item.lessonId || '',
+      name: item.name || '',
+      kind,
+      group: item.group || kind,
+      groupId: item.groupId || '',
+      teacher: item.teacher || teacherName(item.teacherId) || '',
+      teacherId: item.teacherId || '',
+      day: item.day || '',
+      start: acceptedScheduleTime(item.start),
+      end: acceptedScheduleTime(item.end),
+      duration,
+      room321: !!item.room321,
+      studentCount: names.length,
+      students: names.join(', '),
+      studentIds: item.studentIds || item.studentId || '',
+      status: 'scheduled',
+      note: '',
+    });
+  });
+  rows.sort((a,b) => dayRank(a.day)-dayRank(b.day) || String(a.start).localeCompare(String(b.start)) || String(a.name).localeCompare(String(b.name)));
+  ((state && state.unresolved) || []).forEach(u => {
+    const student = (DB.students || []).find(s => s.ID === u.studentId);
+    const name = u.name || (student ? studentDisplayName(student) : u.studentId) || '';
+    rows.push({
+      lessonId: '',
+      name,
+      kind,
+      group: kind,
+      groupId: '',
+      teacher: teacherName(u.teacherId) || u.teacherId || '',
+      teacherId: u.teacherId || '',
+      day: '', start: '', end: '',
+      duration: u.duration || '',
+      room321: false,
+      studentCount: name ? 1 : 0,
+      students: name,
+      studentIds: u.studentId || '',
+      status: 'unresolved',
+      note: String(u.reason || 'no free slot found within availability + class-time windows.').replace(/<[^>]+>/g, ''),
+    });
+  });
+  return rows;
+}
+function acceptedScheduleTableHtml(rows){
+  let html = '<thead><tr>'
+    + '<th>DAY</th><th>START</th><th>END</th><th>NAME</th><th>TEACHER</th>'
+    + '<th>ROOM 321</th><th>KIND</th><th>STATUS</th><th>SCHEDULED DATA</th>'
+    + '</tr></thead><tbody>';
+  rows.forEach(r => {
+    const cls = r.status === 'unresolved' ? ' class="is-unresolved"' : '';
+    html += `<tr${cls}>`
+      + `<td>${escapeAttr(r.day)}</td>`
+      + `<td>${escapeAttr(r.start)}</td>`
+      + `<td>${escapeAttr(r.end)}</td>`
+      + `<td>${escapeAttr(r.name)}${r.lessonId ? `<div class="meta" style="font-family:var(--mono);font-size:10px;color:var(--ink-dim)">${escapeAttr(r.lessonId)}</div>` : ''}</td>`
+      + `<td>${escapeAttr(r.teacher)}</td>`
+      + `<td>${r.room321 ? '🔒321' : ''}</td>`
+      + `<td>${escapeAttr(r.kind)}</td>`
+      + `<td>${escapeAttr(r.status)}${r.note ? `<div class="cell-wrap" style="max-width:220px;color:var(--ink-dim)">${escapeAttr(r.note)}</div>` : ''}</td>`
+      + `<td style="white-space:nowrap">${escapeAttr(formatAcceptedScheduledData(r))}</td>`
+      + '</tr>';
+  });
+  html += '</tbody>';
+  return html;
+}
+function fillAcceptedSchedulePanel(ids, rows){
+  const panel = document.getElementById(ids.panel);
+  const table = document.getElementById(ids.table);
+  const tag = document.getElementById(ids.tag);
+  const list = rows || [];
+  if(panel) panel.style.display = list.length ? 'block' : 'none';
+  if(tag){
+    const n = list.filter(r => r.status === 'scheduled').length;
+    const u = list.filter(r => r.status === 'unresolved').length;
+    tag.textContent = n ? `${n} booked${u ? ` · ${u} unresolved` : ''}` : '';
+  }
+  if(!table) return;
+  table.innerHTML = list.length ? acceptedScheduleTableHtml(list) : '';
+}
+function downloadAcceptedScheduleCsv(rows, filename){
+  const list = rows || [];
+  if(!list.length){ alert('Accept a schedule first.'); return; }
+  const csv = [toCsvRow(ACCEPTED_SCHEDULE_CSV_HEADERS)].concat(list.map(r => toCsvRow([
+    r.lessonId, r.name, r.kind, r.teacher, r.teacherId,
+    r.day, r.start, r.end, r.duration, r.room321 ? 'TRUE' : 'FALSE',
+    r.studentCount, r.students, r.studentIds, r.status, r.note, formatAcceptedScheduledData(r)
+  ])));
+  downloadFile(filename, csv.join('\r\n'));
+}
+
+function renderAcceptedSchedule(){
+  fillAcceptedSchedulePanel({
+    panel: 'acceptedSchedulePanel',
+    table: 'acceptedScheduleTable',
+    tag: 'acceptedScheduleTag'
+  }, DB.acceptedSchedule || []);
+}
+
+function acceptTimetableSchedule(){
   if(!LAST_RESULT){ alert('Generate the timetable first.'); return; }
-  // Save this exact solution into the database as the current accepted timetable —
-  // it rides along with "Save all edits (.json)" from now on.
+  DB.acceptedSchedule = buildAcceptedScheduleRows(LAST_RESULT);
   DB.acceptedTimetable = {
     acceptedAt: new Date().toISOString(),
-    scheduled: LAST_RESULT.scheduled,
-    unresolved: LAST_RESULT.unresolved.map(u => ({
-      lessonId: u.lesson.id, name: u.lesson.name,
+    scheduled: JSON.parse(JSON.stringify(LAST_RESULT.scheduled || [])),
+    unresolved: (LAST_RESULT.unresolved || []).map(u => ({
+      lessonId: u.lesson && u.lesson.id, name: u.lesson && u.lesson.name,
       reason: u.customReason || 'no free slot found within availability + class-time windows.'
     }))
   };
-
-  // Write the assigned teacher back into each band's "Teacher override" dropdown, so the
-  // Bands tab reflects exactly who ended up with which band in this accepted schedule.
-  let bandsUpdated = 0;
-  if(LAST_BANDS && LAST_BANDS.bands){
-    LAST_RESULT.scheduled.forEach(item => {
-      if(item.lessonId && item.lessonId.startsWith('BAND')){
-        const idx = parseInt(item.lessonId.replace('BAND',''), 10) - 1;
-        if(LAST_BANDS.bands[idx]){
-          LAST_BANDS.bands[idx].teacherId = item.teacherId;
-          bandsUpdated++;
-        }
-      }
-    });
-    renderBandsResults(LAST_BANDS);
-  }
-
+  LAST_RESULT.accepted = true;
+  LAST_RESULT.dragUndo = [];
+  LAST_RESULT.dragBaseline = cloneLessonSlots(LAST_RESULT.scheduled);
+  const {lessonsWritten, bandsWritten} = writeAcceptedToSourceTables(LAST_RESULT);
+  renderLessons();
+  if(LAST_BANDS) renderBandsResults(LAST_BANDS);
+  renderAcceptedSchedule();
   renderAcceptedStatus();
-  alert(`Schedule accepted — saved as the current timetable${bandsUpdated ? `, and ${bandsUpdated} band teacher assignment(s) were written back to the Bands tab` : ''}.`);
+  updateTimetableAcceptBtn();
+  updateDragEditButtons();
+  markWorkDirty();
+  const bits = [`${(DB.acceptedSchedule || []).filter(r => r.status==='scheduled').length} rows in Accepted schedule`];
+  if(lessonsWritten) bits.push(`${lessonsWritten} lesson SCHEDULED slot(s)`);
+  if(bandsWritten) bits.push(`${bandsWritten} band SCHEDULED slot(s)`);
+  alert('Schedule accepted — ' + bits.join(', ') + '. Generate still uses FIXED / teacher override only.');
+}
+
+document.getElementById('acceptScheduleBtn').addEventListener('click', acceptTimetableSchedule);
+
+document.getElementById('exportAcceptedBtn').addEventListener('click', () => {
+  downloadAcceptedScheduleCsv(DB.acceptedSchedule || [], 'bartokkonzi_jazz_accepted_schedule.csv');
 });
 
 function downloadFile(filename, content, mime){
@@ -2277,6 +3371,8 @@ function buildFullExportObject(){
   DB.searchOverview = LAST_SEARCH_OVERVIEW;
   DB.scheduleFingerprint = LAST_FINGERPRINT;
   DB.uiState = collectUiState();
+  DB.oneToOneState = LAST_ONEONE;
+  DB.rjPianoState = LAST_RJPIANO;
   return DB;
 }
 
@@ -2288,11 +3384,19 @@ function restoreFromLoadedObject(loaded){
   DB = loaded;
   DB.bandQuotas = DB.bandQuotas || []; // older exports may not have this yet
   DB.breaks = DB.breaks || []; // older exports may not have this yet
+  DB.acceptedSchedule = DB.acceptedSchedule || [];
+  DB.oneToOne = DB.oneToOne || {columns: [], hours: {}};
+  DB.rjPiano = DB.rjPiano || {columns: [], hours: {}};
+  LAST_ONEONE = DB.oneToOneState || LAST_ONEONE || null;
+  LAST_RJPIANO = DB.rjPianoState || LAST_RJPIANO || null;
   renderStudents(); renderLessons(); renderAvail(); renderCAvail(); renderRefTables(); renderBreaksTable();
 
   // Restore the band roster exactly as it was when saved.
   LAST_BANDS = DB.bandsState || null;
-  if(LAST_BANDS){ renderBandsResults(LAST_BANDS); }
+  if(LAST_BANDS){
+    ensureBandIdentities(LAST_BANDS);
+    renderBandsResults(LAST_BANDS);
+  }
   else {
     const bandsPanel = document.getElementById('bandsResultsPanel');
     const exclPanel = document.getElementById('bandsExcludedPanel');
@@ -2330,12 +3434,17 @@ function restoreFromLoadedObject(loaded){
     document.getElementById('variantRow').style.display = 'none';
   }
   renderAcceptedStatus();
+  renderAcceptedSchedule();
   showLogForSelected();
   applyUiState(DB.uiState);
+  updateFixedPinsBanner();
+  renderOneOneTab();
+  renderRjPianoTab();
 }
 
 document.getElementById('exportDbBtn').addEventListener('click', () => {
   downloadFile('bartokkonzi_jazz_database.json', JSON.stringify(buildFullExportObject(), null, 1), 'application/json');
+  markWorkClean();
 });
 document.getElementById('importDbInput').addEventListener('change', (e) => {
   const file = e.target.files[0];
@@ -2344,6 +3453,7 @@ document.getElementById('importDbInput').addEventListener('change', (e) => {
   reader.onload = () => {
     try {
       restoreFromLoadedObject(JSON.parse(reader.result));
+      markWorkClean();
       alert('Database loaded — tables, bands, timetable, search log, quotas, and UI state were all restored exactly as saved.');
     } catch(err){
       alert('Could not read that file: ' + err.message);
@@ -2371,6 +3481,9 @@ const SHEET_ALIASES = {
   refGroups: ['GROUPS','GROUP','GROUP_ID'],
   refInstruments: ['INSTR','INSTRUMENTS','INSTR_ID'],
   bandQuotas: ['BAND_QUOTAS','BAND QUOTAS','BAND_QUOTA'],
+  oneToOne: ['1_1','1/1','ONE_TO_ONE','ONETOONE','ONEONE','1 1'],
+  rjPiano: ['JRPiano','RJPiano','JRPIANO','JR_PIANO','JR PIANO','RJPIANO','RJ_PIANO','RJ PIANO','REQUIRED JAZZ PIANO','JAZZ REQUIRED PIANO','JAZZ PIANO'],
+  acceptedSchedule: ['ACCEPTED_SCHEDULE','ACCEPTED SCHEDULE','ACCEPTED','SCHEDULE'],
 };
 const GROUP_NAME_FIELDS = [
   {name:'IMPR', id:'IMPR_ID', type:'IMPR'},
@@ -2460,6 +3573,8 @@ function sheetLooksLike(key, rows){
   if(key === 'refGroups') return has('TYPE') && has('NAME') && !has('NAME1') && !has('INSTR');
   if(key === 'refInstruments') return has('INSTR') && has('TYPE') && !has('NAME1');
   if(key === 'bandQuotas') return has('BQ_ID') || has('BANDQ_ID') || has('BAND_AMOUNT') || has('BAND_QUOTA');
+  if(key === 'oneToOne' || key === 'rjPiano') return has('NAME1') && has('INSTR') && !has('CLASS_ID') && !has('CLASSID') && !has('IMPR') && !has('IMPR_ID');
+  if(key === 'acceptedSchedule') return has('STATUS') && (has('STUDENTS') || has('STUDENT_IDS')) && (has('LESSON_ID') || has('KIND'));
   return true;
 }
 function rowGet(row, ...aliases){
@@ -2556,7 +3671,7 @@ function fetchGvizSheet(spreadsheetId, sheetName, sheetKey){
     const q = new URLSearchParams({
       tqx: 'out:json;responseHandler:'+cb,
       sheet: sheetName,
-      headers: '0',
+      headers: (sheetKey === 'oneToOne' || sheetKey === 'rjPiano') ? '1' : '0',
       tq: 'select *'
     });
     script.src = 'https://docs.google.com/spreadsheets/d/'+spreadsheetId+'/gviz/tq?'+q.toString();
@@ -2588,7 +3703,7 @@ async function loadTablesFromSheetsUrl(spreadsheetId){
     }
   }
   if(!found.length){
-    throw new Error('No matching tabs found. Share the workbook as “Anyone with the link → Viewer”, or upload an .xlsx. Expected DATABASE_2627 tabs: STUDENTS, TEACHER_CONST, CLASS_CONST, LESSONS, BAND_QUOTAS, TEACHERS, BREAK_MANAGEMENT, CLASS, GROUPS, INSTR.');
+    throw new Error('No matching tabs found. Share the workbook as “Anyone with the link → Viewer”, or upload an .xlsx. Expected DATABASE_2627 tabs: STUDENTS, TEACHER_CONST, CLASS_CONST, LESSONS, BAND_QUOTAS, 1_1, JRPiano, TEACHERS, BREAK_MANAGEMENT, CLASS, GROUPS, INSTR.');
   }
   return {tables, found, missing};
 }
@@ -2773,6 +3888,9 @@ function sheetsTablesToDb(tables){
         fixedDay: normDay(rowGet(r,'FIXED_DAY')),
         fixedStart: normTime(rowGet(r,'FIXED_START')),
         fixedEnd: normTime(rowGet(r,'FIXED_END')),
+        scheduledDay: normDay(rowGet(r,'SCHEDULED_DAY')),
+        scheduledStart: normTime(rowGet(r,'SCHEDULED_START')),
+        scheduledEnd: normTime(rowGet(r,'SCHEDULED_END')),
       };
     });
   } else {
@@ -2854,13 +3972,58 @@ function sheetsTablesToDb(tables){
     bandQuotas = take('bandQuotas');
   }
 
+  let oneToOne;
+  if(tables.oneToOne && tables.oneToOne.length){
+    oneToOne = parseOneToOneTable(tables.oneToOne, refTeachers);
+  } else if(DB.oneToOne && (DB.oneToOne.columns || DB.oneToOne.hours)){
+    keep.push('oneToOne');
+    oneToOne = JSON.parse(JSON.stringify(DB.oneToOne));
+  } else {
+    oneToOne = {columns: [], hours: {}};
+  }
+
+  let rjPiano;
+  if(tables.rjPiano && tables.rjPiano.length){
+    rjPiano = parseOneToOneTable(tables.rjPiano, refTeachers);
+  } else if(DB.rjPiano && (DB.rjPiano.columns || DB.rjPiano.hours)){
+    keep.push('rjPiano');
+    rjPiano = JSON.parse(JSON.stringify(DB.rjPiano));
+  } else {
+    rjPiano = {columns: [], hours: {}};
+  }
+
+  let acceptedSchedule;
+  if(tables.acceptedSchedule && tables.acceptedSchedule.length){
+    acceptedSchedule = tables.acceptedSchedule.map(r => ({
+      lessonId: rowGet(r,'LESSON_ID','ID'),
+      name: rowGet(r,'NAME','LESSON_NAME','LESSON'),
+      kind: rowGet(r,'KIND') || (String(rowGet(r,'LESSON_ID')).startsWith('BAND') ? 'band' : 'lesson'),
+      group: rowGet(r,'GROUP'),
+      groupId: rowGet(r,'GROUP_ID'),
+      teacher: rowGet(r,'TEACHER'),
+      teacherId: rowGet(r,'TEACHER_ID'),
+      day: normDay(rowGet(r,'DAY')),
+      start: normTime(rowGet(r,'START')),
+      end: normTime(rowGet(r,'END')),
+      duration: parseInt(rowGet(r,'DURATION_MIN','DURATION'),10) || '',
+      room321: truthyFlag(rowGet(r,'ROOM_321','ROOM321')),
+      studentCount: parseInt(rowGet(r,'STUDENT_COUNT'),10) || 0,
+      students: rowGet(r,'STUDENTS'),
+      studentIds: rowGet(r,'STUDENT_IDS','STUDENT_ID'),
+      status: rowGet(r,'STATUS') || 'scheduled',
+      note: rowGet(r,'NOTE'),
+    })).filter(r => r.lessonId || r.name);
+  } else {
+    acceptedSchedule = take('acceptedSchedule');
+  }
+
   return {
     db: {
       students, lessons, teacherAvail, classAvail,
       refTeachers, refClasses, refGroups, refInstruments,
-      bandQuotas, breaks,
+      bandQuotas, breaks, oneToOne, rjPiano,
       bandsState: null, timetableVariants: [], lastResult: null,
-      acceptedTimetable: null, searchLog: [], searchOverview: [],
+      acceptedTimetable: null, acceptedSchedule, searchLog: [], searchOverview: [],
       scheduleFingerprint: null,
     },
     keep,
@@ -2869,17 +4032,24 @@ function sheetsTablesToDb(tables){
 
 async function importFromDriveTables(loaded, sourceLabel){
   const {db, keep} = sheetsTablesToDb(loaded.tables);
-  if(!confirm('Replace the working tables with this Google Sheet? Bands and the current timetable will be cleared so they do not point at old IDs.')){
+  let msg = 'Replace the working tables with this Google Sheet? Bands and the current timetable will be cleared so they do not point at old IDs.';
+  if(WORK_DIRTY || hasUnacceptedDrags()){
+    msg = 'This tab has work that is only in the browser autosave (including any dragged times). ' + msg;
+  }
+  if(!confirm(msg)){
     setSheetsStatus('Load cancelled.');
     return;
   }
   restoreFromLoadedObject(db);
+  markWorkDirty();
   const bits = [
     `${db.students.length} students`,
     `${db.lessons.length} lessons`,
     `${db.teacherAvail.length} teacher-avail`,
     `${db.classAvail.length} reservations`,
     `${db.refTeachers.length} teachers`,
+    `${collectOneOneAssignments(db.oneToOne).length} 1/1 hours`,
+    `${collectOneOneAssignments(db.rjPiano).length} Required Jazz Piano hours`,
   ];
   const extra = keep.length ? ` Kept existing ${keep.join(', ')} (those tabs were missing).` : '';
   setSheetsStatus(`✓ Loaded ${sourceLabel} — ${bits.join(', ')}. Tabs: ${loaded.found.join(', ')}.${extra} Bands and timetable were cleared.`);
@@ -2941,10 +4111,13 @@ const DRIVE_EXPORT_SPECS = [
   },
   {
     key: 'lessons', name: 'LESSONS',
-    headers: ['LESSON_ID','LESSON NAME','GROUP','GROUP_ID','TEACHER','TEACHER_ID','DURATION_MIN','ROOM_321'],
+    headers: ['LESSON_ID','LESSON NAME','GROUP','GROUP_ID','TEACHER','TEACHER_ID','DURATION_MIN','ROOM_321','FIXED_DAY','FIXED_START','FIXED_END','SCHEDULED_DAY','SCHEDULED_START','SCHEDULED_END','SCHEDULED_DATA'],
     rows: (db) => (db.lessons || []).map(r => [
       r.id, r.name, r.group, r.groupId, r.teacher, r.teacherId,
-      r.duration, r.room321 ? 'TRUE' : 'FALSE'
+      r.duration, r.room321 ? 'TRUE' : 'FALSE',
+      r.fixedDay || '', exportTime(r.fixedStart), exportTime(r.fixedEnd),
+      r.scheduledDay || '', exportTime(r.scheduledStart), exportTime(r.scheduledEnd),
+      formatLessonScheduledData(r)
     ])
   },
   {
@@ -2977,6 +4150,15 @@ const DRIVE_EXPORT_SPECS = [
     headers: ['INSTR_ID','TYPE','INSTR'],
     rows: (db) => (db.refInstruments || []).map(r => [r.id, r.type, r.name])
   },
+  {
+    key: 'acceptedSchedule', name: 'ACCEPTED_SCHEDULE',
+    headers: ['LESSON_ID','NAME','KIND','TEACHER','TEACHER_ID','DAY','START','END','DURATION_MIN','ROOM_321','STUDENT_COUNT','STUDENTS','STUDENT_IDS','STATUS','NOTE','SCHEDULED_DATA'],
+    rows: (db) => (db.acceptedSchedule || []).map(r => [
+      r.lessonId, r.name, r.kind, r.teacher, r.teacherId,
+      r.day, r.start, r.end, r.duration, r.room321 ? 'TRUE' : 'FALSE',
+      r.studentCount, r.students, r.studentIds, r.status, r.note, formatAcceptedScheduledData(r)
+    ])
+  },
 ];
 function exportTime(v){
   return normTime(v) || '';
@@ -2997,10 +4179,14 @@ function dbToDriveTables(db){
   return tables;
 }
 function driveTablesToAoa(db){
-  return DRIVE_EXPORT_SPECS.map(spec => ({
+  const sheets = DRIVE_EXPORT_SPECS.map(spec => ({
     name: spec.name,
     aoa: [spec.headers].concat(spec.rows(db).map(vals => vals.map(exportCell)))
   }));
+  const i = sheets.findIndex(s => s.name === 'BAND_QUOTAS');
+  const at = i < 0 ? sheets.length : i + 1;
+  sheets.splice(at, 0, oneToOneAoa(db), rjPianoAoa(db));
+  return sheets;
 }
 async function exportDriveXlsx(){
   setSheetsStatus('Building DATABASE_2627 workbook…');
@@ -3062,7 +4248,7 @@ function generateBands(numBands){
   BAND_TYPES.forEach(t => { neverUsed[t] = eligible.filter(s => studentType(s) === t); usedOnce[t] = []; });
   eligible.forEach(s => { appearances[s.ID] = 0; });
 
-  const bands = Array.from({length:numBands}, () => ({bass:[], drum:[], acc:[], sol:[], teacherId:'', room321:true, duration:90, fixedDay:'', fixedStart:'', fixedEnd:''}));
+  const bands = Array.from({length:numBands}, (_, i) => emptyBandRecord('BAND' + (i+1)));
 
   // Picks the closest-grade match available: exact/same-level first, then the nearest
   // neighboring grade in JCLASS_LEVEL_ORDER, and only if the type's pool is truly empty
@@ -3204,7 +4390,7 @@ function generateBands(numBands){
     });
   }
 
-  return {bands, excluded, appearances, eligibleCount: eligible.length};
+  return {bands, excluded, appearances, eligibleCount: eligible.length, nextBandSeq: numBands + 1};
 }
 
 function computeBandAppearanceCounts(bands){
@@ -3254,7 +4440,7 @@ function renderBandCard(band, index, appearanceCounts){
   ).join('');
 
   return `<div class="band-card">
-    <h4><span>Band ${index+1} <span class="band-jmix">${jmix}</span></span><button class="band-member-remove band-delete-btn" data-band="${index}" title="Delete this band">✕</button></h4>
+    <h4><span>${escapeAttr(bandShortLabel(band))} <span class="band-jmix">${jmix}</span></span><button class="band-member-remove band-delete-btn" data-band="${index}" title="Delete this band">✕</button></h4>
     <div class="band-teacher-row band-teacher-assign">
       <label title="Uses 1 of this teacher's BAND QUOTA. Leave on '—' to auto-match. A teacher with no remaining quota cannot take the band.">Teacher override</label>
       <select class="band-teacher-select" data-band="${index}">${teacherOptions}</select>
@@ -3274,6 +4460,12 @@ function renderBandCard(band, index, appearanceCounts){
       <span style="color:var(--ink-dim);font-size:11px;">–</span>
       <input type="text" class="band-fixedend-input" data-band="${index}" value="${escapeAttr(band.fixedEnd||'')}" placeholder="10:30" style="width:56px;padding:6px 6px;border-radius:8px;border:1px solid var(--border);background:var(--surface-solid);font-family:var(--mono);font-size:11px;">
     </div>
+    <div class="band-teacher-row band-scheduled-row" title="Filled by ✓ Accept this schedule. Generate ignores this — use Fixed time / Teacher override to pin the next search.">
+      <label>Scheduled</label>
+      <span>${band.scheduledDay
+        ? escapeAttr(`${band.scheduledTeacher || teacherName(band.scheduledTeacherId) || '—'} · ${band.scheduledDay} ${band.scheduledStart || ''}–${band.scheduledEnd || ''}`)
+        : '—'}</span>
+    </div>
     ${rows}
     <div class="band-add-row">
       <select class="band-add-select" data-band="${index}">${addOptions}</select>
@@ -3281,18 +4473,46 @@ function renderBandCard(band, index, appearanceCounts){
   </div>`;
 }
 
-document.getElementById('generateBandsBtn').addEventListener('click', () => {
-  const n = Math.max(1, parseInt(document.getElementById('bandCountInput').value, 10) || 17);
+document.getElementById('generateBandsBtn').addEventListener('click', requestGenerateBands);
+
+function requestGenerateBands(){
+  if(hasAcceptedRecord()){
+    showGenerateConfirm('bands');
+    return;
+  }
+  queueGenerateBands(false);
+}
+function queueGenerateBands(clearAccepted){
+  hideGenerateConfirm();
+  setBandsBusy(true);
+  setTimeout(() => {
+    try {
+      runGenerateBands(clearAccepted);
+    } finally {
+      setBandsBusy(false);
+    }
+  }, 0);
+}
+function runGenerateBands(clearAccepted, count){
+  hideGenerateConfirm();
+  const raw = count != null ? count : parseInt((document.getElementById('bandCountInput') || {}).value, 10);
+  const n = Math.max(1, raw || 17);
+  const hadScheduled = hasAcceptedRecord();
+  if(clearAccepted && hadScheduled) clearAcceptedScheduledRecord();
+  clearGeneratedTimetableGrid();
   LAST_BANDS = generateBands(n);
   renderBandsResults(LAST_BANDS);
-});
+  markWorkDirty();
+  return LAST_BANDS;
+}
 
 document.getElementById('addBandBtn').addEventListener('click', () => {
   if(!LAST_BANDS){
-    LAST_BANDS = {bands: [], excluded: [], appearances: {}, eligibleCount: 0};
+    LAST_BANDS = {bands: [], excluded: [], appearances: {}, eligibleCount: 0, nextBandSeq: 1};
   }
-  LAST_BANDS.bands.push({bass:[], drum:[], acc:[], sol:[], teacherId:'', room321:true, duration:90, fixedDay:'', fixedStart:'', fixedEnd:''});
+  LAST_BANDS.bands.push(emptyBandRecord(mintBandId(LAST_BANDS)));
   renderBandsResults(LAST_BANDS);
+  markWorkDirty();
 });
 
 // ---------- Band Quotas modal ----------
@@ -3371,13 +4591,13 @@ document.getElementById('bandQuotasAddBtn').addEventListener('click', () => {
 });
 document.getElementById('bandQuotasBtn').addEventListener('click', () => {
   renderBandQuotasModal();
-  document.getElementById('bandQuotasOverlay').style.display = 'flex';
+  setModalOverlay('bandQuotasOverlay', true);
 });
 document.getElementById('bandQuotasCloseBtn').addEventListener('click', () => {
-  document.getElementById('bandQuotasOverlay').style.display = 'none';
+  setModalOverlay('bandQuotasOverlay', false);
 });
 document.getElementById('bandQuotasOverlay').addEventListener('click', (e) => {
-  if(e.target.id === 'bandQuotasOverlay') document.getElementById('bandQuotasOverlay').style.display = 'none';
+  if(e.target.id === 'bandQuotasOverlay') setModalOverlay('bandQuotasOverlay', false);
 });
 
 function renderBandsResults(result){
@@ -3405,6 +4625,7 @@ function renderBandsResults(result){
       const sid = e.currentTarget.dataset.sid;
       LAST_BANDS.bands[bi][type] = LAST_BANDS.bands[bi][type].filter(s => s.ID !== sid);
       renderBandsResults(LAST_BANDS);
+      markWorkDirty();
     });
   });
   document.querySelectorAll('.band-delete-btn').forEach(btn => {
@@ -3412,6 +4633,7 @@ function renderBandsResults(result){
       const bi = parseInt(e.currentTarget.dataset.band, 10);
       LAST_BANDS.bands.splice(bi, 1);
       renderBandsResults(LAST_BANDS);
+      markWorkDirty();
     });
   });
   document.querySelectorAll('.band-add-select').forEach(sel => {
@@ -3430,12 +4652,14 @@ function renderBandsResults(result){
         LAST_BANDS.bands[bi][type].push(student);
       }
       renderBandsResults(LAST_BANDS);
+      markWorkDirty();
     });
   });
   document.querySelectorAll('.band-teacher-select').forEach(sel => {
     sel.addEventListener('change', e => {
       const bi = parseInt(e.currentTarget.dataset.band, 10);
       LAST_BANDS.bands[bi].teacherId = e.currentTarget.value;
+      markWorkDirty();
     });
   });
   function clampBandBookedWindow(bi){
@@ -3448,6 +4672,7 @@ function renderBandsResults(result){
     inp.addEventListener('input', e => {
       const bi = parseInt(e.currentTarget.dataset.band, 10);
       LAST_BANDS.bands[bi].duration = parseInt(e.currentTarget.value, 10) || 90;
+      markWorkDirty();
     });
     inp.addEventListener('change', e => {
       clampBandBookedWindow(parseInt(e.currentTarget.dataset.band, 10));
@@ -3457,18 +4682,22 @@ function renderBandsResults(result){
     cb.addEventListener('change', e => {
       const bi = parseInt(e.currentTarget.dataset.band, 10);
       LAST_BANDS.bands[bi].room321 = e.currentTarget.checked;
+      markWorkDirty();
     });
   });
   document.querySelectorAll('.band-fixedday-select').forEach(sel => {
     sel.addEventListener('change', e => {
       const bi = parseInt(e.currentTarget.dataset.band, 10);
       LAST_BANDS.bands[bi].fixedDay = e.currentTarget.value;
+      markWorkDirty();
+      updateFixedPinsBanner();
     });
   });
   document.querySelectorAll('.band-fixedstart-input').forEach(inp => {
     inp.addEventListener('input', e => {
       const bi = parseInt(e.currentTarget.dataset.band, 10);
       LAST_BANDS.bands[bi].fixedStart = e.currentTarget.value;
+      markWorkDirty();
     });
     inp.addEventListener('change', e => {
       clampBandBookedWindow(parseInt(e.currentTarget.dataset.band, 10));
@@ -3478,6 +4707,7 @@ function renderBandsResults(result){
     inp.addEventListener('input', e => {
       const bi = parseInt(e.currentTarget.dataset.band, 10);
       LAST_BANDS.bands[bi].fixedEnd = e.currentTarget.value;
+      markWorkDirty();
     });
     inp.addEventListener('change', e => {
       clampBandBookedWindow(parseInt(e.currentTarget.dataset.band, 10));
@@ -3493,21 +4723,1224 @@ function renderBandsResults(result){
   } else {
     exclPanel.style.display = 'none';
   }
+  updateFixedPinsBanner();
 }
 
 document.getElementById('downloadBandsBtn').addEventListener('click', () => {
   if(!LAST_BANDS){ alert('Generate the bands first.'); return; }
   const rows = [toCsvRow(["BAND","TEACHER","DURATION_MIN","ROOM_321","ROLE","STUDENT_ID","NAME","INSTRUMENT","CLASS","JCLASS_TYPE"])];
-  LAST_BANDS.bands.forEach((b,i) => {
+  LAST_BANDS.bands.forEach(b => {
     const teacher = teacherName(b.teacherId) || '';
     BAND_TYPES.forEach(t => {
       b[t].forEach(s => {
-        rows.push(toCsvRow([`Band ${i+1}`, teacher, b.duration ?? 90, b.room321!==false ? 'YES' : 'NO', t.toUpperCase(), s.ID, studentDisplayName(s), instrName(s.INSTR_ID), className(s.CLASS_ID), studentJclass(s)]));
+        rows.push(toCsvRow([bandShortLabel(b), teacher, b.duration ?? 90, b.room321!==false ? 'YES' : 'NO', t.toUpperCase(), s.ID, studentDisplayName(s), instrName(s.INSTR_ID), className(s.CLASS_ID), studentJclass(s)]));
       });
     });
   });
   downloadFile('bartokkonzi_jazz_bands.csv', rows.join('\r\n'));
 });
+
+// ---------- 1/1 individual-lesson scheduler ----------
+// Packs one-person lessons around the accepted group timetable. Hard constraints:
+// teacher availability, class reservations (every leftover gap, not only the largest),
+// no overlap with accepted bookings or other 1/1. Breaks are flexible: prefer sitting
+// flush against an existing teacher block, then spreading evenly across available days.
+let LAST_ONEONE = null;
+let LAST_RJPIANO = null;
+const ONEONE_SNAP = 5;
+
+function parseIdList(s){
+  return String(s == null ? '' : s).split(/[,;]+/).map(x => String(x).trim()).filter(Boolean);
+}
+function snapUpMin(mins){
+  return Math.ceil(mins / ONEONE_SNAP) * ONEONE_SNAP;
+}
+function snapDownMin(mins){
+  return Math.floor(mins / ONEONE_SNAP) * ONEONE_SNAP;
+}
+function shuffledCopy(arr, rng){
+  const a = (arr || []).slice();
+  const rand = rng || Math.random;
+  for(let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(rand() * (i + 1));
+    const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+function acceptedBusyMaps(rows){
+  const teacherBusy = {};
+  const studentBusy = {};
+  (rows || []).forEach(r => {
+    if(r.status && r.status !== 'scheduled') return;
+    const day = r.day;
+    const start = typeof r.start === 'number' ? r.start : toMin(r.start);
+    const end = typeof r.end === 'number' ? r.end : toMin(r.end);
+    if(!day || !DAYS.includes(day) || start == null || end == null || !(start < end)) return;
+    if(r.teacherId){
+      teacherBusy[r.teacherId] = teacherBusy[r.teacherId] || {};
+      teacherBusy[r.teacherId][day] = teacherBusy[r.teacherId][day] || [];
+      teacherBusy[r.teacherId][day].push({start, end, name: r.name || ''});
+    }
+    parseIdList(r.studentIds || r.studentId).forEach(sid => {
+      studentBusy[sid] = studentBusy[sid] || {};
+      studentBusy[sid][day] = studentBusy[sid][day] || [];
+      studentBusy[sid][day].push({start, end, name: r.name || ''});
+    });
+  });
+  return {teacherBusy, studentBusy};
+}
+function intervalGapScore(start, end, busy){
+  if(!busy || !busy.length) return 0;
+  let best = DEFAULT_END - DEFAULT_START;
+  let adjacent = false;
+  busy.forEach(iv => {
+    if(iv.end === start || iv.start === end) adjacent = true;
+    if(start >= iv.end) best = Math.min(best, start - iv.end);
+    else if(end <= iv.start) best = Math.min(best, iv.start - end);
+  });
+  return adjacent ? 0 : best;
+}
+function candidateStartsForInterval(s, e, duration, teacherBusy, dense){
+  const starts = new Set();
+  const first = snapUpMin(s);
+  const last = snapDownMin(e - duration);
+  if(first <= last){
+    starts.add(first);
+    starts.add(last);
+    if(dense){
+      for(let t = first; t <= last; t += 15) starts.add(t);
+    }
+  }
+  (teacherBusy || []).forEach(iv => {
+    const after = snapUpMin(iv.end);
+    if(after >= s && after + duration <= e) starts.add(after);
+    const before = snapDownMin(iv.start - duration);
+    if(before >= s && before + duration <= e) starts.add(before);
+  });
+  return [...starts].filter(t => t >= s && t + duration <= e);
+}
+
+function parseOneOneHours(v){
+  if(typeof v === 'number') return v > 0 && Number.isFinite(v) ? v : 0;
+  const s = String(v == null ? '' : v).trim().replace(/\s/g, '').replace(',', '.');
+  if(!s) return 0;
+  const n = parseFloat(s);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+function oneOneHoursToMinutes(hours){
+  const h = parseOneOneHours(hours);
+  if(!h) return 0;
+  return Math.max(15, Math.round(h * 60 / ONEONE_SNAP) * ONEONE_SNAP);
+}
+function formatOneOneHours(h){
+  const n = parseOneOneHours(h);
+  if(!n) return '';
+  return String(n);
+}
+function parseOneToOneTable(rows, refTeachers){
+  const teachers = refTeachers || [];
+  const tByNorm = {};
+  teachers.forEach(t => {
+    if(t && t.name) tByNorm[normHeader(t.name)] = t;
+    if(t && t.id) tByNorm[normHeader(t.id)] = t;
+  });
+  const identity = new Set(['STUDENT_ID','ID','NAME1','NAME2','NAME3','PUBLIC_NAME','INSTR','INSTR_ID','NAME']);
+  const columns = [];
+  const seen = new Set();
+  const headerKeys = rows && rows[0] ? Object.keys(rows[0]) : [];
+  headerKeys.forEach(h => {
+    const nh = normHeader(h);
+    if(!nh || identity.has(nh)) return;
+    const t = tByNorm[nh];
+    if(!t || !t.id || seen.has(t.id)) return;
+    seen.add(t.id);
+    columns.push({id: t.id, name: t.name});
+  });
+  const hours = {};
+  (rows || []).forEach(r => {
+    const sid = rowGet(r, 'STUDENT_ID', 'ID');
+    if(!sid) return;
+    headerKeys.forEach(h => {
+      const nh = normHeader(h);
+      if(!nh || identity.has(nh)) return;
+      const t = tByNorm[nh];
+      if(!t || !t.id) return;
+      const n = parseOneOneHours(r[h]);
+      if(!n) return;
+      hours[sid] = hours[sid] || {};
+      hours[sid][t.id] = n;
+    });
+  });
+  return {columns, hours};
+}
+function hoursMatrixAoa(db, matrix, sheetName){
+  const m = matrix || {columns: [], hours: {}};
+  const cols = m.columns || [];
+  const headers = ['STUDENT_ID','NAME1','NAME2','NAME3','PUBLIC_NAME','INSTR','INSTR_ID'].concat(cols.map(c => c.name));
+  const rows = (db.students || []).map(s => {
+    const line = [s.ID, s.NAME1, s.NAME2, s.NAME3, s.PUBLIC_NAME, s.INSTR, s.INSTR_ID];
+    cols.forEach(c => {
+      const h = ((m.hours || {})[s.ID] || {})[c.id];
+      if(!h){ line.push(''); return; }
+      line.push(Number.isInteger(h) ? String(h) : String(h).replace('.', ','));
+    });
+    return line;
+  });
+  return {name: sheetName, aoa: [headers].concat(rows)};
+}
+function oneToOneAoa(db){
+  return hoursMatrixAoa(db, db.oneToOne, '1_1');
+}
+function rjPianoAoa(db){
+  return hoursMatrixAoa(db, db.rjPiano, 'JRPiano');
+}
+function collectOneOneAssignments(matrix){
+  const m = matrix || {hours: {}};
+  const out = [];
+  Object.keys(m.hours || {}).forEach(sid => {
+    Object.keys(m.hours[sid] || {}).forEach(tid => {
+      const h = parseOneOneHours(m.hours[sid][tid]);
+      if(!h) return;
+      out.push({studentId: sid, teacherId: tid, hours: h, duration: oneOneHoursToMinutes(h)});
+    });
+  });
+  return out;
+}
+
+function clampOneOneDuration(n){
+  const v = parseInt(n, 10);
+  if(!Number.isFinite(v)) return 60;
+  return Math.max(15, Math.min(360, v));
+}
+function durationForOneOneStudent(sid, opts){
+  const map = (opts && opts.durations) || {};
+  if(map[sid] != null && map[sid] !== '') return clampOneOneDuration(map[sid]);
+  return clampOneOneDuration(opts && opts.duration);
+}
+
+function scheduleOneToOne(opts){
+  const teacherId = opts && opts.teacherId;
+  const duration = clampOneOneDuration(opts && opts.duration);
+  const perStudent = Math.max(1, Math.min(3, parseInt(opts && opts.perStudent, 10) || 1));
+  const studentIds = ((opts && opts.studentIds) || []).filter(Boolean);
+  const accepted = (opts && opts.acceptedRows) || (DB.acceptedSchedule || []);
+  const extra = (opts && opts.existingOneOne) || [];
+  const tname = teacherName(teacherId) || teacherId || '';
+  const wins = teacherId ? teacherDayWindows(teacherId) : {};
+  const rng = (opts && opts.rng) || Math.random.bind(Math);
+  const randomize = !!(opts && opts.randomize);
+  let days = DAYS.filter(d => wins[d]);
+  if(randomize) days = shuffledCopy(days, rng);
+  const scheduled = [];
+  const unresolved = [];
+
+  function failAll(reason){
+    studentIds.forEach(id => {
+      const st = (DB.students || []).find(s => s.ID === id);
+      unresolved.push({studentId: id, name: st ? studentDisplayName(st) : id, teacherId, reason});
+    });
+    return {scheduled, unresolved, duration, teacherId, dayCount: {}, target: 0};
+  }
+  if(!teacherId) return failAll('no teacher selected');
+  if(!days.length) return failAll('teacher has no availability rows');
+  if(!studentIds.length) return {scheduled, unresolved, duration, teacherId, dayCount: {}, target: 0};
+
+  const extraRows = extra.map(s => ({
+    status: 'scheduled',
+    teacherId: s.teacherId,
+    day: s.day,
+    start: s.start,
+    end: s.end,
+    studentIds: s.studentIds || s.studentId || '',
+    name: s.name
+  }));
+  const maps = acceptedBusyMaps(accepted.concat(extraRows));
+  const tBusy = {};
+  DAYS.forEach(d => { tBusy[d] = ((maps.teacherBusy[teacherId] || {})[d] || []).slice(); });
+
+  let jobs = [];
+  studentIds.forEach(sid => {
+    const student = (DB.students || []).find(s => s.ID === sid);
+    if(!student){
+      unresolved.push({studentId: sid, name: sid, teacherId, reason: 'student not in the roster'});
+      return;
+    }
+    const dur = durationForOneOneStudent(sid, opts);
+    for(let k=0; k<perStudent; k++) jobs.push({student, copy: k, duration: dur});
+  });
+
+  const target = Math.ceil(jobs.length / Math.max(1, days.length));
+  const dayCount = {};
+  days.forEach(d => { dayCount[d] = 0; });
+
+  function studentDaySlots(student, day, dur){
+    const win = wins[day];
+    if(!win) return [];
+    // Subtract CLASS_CONST reservations from the teacher's actual window.
+    // Do not use classFreeGaps here: that clips to 08:00–20:00, so a teacher
+    // available until 20:30 (or from 07:30) would lose a legal 1/1 hole.
+    const reserved = (student.CLASS_ID ? (DB.classAvail || []).filter(r =>
+      r.classId === student.CLASS_ID && r.day === day && (r.start || r.end)
+    ) : []).map(r => ({
+      start: toMin(r.start) ?? DEFAULT_START,
+      end: toMin(r.end) ?? DEFAULT_END
+    }));
+    let ivs = subtractBusyFromIntervals([[win.start, win.end]], reserved);
+    const busy = (tBusy[day] || []).concat(((maps.studentBusy[student.ID] || {})[day]) || []);
+    ivs = subtractBusyFromIntervals(ivs, busy);
+    const slots = [];
+    ivs.forEach(([s,e]) => {
+      candidateStartsForInterval(s, e, dur, tBusy[day], randomize).forEach(start => {
+        const end = start + dur;
+        if(busy.some(iv => intervalsOverlap(start, end, iv.start, iv.end))) return;
+        if(overlappingClassReservation(student.CLASS_ID, day, start, end)) return;
+        if(teacherWindowClash(teacherId, tname, day, start, end)) return;
+        slots.push({day, start, end, gap: intervalGapScore(start, end, tBusy[day]), rank: win.rank});
+      });
+    });
+    return slots;
+  }
+
+  jobs.sort((a,b) => {
+    const fa = days.reduce((n,d) => n + (studentDaySlots(a.student, d, a.duration).length ? 1 : 0), 0);
+    const fb = days.reduce((n,d) => n + (studentDaySlots(b.student, d, b.duration).length ? 1 : 0), 0);
+    return fa - fb || (randomize ? rng() - 0.5 : 0);
+  });
+  if(randomize) jobs = shuffledCopy(jobs, rng);
+
+  jobs.forEach(job => {
+    const slots = days.flatMap(d => studentDaySlots(job.student, d, job.duration));
+    if(!slots.length){
+      unresolved.push({
+        studentId: job.student.ID,
+        name: studentDisplayName(job.student),
+        teacherId,
+        reason: 'no shared free slot with the teacher (accepted bookings, class reservations, or availability)'
+      });
+      return;
+    }
+    slots.sort((a,b) => {
+      const overA = Math.max(0, (dayCount[a.day] + 1) - target);
+      const overB = Math.max(0, (dayCount[b.day] + 1) - target);
+      // Pack against existing teacher blocks first. Even-day spread is a
+      // tie-break: a 3-hour hole is worse than going one over the per-day target.
+      return a.gap - b.gap
+        || overA - overB
+        || dayCount[a.day] - dayCount[b.day]
+        || a.rank - b.rank
+        || DAYS.indexOf(a.day) - DAYS.indexOf(b.day)
+        || a.start - b.start;
+    });
+    const tight = randomize ? slots.filter(s => s.gap === slots[0].gap) : slots;
+    const pick = (randomize && tight.length > 1)
+      ? tight[Math.floor(rng() * tight.length)]
+      : slots[0];
+    const prefix = (opts && opts.idPrefix) || 'O2O';
+    const label = (opts && opts.lessonLabel) || '1/1';
+    const source = (opts && opts.source) || 'oneone';
+    const item = {
+      lessonId: prefix + '-' + teacherId + '-' + job.student.ID + (job.copy ? '-' + (job.copy + 1) : ''),
+      name: studentDisplayName(job.student) + ' ' + label,
+      group: label, groupId: '',
+      teacherId, teacher: tname,
+      day: pick.day, start: pick.start, end: pick.end,
+      studentCount: 1,
+      studentNames: [studentDisplayName(job.student)],
+      studentId: job.student.ID,
+      studentIds: job.student.ID,
+      room321: false,
+      source,
+      duration: job.duration
+    };
+    scheduled.push(item);
+    tBusy[pick.day].push({start: pick.start, end: pick.end, name: item.name});
+    maps.studentBusy[job.student.ID] = maps.studentBusy[job.student.ID] || {};
+    maps.studentBusy[job.student.ID][pick.day] = maps.studentBusy[job.student.ID][pick.day] || [];
+    maps.studentBusy[job.student.ID][pick.day].push({start: pick.start, end: pick.end});
+    dayCount[pick.day]++;
+  });
+
+  scheduled.sort((a,b) => DAYS.indexOf(a.day) - DAYS.indexOf(b.day) || a.start - b.start);
+  return {scheduled, unresolved, duration, teacherId, dayCount, target};
+}
+
+function scheduleAllOneToOne(opts){
+  const assignments = (opts && opts.assignments) || collectOneOneAssignments((opts && opts.matrix) || DB.oneToOne);
+  const accepted = (opts && opts.acceptedRows) || (DB.acceptedSchedule || []);
+  const rng = (opts && opts.rng) || Math.random.bind(Math);
+  const randomize = !!(opts && opts.randomize);
+  const byTeacher = {};
+  assignments.forEach(a => {
+    if(!a.teacherId || !a.studentId) return;
+    byTeacher[a.teacherId] = byTeacher[a.teacherId] || [];
+    byTeacher[a.teacherId].push(a);
+  });
+  let teacherIds = Object.keys(byTeacher).sort((a,b) => {
+    const da = DAYS.filter(d => teacherDayWindows(a)[d]).length;
+    const dbn = DAYS.filter(d => teacherDayWindows(b)[d]).length;
+    return da - dbn || byTeacher[b].length - byTeacher[a].length || String(teacherName(a)).localeCompare(String(teacherName(b)));
+  });
+  if(randomize) teacherIds = shuffledCopy(teacherIds, rng);
+  let existing = ((opts && opts.existingOneOne) || []).slice();
+  const scheduled = [];
+  const unresolved = [];
+  teacherIds.forEach(tid => {
+    const list = byTeacher[tid];
+    const durations = {};
+    list.forEach(a => { durations[a.studentId] = a.duration; });
+    const result = scheduleOneToOne({
+      teacherId: tid,
+      studentIds: list.map(a => a.studentId),
+      durations,
+      duration: 60,
+      perStudent: 1,
+      acceptedRows: accepted,
+      existingOneOne: existing,
+      source: opts && opts.source,
+      lessonLabel: opts && opts.lessonLabel,
+      idPrefix: opts && opts.idPrefix,
+      randomize,
+      rng
+    });
+    existing = existing.concat(result.scheduled);
+    scheduled.push.apply(scheduled, result.scheduled);
+    unresolved.push.apply(unresolved, result.unresolved);
+  });
+  scheduled.sort((a,b) => String(a.teacher||'').localeCompare(String(b.teacher||'')) || DAYS.indexOf(a.day) - DAYS.indexOf(b.day) || a.start - b.start);
+  return {scheduled, unresolved, assignmentCount: assignments.length};
+}
+
+const ONEONE_SEARCH_ATTEMPTS = 15;
+const ONEONE_SEARCH_MAX_TRIES = 60;
+function lessonStartMinutes(row){
+  if(!row) return null;
+  return typeof row.start === 'number' ? row.start : toMin(row.start);
+}
+function lessonEndMinutes(row){
+  if(!row) return null;
+  return typeof row.end === 'number' ? row.end : toMin(row.end);
+}
+function scheduledIdleGapMinutes(rows){
+  const by = {};
+  (rows || []).forEach(r => {
+    if(!r || r.status === 'unscheduled') return;
+    const tid = r.teacherId;
+    const day = r.day;
+    const start = lessonStartMinutes(r);
+    const end = lessonEndMinutes(r);
+    if(!tid || !day || start == null || end == null) return;
+    (by[tid] = by[tid] || {});
+    (by[tid][day] = by[tid][day] || []).push({start, end});
+  });
+  let total = 0;
+  Object.keys(by).forEach(tid => {
+    Object.keys(by[tid]).forEach(day => {
+      const list = by[tid][day].sort((a,b) => a.start - b.start || a.end - b.end);
+      for(let i=1;i<list.length;i++){
+        const gap = list[i].start - list[i-1].end;
+        if(gap > 0) total += gap;
+      }
+    });
+  });
+  return total;
+}
+function attachOneOneLayoutScore(result, acceptedRows){
+  if(!result) return result;
+  result.idleGapMinutes = scheduledIdleGapMinutes((acceptedRows || []).concat(result.scheduled || []));
+  return result;
+}
+function oneOneResultScore(result){
+  const idle = result && Number.isFinite(result.idleGapMinutes)
+    ? result.idleGapMinutes
+    : scheduledIdleGapMinutes(result && result.scheduled);
+  return [
+    ((result && result.unresolved) || []).length,
+    -(((result && result.scheduled) || []).length),
+    idle
+  ];
+}
+function compareOneOneResults(a, b){
+  const sa = oneOneResultScore(a), sb = oneOneResultScore(b);
+  for(let i=0;i<sa.length;i++){
+    if(sa[i] !== sb[i]) return sa[i] - sb[i];
+  }
+  return 0;
+}
+function mergeIndividualVariants(prev, fresh){
+  const merged = new Map();
+  (prev || []).forEach(v => merged.set(resultSignature(v), v));
+  (fresh || []).forEach(v => {
+    const sig = resultSignature(v);
+    if(!merged.has(sig)) merged.set(sig, v);
+  });
+  return [...merged.values()].sort(compareOneOneResults).slice(0, 30);
+}
+function scheduleAllOneToOneSearch(opts){
+  const accepted = (opts && opts.acceptedRows) || [];
+  const seen = new Map();
+  const first = attachOneOneLayoutScore(
+    scheduleAllOneToOne(Object.assign({}, opts, {randomize: false})),
+    accepted
+  );
+  first.attemptNo = 1;
+  first.attemptKind = 'deterministic';
+  seen.set(resultSignature(first), first);
+  let n = 2;
+  while(seen.size < ONEONE_SEARCH_ATTEMPTS && n <= ONEONE_SEARCH_MAX_TRIES){
+    const result = attachOneOneLayoutScore(
+      scheduleAllOneToOne(Object.assign({}, opts, {randomize: true})),
+      accepted
+    );
+    result.attemptNo = n;
+    result.attemptKind = 'random';
+    const sig = resultSignature(result);
+    if(!seen.has(sig)) seen.set(sig, result);
+    n++;
+  }
+  return [...seen.values()].sort(compareOneOneResults);
+}
+function individualSearchFingerprint(kind){
+  const matrix = kind === 'rjpiano' ? DB.rjPiano : DB.oneToOne;
+  return JSON.stringify({
+    kind,
+    accepted: (DB.acceptedSchedule || []).map(r => [r.lessonId, r.day, r.start, r.end, r.teacherId]),
+    oneone: kind === 'rjpiano' ? ((LAST_ONEONE && LAST_ONEONE.scheduled) || []).map(s => [s.lessonId, s.day, s.start, s.end]) : null,
+    hours: (matrix && matrix.hours) || {}
+  });
+}
+function applyIndividualSearch(kind, fresh, viewTeacherId){
+  const fp = individualSearchFingerprint(kind);
+  const prev = kind === 'rjpiano' ? LAST_RJPIANO : LAST_ONEONE;
+  let variants = fresh || [];
+  if(prev && prev.inputFingerprint === fp && prev.variants && prev.variants.length){
+    variants = mergeIndividualVariants(prev.variants, fresh);
+  }
+  const best = variants[0] || {scheduled: [], unresolved: []};
+  const state = {
+    viewTeacherId: viewTeacherId || (best.scheduled[0] && best.scheduled[0].teacherId) || '',
+    scheduled: best.scheduled,
+    unresolved: best.unresolved,
+    accepted: false,
+    variants,
+    selectedIndex: 0,
+    inputFingerprint: fp
+  };
+  if(kind === 'rjpiano') LAST_RJPIANO = state;
+  else {
+    LAST_ONEONE = state;
+    LAST_RJPIANO = null;
+  }
+  return state;
+}
+function populateIndividualVariantSelector(kind){
+  const state = kind === 'rjpiano' ? LAST_RJPIANO : LAST_ONEONE;
+  const row = document.getElementById(kind === 'rjpiano' ? 'rjpianoVariantRow' : 'oneoneVariantRow');
+  const sel = document.getElementById(kind === 'rjpiano' ? 'rjpianoVariantSelect' : 'oneoneVariantSelect');
+  if(!row || !sel) return;
+  const variants = (state && state.variants) || [];
+  if(variants.length <= 1){
+    row.style.display = 'none';
+    return;
+  }
+  row.style.display = 'flex';
+  const idx = Math.max(0, Math.min(state.selectedIndex || 0, variants.length - 1));
+  sel.innerHTML = variants.map((v, i) => {
+    const label = i === 0 ? 'Best' : `Variant ${i + 1}`;
+    const attempt = v.attemptNo ? ` · attempt ${v.attemptNo}` : '';
+    const gaps = Number.isFinite(v.idleGapMinutes) ? `, ${v.idleGapMinutes} min gaps` : '';
+    return `<option value="${i}">${label}${attempt} — ${v.scheduled.length} placed, ${v.unresolved.length} left out${gaps}</option>`;
+  }).join('');
+  sel.value = String(idx);
+}
+function selectIndividualVariant(kind, idx){
+  const state = kind === 'rjpiano' ? LAST_RJPIANO : LAST_ONEONE;
+  if(!state || !state.variants || !state.variants[idx]) return;
+  const v = state.variants[idx];
+  state.selectedIndex = idx;
+  state.scheduled = v.scheduled;
+  state.unresolved = v.unresolved;
+  state.accepted = false;
+  state.dragUndo = [];
+  state.dragBaseline = null;
+  if(kind === 'rjpiano') renderRjPianoTab();
+  else renderOneOneTab();
+  markWorkDirty();
+}
+
+function updateOneOneTabLock(){
+  const btn = document.querySelector('.tab-btn-oneone');
+  if(!btn) return;
+  const ok = hasAcceptedRecord();
+  btn.classList.toggle('is-locked', !ok);
+  btn.setAttribute('aria-disabled', ok ? 'false' : 'true');
+  btn.title = ok ? '1/1 individual lessons' : 'Accept a timetable first';
+}
+function hasAcceptedOneOne(){
+  return !!(LAST_ONEONE && LAST_ONEONE.accepted && (LAST_ONEONE.scheduled || []).length);
+}
+function hasAcceptedRjPiano(){
+  return !!(LAST_RJPIANO && LAST_RJPIANO.accepted && (LAST_RJPIANO.scheduled || []).length);
+}
+function updateRjPianoTabLock(){
+  const btn = document.querySelector('.tab-btn-rjpiano');
+  if(!btn) return;
+  const ok = hasAcceptedOneOne();
+  btn.classList.toggle('is-locked', !ok);
+  btn.setAttribute('aria-disabled', ok ? 'false' : 'true');
+  btn.title = ok ? 'Required Jazz Piano' : 'Accept 1/1 first';
+}
+function busyRowsFromScheduled(items){
+  return (items || []).filter(s => s && s.day && s.start != null && s.end != null).map(s => ({
+    status: 'scheduled',
+    teacherId: s.teacherId,
+    day: s.day,
+    start: s.start,
+    end: s.end,
+    studentIds: s.studentIds || s.studentId || '',
+    name: s.name || ''
+  }));
+}
+function teacherIndividualItems(teacherId){
+  if(!teacherId) return [];
+  const one = ((LAST_ONEONE && LAST_ONEONE.scheduled) || []).filter(s => s.teacherId === teacherId);
+  const piano = ((LAST_RJPIANO && LAST_RJPIANO.scheduled) || []).filter(s => s.teacherId === teacherId);
+  return one.concat(piano).filter(i => i.start != null && i.end != null && i.day);
+}
+function oneoneAcceptedItemsForTeacher(teacherId){
+  return (DB.acceptedSchedule || []).filter(r => r.status === 'scheduled' && r.teacherId === teacherId && r.day && toMin(r.start) != null).map(r => ({
+    lessonId: r.lessonId || ('ACC-' + r.name),
+    name: r.name || '',
+    teacherId: r.teacherId,
+    teacher: r.teacher,
+    day: r.day,
+    start: toMin(r.start),
+    end: toMin(r.end),
+    studentCount: r.studentCount || parseIdList(r.studentIds).length,
+    studentNames: r.students ? String(r.students).split(',').map(x => x.trim()).filter(Boolean) : [],
+    studentIds: r.studentIds || '',
+    room321: !!r.room321,
+    source: 'accepted'
+  }));
+}
+function teacherWeekItems(teacherId){
+  if(!teacherId) return [];
+  return oneoneAcceptedItemsForTeacher(teacherId)
+    .concat(teacherIndividualItems(teacherId))
+    .filter(i => i.start != null && i.end != null && i.day);
+}
+function individualTeacherIds(kind){
+  const ids = [];
+  if(kind !== 'rjpiano'){
+    collectOneOneAssignments(DB.oneToOne).forEach(a => { if(a.teacherId) ids.push(a.teacherId); });
+    ((LAST_ONEONE && LAST_ONEONE.scheduled) || []).forEach(s => { if(s.teacherId) ids.push(s.teacherId); });
+  }
+  if(kind !== 'oneone'){
+    collectOneOneAssignments(DB.rjPiano).forEach(a => { if(a.teacherId) ids.push(a.teacherId); });
+    ((LAST_RJPIANO && LAST_RJPIANO.scheduled) || []).forEach(s => { if(s.teacherId) ids.push(s.teacherId); });
+  }
+  return [...new Set(ids)].sort((a,b) => String(teacherName(a)||a).localeCompare(String(teacherName(b)||b)));
+}
+function fillIndividualTeacherFilter(sel, stateObj, emptyLabel, kind){
+  if(!sel) return;
+  const ids = individualTeacherIds(kind);
+  if(!ids.length){
+    sel.innerHTML = `<option value="">${emptyLabel}</option>`;
+    return;
+  }
+  const current = sel.value || (stateObj && stateObj.viewTeacherId) || ids[0];
+  const pick = ids.includes(current) ? current : ids[0];
+  sel.innerHTML = ids.map(id => `<option value="${escapeAttr(id)}" ${id===pick?'selected':''}>${escapeAttr(teacherName(id)||id)}</option>`).join('');
+  if(stateObj) stateObj.viewTeacherId = sel.value;
+}
+function renderTeacherWeekGrid(grid, sel, stateObj, emptyHtml, kind){
+  if(!grid) return;
+  fillIndividualTeacherFilter(sel, stateObj, '— generate first —', kind);
+  const teacherId = (sel && sel.value) || (stateObj && stateObj.viewTeacherId) || '';
+  const items = teacherWeekItems(teacherId);
+  LAST_AUDIT = auditTimetable(combinedWeekItems());
+  if(!items.length){
+    grid.innerHTML = emptyHtml;
+    const wrap = document.getElementById((kind === 'rjpiano' ? 'rjpiano' : 'oneone') + 'AuditWrap');
+    if(wrap) wrap.style.display = 'none';
+    updateIndividualUndo(kind);
+    return;
+  }
+  renderCalendar(grid, items, false, kind);
+  attachHoverTooltips(grid);
+  attachCalendarDrag(grid);
+  renderAuditPanel({
+    prefix: kind === 'rjpiano' ? 'rjpiano' : 'oneone',
+    lessonIds: items.map(i => i.lessonId).filter(Boolean)
+  });
+  updateIndividualUndo(kind);
+}
+
+function renderOneOneGrid(){
+  renderTeacherWeekGrid(
+    document.getElementById('oneoneGrid'),
+    document.getElementById('oneoneTeacherFilter'),
+    LAST_ONEONE,
+    '<p class="dataio-hint" style="margin:0">Open the 1/1 matrix, then Generate all 1/1. Pick a teacher here to see grey accepted blocks, gold 1/1, and teal Required Jazz Piano.</p>',
+    'oneone'
+  );
+}
+
+function renderHoursMatrixPanel(opts){
+  const box = document.getElementById(opts.wrapId);
+  const countEl = document.getElementById(opts.countId);
+  if(!box) return;
+  const m = opts.matrix || {columns: [], hours: {}};
+  const cols = m.columns || [];
+  const q = (document.getElementById(opts.filterId) || {}).value || '';
+  const qn = String(q).trim().toLowerCase();
+  const students = (DB.students || []).filter(s => {
+    if(!qn) return true;
+    const blob = `${studentDisplayName(s)} ${s.ID} ${instrName(s.INSTR_ID)||''}`.toLowerCase();
+    return blob.includes(qn);
+  });
+  const assignments = collectOneOneAssignments(m);
+  if(countEl){
+    countEl.textContent = `${assignments.length} filled cells · ${students.length} student${students.length===1?'':'s'}`;
+  }
+  if(!cols.length){
+    box.innerHTML = `<p class="dataio-hint" style="padding:12px;margin:0">${opts.emptyHtml}</p>`;
+    return;
+  }
+  const head = `<thead><tr>
+    <th class="is-sticky">Student</th>
+    ${cols.map(c => `<th class="oneone-tcol">${escapeAttr(c.name)}</th>`).join('')}
+  </tr></thead>`;
+  const body = students.map(s => {
+    const cells = cols.map(c => {
+      const val = formatOneOneHours(((m.hours || {})[s.ID] || {})[c.id]);
+      const filled = val ? ' is-filled' : '';
+      return `<td class="oneone-tcol${filled}"><input type="number" class="oneone-cell" data-sid="${escapeAttr(s.ID)}" data-tid="${escapeAttr(c.id)}" min="0" max="6" step="0.5" value="${escapeAttr(val)}" title="Hours with ${escapeAttr(c.name)} (1 = 60 min)"></td>`;
+    }).join('');
+    return `<tr>
+      <td class="is-sticky"><div class="oneone-sid">${escapeAttr(s.ID)}</div><div class="oneone-sname">${escapeAttr(studentDisplayName(s))}</div><div class="meta" style="font-size:10px;color:var(--ink-dim)">${escapeAttr(instrName(s.INSTR_ID)||'—')}</div></td>
+      ${cells}
+    </tr>`;
+  }).join('');
+  const tableClass = opts.tableClass ? `oneone-matrix ${opts.tableClass}` : 'oneone-matrix';
+  box.innerHTML = `<table class="${tableClass}">${head}<tbody>${body}</tbody></table>`;
+  box.querySelectorAll('input.oneone-cell').forEach(inp => {
+    inp.addEventListener('change', () => {
+      opts.setHours(inp.dataset.sid, inp.dataset.tid, inp.value);
+      const hours = ((opts.matrix.hours || {})[inp.dataset.sid] || {})[inp.dataset.tid];
+      inp.value = formatOneOneHours(hours);
+      inp.closest('td')?.classList.toggle('is-filled', !!inp.value);
+      markWorkDirty();
+      if(countEl){
+        const n = collectOneOneAssignments(opts.matrix).length;
+        countEl.textContent = `${n} filled cells · ${students.length} student${students.length===1?'':'s'}`;
+      }
+    });
+  });
+}
+function renderUnresolvedList(wrapId, listId, unresolved){
+  const wrap = document.getElementById(wrapId);
+  const ul = document.getElementById(listId);
+  if(!wrap || !ul) return;
+  wrap.style.display = unresolved.length ? 'block' : 'none';
+  ul.innerHTML = unresolved.map(u => {
+    const t = u.teacherId ? (teacherName(u.teacherId) || u.teacherId) + ' · ' : '';
+    return `<li><b>${escapeAttr(u.name || u.studentId)}</b> — ${escapeAttr(t + (u.reason || 'no slot'))}</li>`;
+  }).join('');
+}
+function renderPlacementStats(statsId, scheduled, unresolved, placedLabel){
+  const stats = document.getElementById(statsId);
+  if(!stats) return;
+  if(!scheduled.length){
+    stats.style.display = 'none';
+    return;
+  }
+  stats.style.display = 'flex';
+  const daysUsed = new Set(scheduled.map(s => s.day)).size;
+  const teachersUsed = new Set(scheduled.map(s => s.teacherId)).size;
+  stats.innerHTML = `
+    <div class="stat"><div class="num">${scheduled.length}</div><div class="lbl">${placedLabel}</div></div>
+    <div class="stat"><div class="num">${unresolved.length}</div><div class="lbl">Unplaced</div></div>
+    <div class="stat"><div class="num">${teachersUsed}</div><div class="lbl">Teachers</div></div>
+    <div class="stat"><div class="num">${daysUsed}</div><div class="lbl">Days used</div></div>`;
+}
+
+function renderOneOneTab(){
+  updateOneOneTabLock();
+  updateRjPianoTabLock();
+  ensureOneToOneMatrix();
+  const summary = document.getElementById('oneoneSummary');
+  const tag = document.getElementById('oneoneStatusTag');
+  const scheduled = (LAST_ONEONE && LAST_ONEONE.scheduled) || [];
+  const unresolved = (LAST_ONEONE && LAST_ONEONE.unresolved) || [];
+  const assignments = collectOneOneAssignments(DB.oneToOne);
+  const teacherN = new Set(assignments.map(a => a.teacherId)).size;
+  if(summary){
+    if(!hasAcceptedRecord()){
+      summary.textContent = 'Accept a timetable first.';
+    } else if(LAST_ONEONE && LAST_ONEONE.accepted){
+      summary.textContent = `1/1 accepted — ${scheduled.length} frozen. Required Jazz Piano is unlocked.`;
+    } else if(scheduled.length){
+      const nVar = (LAST_ONEONE.variants || []).length;
+      summary.textContent = `${scheduled.length} 1/1 placed${nVar > 1 ? ` · ${nVar} layouts` : ''}. Accept 1/1 to freeze this layout (including any dragged times).`;
+    } else if(assignments.length){
+      summary.textContent = `${assignments.length} 1/1 hours across ${teacherN} teacher${teacherN===1?'':'s'} · 1 = 60 min, 1.5 = 90, 2 = 120. Generate, then Accept 1/1 before piano.`;
+    } else {
+      summary.textContent = 'Fill hours in the matrix below (1 = 60 min), then Generate all 1/1.';
+    }
+  }
+  if(tag){
+    tag.textContent = scheduled.length
+      ? `${scheduled.length} placed${unresolved.length ? ` · ${unresolved.length} left out` : ''}${((LAST_ONEONE.variants||[]).length > 1) ? ` · ${(LAST_ONEONE.variants||[]).length} layouts` : ''}${LAST_ONEONE && LAST_ONEONE.accepted ? ' · accepted' : ''}`
+      : '';
+  }
+  renderPlacementStats('oneoneStatsRow', scheduled, unresolved, '1/1 placed');
+  renderUnresolvedList('oneoneUnresolvedWrap', 'oneoneUnresolvedList', unresolved);
+  populateIndividualVariantSelector('oneone');
+  const acceptBtn = document.getElementById('oneoneAcceptBtn');
+  if(acceptBtn){
+    acceptBtn.disabled = !scheduled.length || !!(LAST_ONEONE && LAST_ONEONE.accepted);
+    acceptBtn.textContent = (LAST_ONEONE && LAST_ONEONE.accepted) ? '✓ 1/1 accepted' : '✓ Accept 1/1';
+  }
+  renderOneOneGrid();
+  renderOneOneMatrix();
+  fillAcceptedSchedulePanel({
+    panel: 'oneoneAcceptedSchedulePanel',
+    table: 'oneoneAcceptedScheduleTable',
+    tag: 'oneoneAcceptedScheduleTag'
+  }, hasAcceptedOneOne() ? (LAST_ONEONE.acceptedSchedule || individualAcceptedRows(LAST_ONEONE, '1/1')) : []);
+}
+
+function ensureOneToOneMatrix(){
+  DB.oneToOne = DB.oneToOne || {columns: [], hours: {}};
+  DB.oneToOne.columns = DB.oneToOne.columns || [];
+  DB.oneToOne.hours = DB.oneToOne.hours || {};
+  const emptyHours = !Object.keys(DB.oneToOne.hours).length;
+  if(emptyHours && SEED.oneToOne && SEED.oneToOne.hours && Object.keys(SEED.oneToOne.hours).length){
+    DB.oneToOne = JSON.parse(JSON.stringify(SEED.oneToOne));
+  }
+  if(!DB.oneToOne.columns.length && (DB.refTeachers || []).length){
+    DB.oneToOne.columns = (DB.refTeachers || []).map(t => ({id: t.id, name: t.name}));
+  }
+  return DB.oneToOne;
+}
+function fillOneOneTeacherFilter(){
+  fillIndividualTeacherFilter(document.getElementById('oneoneTeacherFilter'), LAST_ONEONE, '— generate 1/1 first —', 'oneone');
+}
+function setOneOneHours(studentId, teacherId, hours){
+  ensureOneToOneMatrix();
+  DB.oneToOne.hours[studentId] = DB.oneToOne.hours[studentId] || {};
+  const n = parseOneOneHours(hours);
+  if(!n) delete DB.oneToOne.hours[studentId][teacherId];
+  else DB.oneToOne.hours[studentId][teacherId] = n;
+}
+function renderOneOneMatrix(){
+  renderHoursMatrixPanel({
+    wrapId: 'oneoneMatrixWrap',
+    countId: 'oneoneMatrixCount',
+    filterId: 'oneoneMatrixFilter',
+    matrix: ensureOneToOneMatrix(),
+    setHours: setOneOneHours,
+    emptyHtml: 'No teacher columns — load the Drive 1_1 tab or add teachers in Reference tables.'
+  });
+}
+function setOneOneGenerateBusy(busy){
+  const btn = document.getElementById('oneoneGenerateBtn');
+  if(!btn) return;
+  btn.disabled = !!busy;
+  btn.textContent = busy ? 'Generating…' : '▶ Generate all 1/1';
+}
+function runOneOneGenerate(){
+  if(!hasAcceptedRecord()){
+    alert('Accept a timetable first.');
+    return;
+  }
+  ensureOneToOneMatrix();
+  const assignments = collectOneOneAssignments(DB.oneToOne);
+  if(!assignments.length){
+    alert('The 1/1 matrix is empty. Fill hours in the table (1 = 60 min).');
+    return;
+  }
+  setOneOneGenerateBusy(true);
+  setTimeout(() => {
+    try {
+      const variants = scheduleAllOneToOneSearch({
+        matrix: DB.oneToOne,
+        acceptedRows: DB.acceptedSchedule || []
+      });
+      applyIndividualSearch(
+        'oneone',
+        variants,
+        (document.getElementById('oneoneTeacherFilter') || {}).value
+      );
+      renderOneOneTab();
+      renderRjPianoTab();
+      if(LAST_RESULT) renderGrid();
+      markWorkDirty();
+    } finally {
+      setOneOneGenerateBusy(false);
+    }
+  }, 0);
+}
+function acceptOneOneSchedule(){
+  if(!LAST_ONEONE || !(LAST_ONEONE.scheduled || []).length){
+    alert('Generate 1/1 first.');
+    return;
+  }
+  LAST_ONEONE.accepted = true;
+  LAST_ONEONE.acceptedAt = new Date().toISOString();
+  LAST_ONEONE.acceptedSchedule = individualAcceptedRows(LAST_ONEONE, '1/1');
+  LAST_ONEONE.dragUndo = [];
+  LAST_ONEONE.dragBaseline = cloneLessonSlots(LAST_ONEONE.scheduled);
+  LAST_RJPIANO = null;
+  renderOneOneTab();
+  renderRjPianoTab();
+  if(LAST_RESULT) renderGrid();
+  markWorkDirty();
+  alert('1/1 accepted — those slots are frozen. Required Jazz Piano is unlocked and will pack around the accepted week plus these 1/1 hours.');
+}
+
+document.getElementById('oneoneGenerateBtn').addEventListener('click', runOneOneGenerate);
+document.getElementById('oneoneAcceptBtn').addEventListener('click', acceptOneOneSchedule);
+document.getElementById('oneoneUndoBtn').addEventListener('click', () => undoIndividualDrag('oneone'));
+document.getElementById('oneoneVariantSelect').addEventListener('change', (e) => {
+  selectIndividualVariant('oneone', parseInt(e.target.value, 10) || 0);
+});
+document.getElementById('oneoneMatrixFilter').addEventListener('input', renderOneOneMatrix);
+document.getElementById('oneoneTeacherFilter').addEventListener('change', () => {
+  LAST_ONEONE = LAST_ONEONE || {scheduled: [], unresolved: []};
+  LAST_ONEONE.viewTeacherId = document.getElementById('oneoneTeacherFilter').value;
+  renderOneOneGrid();
+});
+document.getElementById('exportOneoneAcceptedBtn').addEventListener('click', () => {
+  const rows = hasAcceptedOneOne()
+    ? ((LAST_ONEONE.acceptedSchedule && LAST_ONEONE.acceptedSchedule.length)
+      ? LAST_ONEONE.acceptedSchedule
+      : individualAcceptedRows(LAST_ONEONE, '1/1'))
+    : [];
+  downloadAcceptedScheduleCsv(rows, 'bartokkonzi_jazz_accepted_1_1.csv');
+});
+
+function ensureRjPianoMatrix(){
+  DB.rjPiano = DB.rjPiano || {columns: [], hours: {}};
+  DB.rjPiano.columns = DB.rjPiano.columns || [];
+  DB.rjPiano.hours = DB.rjPiano.hours || {};
+  const emptyHours = !Object.keys(DB.rjPiano.hours).length;
+  if(emptyHours && SEED.rjPiano && SEED.rjPiano.hours && Object.keys(SEED.rjPiano.hours).length){
+    DB.rjPiano = JSON.parse(JSON.stringify(SEED.rjPiano));
+  }
+  return DB.rjPiano;
+}
+function setRjPianoHours(studentId, teacherId, hours){
+  ensureRjPianoMatrix();
+  DB.rjPiano.hours[studentId] = DB.rjPiano.hours[studentId] || {};
+  const n = parseOneOneHours(hours);
+  if(!n) delete DB.rjPiano.hours[studentId][teacherId];
+  else DB.rjPiano.hours[studentId][teacherId] = n;
+}
+function renderRjPianoMatrix(){
+  renderHoursMatrixPanel({
+    wrapId: 'rjpianoMatrixWrap',
+    countId: 'rjpianoMatrixCount',
+    filterId: 'rjpianoMatrixFilter',
+    matrix: ensureRjPianoMatrix(),
+    setHours: setRjPianoHours,
+    tableClass: 'is-rjpiano',
+    emptyHtml: 'No piano teacher columns — load the Drive JRPiano tab.'
+  });
+}
+function renderRjPianoGrid(){
+  renderTeacherWeekGrid(
+    document.getElementById('rjpianoGrid'),
+    document.getElementById('rjpianoTeacherFilter'),
+    LAST_RJPIANO,
+    '<p class="dataio-hint" style="margin:0">Accept 1/1, then Generate Required Jazz Piano. Pick a teacher to see grey accepted blocks, gold 1/1, and teal Required Jazz Piano.</p>',
+    'rjpiano'
+  );
+}
+function renderRjPianoTab(){
+  updateRjPianoTabLock();
+  ensureRjPianoMatrix();
+  const summary = document.getElementById('rjpianoSummary');
+  const tag = document.getElementById('rjpianoStatusTag');
+  const scheduled = (LAST_RJPIANO && LAST_RJPIANO.scheduled) || [];
+  const unresolved = (LAST_RJPIANO && LAST_RJPIANO.unresolved) || [];
+  const assignments = collectOneOneAssignments(DB.rjPiano);
+  const teacherN = new Set(assignments.map(a => a.teacherId)).size;
+  if(summary){
+    if(!hasAcceptedOneOne()){
+      summary.textContent = 'Accept 1/1 first — piano packs into leftover holes around the frozen week and 1/1.';
+    } else if(LAST_RJPIANO && LAST_RJPIANO.accepted){
+      summary.textContent = `Required Jazz Piano accepted — ${scheduled.length} frozen.`;
+    } else if(scheduled.length){
+      const nVar = (LAST_RJPIANO.variants || []).length;
+      summary.textContent = `${scheduled.length} piano hours placed${nVar > 1 ? ` · ${nVar} layouts` : ''}. Accept Required Jazz Piano to freeze this layout (including any dragged times).`;
+    } else if(assignments.length){
+      summary.textContent = `${assignments.length} Required Jazz Piano hours across ${teacherN} teacher${teacherN===1?'':'s'} · 1 = 60 min, 0.5 = 30. Generate, then Accept to freeze the slots.`;
+    } else {
+      summary.textContent = 'Fill hours in the matrix below (1 = 60 min), then Generate Required Jazz Piano.';
+    }
+  }
+  if(tag){
+    tag.textContent = scheduled.length
+      ? `${scheduled.length} placed${unresolved.length ? ` · ${unresolved.length} left out` : ''}${((LAST_RJPIANO.variants||[]).length > 1) ? ` · ${(LAST_RJPIANO.variants||[]).length} layouts` : ''}${LAST_RJPIANO && LAST_RJPIANO.accepted ? ' · accepted' : ''}`
+      : '';
+  }
+  renderPlacementStats('rjpianoStatsRow', scheduled, unresolved, 'RJP placed');
+  renderUnresolvedList('rjpianoUnresolvedWrap', 'rjpianoUnresolvedList', unresolved);
+  populateIndividualVariantSelector('rjpiano');
+  const acceptBtn = document.getElementById('rjpianoAcceptBtn');
+  if(acceptBtn){
+    acceptBtn.disabled = !scheduled.length || !!(LAST_RJPIANO && LAST_RJPIANO.accepted);
+    acceptBtn.textContent = (LAST_RJPIANO && LAST_RJPIANO.accepted) ? '✓ Required Jazz Piano accepted' : '✓ Accept Required Jazz Piano';
+  }
+  renderRjPianoGrid();
+  renderRjPianoMatrix();
+  fillAcceptedSchedulePanel({
+    panel: 'rjpianoAcceptedSchedulePanel',
+    table: 'rjpianoAcceptedScheduleTable',
+    tag: 'rjpianoAcceptedScheduleTag'
+  }, hasAcceptedRjPiano() ? (LAST_RJPIANO.acceptedSchedule || individualAcceptedRows(LAST_RJPIANO, 'piano')) : []);
+}
+function setRjPianoGenerateBusy(busy){
+  const btn = document.getElementById('rjpianoGenerateBtn');
+  if(!btn) return;
+  btn.disabled = !!busy;
+  btn.textContent = busy ? 'Generating…' : '▶ Generate Required Jazz Piano';
+}
+function runRjPianoGenerate(){
+  if(!hasAcceptedOneOne()){
+    alert('Accept 1/1 first.');
+    return;
+  }
+  ensureRjPianoMatrix();
+  const assignments = collectOneOneAssignments(DB.rjPiano);
+  if(!assignments.length){
+    alert('The Required Jazz Piano matrix is empty. Fill hours in the table (1 = 60 min).');
+    return;
+  }
+  setRjPianoGenerateBusy(true);
+  setTimeout(() => {
+    try {
+      const variants = scheduleAllOneToOneSearch({
+        matrix: DB.rjPiano,
+        acceptedRows: (DB.acceptedSchedule || []).concat(busyRowsFromScheduled(LAST_ONEONE && LAST_ONEONE.scheduled)),
+        source: 'rjpiano',
+        lessonLabel: 'piano',
+        idPrefix: 'RJP'
+      });
+      applyIndividualSearch(
+        'rjpiano',
+        variants,
+        (document.getElementById('rjpianoTeacherFilter') || {}).value
+      );
+      renderRjPianoTab();
+      renderOneOneTab();
+      if(LAST_RESULT) renderGrid();
+      markWorkDirty();
+    } finally {
+      setRjPianoGenerateBusy(false);
+    }
+  }, 0);
+}
+function acceptRjPianoSchedule(){
+  if(!hasAcceptedOneOne()){
+    alert('Accept 1/1 first.');
+    return;
+  }
+  if(!LAST_RJPIANO || !(LAST_RJPIANO.scheduled || []).length){
+    alert('Generate Required Jazz Piano first.');
+    return;
+  }
+  LAST_RJPIANO.accepted = true;
+  LAST_RJPIANO.acceptedAt = new Date().toISOString();
+  LAST_RJPIANO.acceptedSchedule = individualAcceptedRows(LAST_RJPIANO, 'piano');
+  LAST_RJPIANO.dragUndo = [];
+  LAST_RJPIANO.dragBaseline = cloneLessonSlots(LAST_RJPIANO.scheduled);
+  renderRjPianoTab();
+  renderOneOneTab();
+  if(LAST_RESULT) renderGrid();
+  markWorkDirty();
+  alert('Required Jazz Piano accepted — those slots are frozen.');
+}
+
+document.getElementById('rjpianoGenerateBtn').addEventListener('click', runRjPianoGenerate);
+document.getElementById('rjpianoAcceptBtn').addEventListener('click', acceptRjPianoSchedule);
+document.getElementById('rjpianoUndoBtn').addEventListener('click', () => undoIndividualDrag('rjpiano'));
+document.getElementById('rjpianoVariantSelect').addEventListener('change', (e) => {
+  selectIndividualVariant('rjpiano', parseInt(e.target.value, 10) || 0);
+});
+document.getElementById('rjpianoMatrixFilter').addEventListener('input', renderRjPianoMatrix);
+document.getElementById('rjpianoTeacherFilter').addEventListener('change', () => {
+  LAST_RJPIANO = LAST_RJPIANO || {scheduled: [], unresolved: []};
+  LAST_RJPIANO.viewTeacherId = document.getElementById('rjpianoTeacherFilter').value;
+  renderRjPianoGrid();
+});
+document.getElementById('exportRjpianoAcceptedBtn').addEventListener('click', () => {
+  const rows = hasAcceptedRjPiano()
+    ? ((LAST_RJPIANO.acceptedSchedule && LAST_RJPIANO.acceptedSchedule.length)
+      ? LAST_RJPIANO.acceptedSchedule
+      : individualAcceptedRows(LAST_RJPIANO, 'piano'))
+    : [];
+  downloadAcceptedScheduleCsv(rows, 'bartokkonzi_jazz_accepted_rjpiano.csv');
+});
+
+
+// ---------- FIXED pins banner + browser autosave ----------
+const AUTOSAVE_KEY = 'bartok_jazz_planner_autosave';
+const AUTOSAVE_META_KEY = 'bartok_jazz_planner_autosave_meta';
+let AUTOSAVE_TIMER = null;
+let WORK_DIRTY = false;
+
+function autosaveEnabled(){
+  return !(typeof window !== 'undefined' && window.__BJP_HARNESS);
+}
+function collectFixedPins(){
+  const lessons = (DB.lessons || []).filter(l => l.fixedDay);
+  const bands = (LAST_BANDS && LAST_BANDS.bands || []).filter(b => b.fixedDay);
+  return {lessons, bands};
+}
+function clearAllFixedPins(){
+  (DB.lessons || []).forEach(l => { l.fixedDay = ''; l.fixedStart = ''; l.fixedEnd = ''; });
+  if(LAST_BANDS && LAST_BANDS.bands){
+    LAST_BANDS.bands.forEach(b => { b.fixedDay = ''; b.fixedStart = ''; b.fixedEnd = ''; });
+  }
+  renderLessons();
+  if(LAST_BANDS) renderBandsResults(LAST_BANDS);
+  updateFixedPinsBanner();
+  markWorkDirty();
+}
+function updateFixedPinsBanner(){
+  const {lessons, bands} = collectFixedPins();
+  const n = lessons.length + bands.length;
+  const text = n
+    ? `${lessons.length} lesson${lessons.length === 1 ? '' : 's'}${bands.length ? ` · ${bands.length} band${bands.length === 1 ? '' : 's'}` : ''} pinned with FIXED times — Generate locks those slots. Leftover pins from an older Accept stay until you clear them.`
+    : '';
+  ['fixedPinsBanner', 'fixedPinsBannerLessons', 'fixedPinsBannerBands'].forEach(id => {
+    const el = document.getElementById(id);
+    if(!el || !el.style) return;
+    el.style.display = n ? 'flex' : 'none';
+    const count = el.querySelector('.fixed-pins-count');
+    if(count) count.textContent = text;
+  });
+}
+function markWorkDirty(){
+  WORK_DIRTY = true;
+  scheduleAutosave();
+  updateAutosaveStatus();
+}
+function markWorkClean(){
+  WORK_DIRTY = false;
+  flushAutosave();
+  updateAutosaveStatus();
+}
+function scheduleAutosave(){
+  if(!autosaveEnabled()) return;
+  if(AUTOSAVE_TIMER) clearTimeout(AUTOSAVE_TIMER);
+  AUTOSAVE_TIMER = setTimeout(flushAutosave, 700);
+}
+function flushAutosave(){
+  AUTOSAVE_TIMER = null;
+  if(!autosaveEnabled()) return;
+  try {
+    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(buildFullExportObject()));
+    localStorage.setItem(AUTOSAVE_META_KEY, JSON.stringify({
+      savedAt: new Date().toISOString(),
+      dirty: WORK_DIRTY
+    }));
+  } catch(e){ /* quota / private mode */ }
+  updateAutosaveStatus();
+}
+function updateAutosaveStatus(){
+  const el = document.getElementById('autosaveStatus');
+  if(!el) return;
+  try {
+    const raw = localStorage.getItem(AUTOSAVE_META_KEY);
+    if(!raw){ el.textContent = 'Autosave: nothing stored in this browser yet.'; return; }
+    const meta = JSON.parse(raw);
+    const when = meta.savedAt ? new Date(meta.savedAt).toLocaleString() : '';
+    el.textContent = WORK_DIRTY
+      ? `Autosaved ${when} — not yet in a JSON / cloud file.`
+      : `Autosaved ${when}.`;
+  } catch(e){}
+}
+function restoreAutosaveIfAny(){
+  if(!autosaveEnabled()) return false;
+  try {
+    const raw = localStorage.getItem(AUTOSAVE_KEY);
+    if(!raw) return false;
+    restoreFromLoadedObject(JSON.parse(raw));
+    WORK_DIRTY = true;
+    try {
+      const meta = JSON.parse(localStorage.getItem(AUTOSAVE_META_KEY) || 'null');
+      if(meta && meta.dirty === false) WORK_DIRTY = false;
+    } catch(e){}
+    const note = document.getElementById('autosaveRestoreNote');
+    if(note){
+      note.style.display = 'block';
+      try {
+        const meta = JSON.parse(localStorage.getItem(AUTOSAVE_META_KEY) || 'null');
+        note.textContent = meta && meta.savedAt
+          ? `Restored this browser’s last autosave (${new Date(meta.savedAt).toLocaleString()}).`
+          : 'Restored this browser’s last autosave.';
+      } catch(e){
+        note.textContent = 'Restored this browser’s last autosave.';
+      }
+    }
+    updateAutosaveStatus();
+    updateFixedPinsBanner();
+    return true;
+  } catch(e){
+    return false;
+  }
+}
+function discardAutosaveAndReloadSeed(){
+  if(!confirm('Reload the original seed tables and drop this browser’s autosave? Bands and the timetable will be cleared.')) return;
+  try {
+    localStorage.removeItem(AUTOSAVE_KEY);
+    localStorage.removeItem(AUTOSAVE_META_KEY);
+  } catch(e){}
+  DB = JSON.parse(JSON.stringify(SEED));
+  LAST_BANDS = null;
+  LAST_RESULT = null;
+  LAST_VARIANTS = [];
+  LAST_FINGERPRINT = null;
+  LAST_SEARCH_LOG = [];
+  LAST_SEARCH_OVERVIEW = [];
+  LAST_AUDIT = null;
+  SearchLog.lines = [];
+  DB.acceptedSchedule = [];
+  DB.acceptedTimetable = null;
+  LAST_ONEONE = null;
+  LAST_RJPIANO = null;
+  WORK_DIRTY = false;
+  renderStudents(); renderLessons(); renderAvail(); renderCAvail(); renderRefTables(); renderBreaksTable();
+  const bandsPanel = document.getElementById('bandsResultsPanel');
+  const exclPanel = document.getElementById('bandsExcludedPanel');
+  const stats = document.getElementById('bandsStatsRow');
+  if(bandsPanel) bandsPanel.style.display = 'none';
+  if(exclPanel) exclPanel.style.display = 'none';
+  if(stats) stats.style.display = 'none';
+  const resultsPanel = document.getElementById('resultsPanel');
+  const unresolvedPanel = document.getElementById('unresolvedPanel');
+  const statsRow = document.getElementById('statsRow');
+  const variantRow = document.getElementById('variantRow');
+  if(resultsPanel) resultsPanel.style.display = 'none';
+  if(unresolvedPanel) unresolvedPanel.style.display = 'none';
+  if(statsRow) statsRow.style.display = 'none';
+  if(variantRow) variantRow.style.display = 'none';
+  renderAcceptedStatus();
+  renderAcceptedSchedule();
+  renderOneOneTab();
+  renderRjPianoTab();
+  updateFixedPinsBanner();
+  const note = document.getElementById('autosaveRestoreNote');
+  if(note) note.style.display = 'none';
+  updateAutosaveStatus();
+}
+document.getElementById('clearFixedPinsBtn').addEventListener('click', clearAllFixedPins);
+document.getElementById('clearFixedPinsBtnLessons').addEventListener('click', clearAllFixedPins);
+document.getElementById('clearFixedPinsBtnBands').addEventListener('click', clearAllFixedPins);
+document.getElementById('discardAutosaveBtn').addEventListener('click', discardAutosaveAndReloadSeed);
 
 // ---------- Init ----------
 renderStudents();
@@ -3517,6 +5950,12 @@ renderCAvail();
 renderRefTables();
 renderBreaksTable();
 renderAcceptedStatus();
+renderAcceptedSchedule();
+updateFixedPinsBanner();
+restoreAutosaveIfAny();
+updateAutosaveStatus();
+renderOneOneTab();
+renderRjPianoTab();
 
 // ---------- Collapsible "About this section" hints on every tab ----------
 document.querySelectorAll('.hint-toggle').forEach(btn => {
@@ -3620,6 +6059,7 @@ document.getElementById('cloudSaveBtn').addEventListener('click', async () => {
   setCloudStatus('Saving to cloud…');
   try {
     await supabaseUpsertState(SUPABASE_CONFIG, buildFullExportObject());
+    markWorkClean();
     setCloudStatus('✓ Saved to cloud at ' + new Date().toLocaleString());
   } catch(err){
     setCloudStatus('Save failed: ' + err.message, true);
@@ -3632,7 +6072,14 @@ document.getElementById('cloudLoadBtn').addEventListener('click', async () => {
   try {
     const row = await supabaseFetchState(SUPABASE_CONFIG);
     if(!row){ setCloudStatus('Nothing saved in the cloud yet.', true); return; }
+    if(WORK_DIRTY || hasUnacceptedDrags()){
+      if(!confirm('This tab has work that is only in the browser autosave (including any dragged times). Load from cloud and replace it?')){
+        setCloudStatus('Load cancelled.');
+        return;
+      }
+    }
     restoreFromLoadedObject(row.data);
+    markWorkClean();
     setCloudStatus('✓ Loaded from cloud — last saved ' + new Date(row.updated_at).toLocaleString());
   } catch(err){
     setCloudStatus('Load failed: ' + err.message, true);

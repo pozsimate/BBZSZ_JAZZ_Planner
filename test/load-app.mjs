@@ -28,6 +28,9 @@ function dummyEl(){
     focus(){},
     querySelector(){ return dummyEl(); },
     querySelectorAll(){ return []; },
+    setAttribute(){},
+    getAttribute(){ return null; },
+    removeAttribute(){},
   };
   return el;
 }
@@ -36,24 +39,37 @@ export function loadApp(){
   const seedPath = path.join(ROOT, 'public/seed-data.json');
   const seed = JSON.parse(fs.readFileSync(seedPath, 'utf8'));
   const src = fs.readFileSync(path.join(ROOT, 'src/app.js'), 'utf8');
+  const els = {};
 
   const document = {
     getElementById(id){
       if(id === 'seed-data') return { textContent: JSON.stringify(seed) };
-      return dummyEl();
+      if(!els[id]){
+        els[id] = dummyEl();
+        els[id].id = id;
+      }
+      return els[id];
     },
     querySelector(){ return dummyEl(); },
     querySelectorAll(){ return []; },
     createElement(){ return dummyEl(); },
+    addEventListener(){},
+    removeEventListener(){},
     body: dummyEl(),
   };
 
   const sandbox = {
     console,
     document,
-    window: { innerWidth: 1280, innerHeight: 800, document },
+    window: {
+      innerWidth: 1280, innerHeight: 800, document,
+      addEventListener(){},
+      removeEventListener(){},
+      __BJP_HARNESS: true,
+    },
     localStorage: { getItem(){ return null; }, setItem(){}, removeItem(){} },
     alert(){},
+    confirm(){ return true; },
     setTimeout,
     clearTimeout,
     fetch: async () => { throw new Error('fetch disabled in harness'); },
@@ -69,7 +85,7 @@ export function loadApp(){
   sandbox.self = sandbox;
 
   vm.createContext(sandbox);
-  vm.runInContext(`${src}\n;globalThis.__BJP__ = {\n  get DB(){ return DB; },\n  set DB(v){ DB = v; },\n  get LAST_BANDS(){ return LAST_BANDS; },\n  set LAST_BANDS(v){ LAST_BANDS = v; },\n  runScheduler,\n  generateBands,\n  SearchLog,\n  DAYS,\n  DEFAULT_START,\n  DEFAULT_END,\n  inferHeaders,\n  sheetsTablesToDb,\n  rowGet,\n  sheetLooksLike,\n  dbToDriveTables,\n  driveTablesToAoa,\n  DRIVE_EXPORT_SPECS,\n  buildTimetableIcs,\n  calendarEventTitle\n};`, sandbox, { filename: 'src/app.js' });
+  vm.runInContext(`${src}\n;globalThis.__BJP__ = {\n  get DB(){ return DB; },\n  set DB(v){ DB = v; },\n  get LAST_BANDS(){ return LAST_BANDS; },\n  set LAST_BANDS(v){ LAST_BANDS = v; },\n  get LAST_RESULT(){ return LAST_RESULT; },\n  set LAST_RESULT(v){ LAST_RESULT = v; },\n  get LAST_VARIANTS(){ return LAST_VARIANTS; },\n  set LAST_VARIANTS(v){ LAST_VARIANTS = v; },\n  get LAST_AUDIT(){ return LAST_AUDIT; },\n  set LAST_AUDIT(v){ LAST_AUDIT = v; },\n  get CAL_DRAG(){ return CAL_DRAG; },\n  set CAL_DRAG(v){ CAL_DRAG = v; },\n  runScheduler,\n  generateBands,\n  runGenerateBands,\n  SearchLog,\n  DAYS,\n  DAY_LABEL,\n  DEFAULT_START,\n  DEFAULT_END,\n  CAL_DAY_START,\n  CAL_DAY_END,\n  CAL_PX_PER_MIN,\n  CAL_SNAP_MIN,\n  inferHeaders,\n  sheetsTablesToDb,\n  rowGet,\n  sheetLooksLike,\n  dbToDriveTables,\n  driveTablesToAoa,\n  DRIVE_EXPORT_SPECS,\n  buildTimetableIcs,\n  calendarEventTitle,\n  auditTimetable,\n  snapMinutes,\n  clampLessonStart,\n  startFromPointerY,\n  hitCalendarDay,\n  scheduledItemById,\n  studentsForScheduledItem,\n  teacherDayWindows,\n  teacherBreakSettings,\n  teacherWindowClash,\n  studentReservationClash,\n  buildFullExportObject,\n  renderCalendar,\n  itemHasConflict,\n  toHHMM,\n  toMin,\n  getBandLessons,\n  endCalendarDrag,\n  abortCalendarInteraction,\n  requestGenerateTimetable,\n  showGenerateConfirm,\n  hideGenerateConfirm,\n  isGenerateConfirmOpen,\n  undoLastDrag,\n  resetVariantDrags,\n  ensureDragBaseline,\n  cloneLessonSlots,\n  computeScheduleFingerprint,\n  buildAcceptedScheduleRows,\n  writeAcceptedToSourceTables,\n  clearAcceptedScheduledRecord,\n  ensureBandIdentities,\n  mintBandId,\n  findBandById,\n  hasAcceptedRecord,\n  hasUnacceptedDrags,\n  runGenerateTimetable,\n  discardVariantDragEdits,\n  collectFixedPins,\n  clearAllFixedPins,\n  bandShortLabel,\n  get LAST_ONEONE(){ return LAST_ONEONE; },\n  set LAST_ONEONE(v){ LAST_ONEONE = v; },\n  scheduleOneToOne,\n  scheduleAllOneToOne,\n  scheduleAllOneToOneSearch,\n  ONEONE_SEARCH_ATTEMPTS,\n  classFreeGaps,\n  classWindow,\n  updateOneOneTabLock,\n  renderOneOneTab,\n  parseOneOneHours,\n  oneOneHoursToMinutes,\n  parseOneToOneTable,\n  collectOneOneAssignments,\n  oneToOneAoa,\n  rjPianoAoa,\n  busyRowsFromScheduled,\n  hasAcceptedOneOne,\n  acceptOneOneSchedule,\n  hasAcceptedRjPiano,\n  acceptRjPianoSchedule,\n  individualAcceptedRows,\n  ACCEPTED_SCHEDULE_CSV_HEADERS,\n  individualTeacherIds,\n  timetableAuditItems,\n  frozenIndividualItems,\n  generatedIndividualItems,\n  combinedWeekItems,\n  acceptedGroupItems,\n  undoIndividualDrag,\n  acceptTimetableSchedule,\n  markLayoutNeedsAccept,\n  get LAST_RJPIANO(){ return LAST_RJPIANO; },\n  set LAST_RJPIANO(v){ LAST_RJPIANO = v; },\n  sheetLooksLike,\n  parseGvizTable,\n  parseSpreadsheetId,\n  SHEET_ALIASES,\n  DEFAULT_SHEETS_URL,\n  GROUP_NAME_FIELDS,\n  cleanCellText,\n  resultSignature,\n  restoreFromLoadedObject,\n  hasAcceptedRecord,\n  runSchedulerSearchAll,\n  runGenerateTimetable,\n  applyIndividualSearch,\n  selectIndividualVariant,\n  busyRowsFromScheduled,\n  individualAcceptedRows,\n  hasAcceptedOneOne,\n  hasAcceptedRjPiano,\n  acceptTimetableSchedule,\n  acceptOneOneSchedule,\n  acceptRjPianoSchedule,\n  markLayoutNeedsAccept,\n  combinedWeekItems,\n  timetableAuditItems,\n  frozenIndividualItems,\n  generatedIndividualItems,\n  acceptedGroupItems,\n  studentsForScheduledItem,\n  collectOneOneAssignments,\n  oneToOneAoa,\n  rjPianoAoa,\n  driveTablesToAoa,\n  dbToDriveTables,\n  buildTimetableIcs,\n  buildFullExportObject,\n  writeAcceptedToSourceTables,\n  clearAcceptedScheduledRecord,\n  generateBands,\n  auditTimetable,\n  overlappingClassReservation,\n  studentsInGroup,\n  lessonStudents,\n  breakUnitsForGap,\n  jclassDistance,\n  matchSheetKey,\n  parseIdList,\n  icsEscape,\n  clampBookedWindowToDuration,\n  formatOneOneHours,\n  setOneOneHours,\n  setRjPianoHours,\n  applyLessonSlots,\n  lessonSlotsMatch,\n  snapUpMin,\n  snapDownMin,\n  candidateStartsForInterval,\n  acceptedBusyMaps,\n  lessonDurationMinutes,\n  subtractBusyFromIntervals,\n  intervalGapScore,\n  scheduledIdleGapMinutes,\n  oneOneResultScore,\n  compareOneOneResults,\n  attachOneOneLayoutScore,\n  collectFixedPins,\n  clearAllFixedPins,\n  computeScheduleFingerprint,\n  resultSignature,\n  calendarEventTitle,\n  individualTeacherIds,\n  individualAcceptedRows,\n  hasUnacceptedDrags,\n  getBandLessons,\n  mintBandId,\n  ensureBandIdentities,\n  findBandById,\n  bandShortLabel,\n  snapMinutes,\n  clampLessonStart,\n  parseSpreadsheetId,\n  inferHeaders,\n  rowGet,\n  sheetLooksLike,\n  classWindow,\n  classFreeGaps,\n  teacherDayWindows,\n  teacherBreakSettings,\n  teacherWindowClash,\n  studentReservationClash,\n  toMin,\n  toHHMM,\n  DAYS,\n  DEFAULT_START,\n  DEFAULT_END,\n  CAL_SNAP_MIN,\n  ONEONE_SEARCH_ATTEMPTS,\n  ACCEPTED_SCHEDULE_CSV_HEADERS\n};`, sandbox, { filename: 'src/app.js' });
 
   if(!sandbox.__BJP__ || typeof sandbox.__BJP__.runScheduler !== 'function'){
     throw new Error('Failed to load scheduler from src/app.js');

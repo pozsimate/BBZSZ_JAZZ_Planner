@@ -6,8 +6,20 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
+    "test": "node test/run.mjs",
+    "test:coverage": "node test/coverage.mjs",
+    "test:coverage:quick": "node test/coverage.mjs --quick",
     "test:endurance": "node test/endurance.mjs",
-    "test:endurance:quick": "node test/endurance.mjs --quick"
+    "test:endurance:quick": "node test/endurance.mjs --quick",
+    "test:drag": "node test/drag.mjs",
+    "test:accept": "node test/accept.mjs",
+    "test:donow": "node test/donow.mjs",
+    "test:oneone": "node test/oneone.mjs",
+    "test:oneone-stress": "node test/oneone-stress.mjs",
+    "test:rjpiano": "node test/rjpiano.mjs",
+    "test:e2e": "node test/e2e-drive.mjs",
+    "test:e2e:seed": "node test/e2e-drive.mjs --seed-only",
+    "test:e2e:quick": "node test/e2e-drive.mjs --quick"
   },
   "devDependencies": {
     "vite": "^7.1.3"

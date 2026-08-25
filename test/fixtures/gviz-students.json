@@ -1,0 +1,42 @@
+{
+  "status": "ok",
+  "table": {
+    "cols": [
+      {"id": "A", "label": "", "type": "string"},
+      {"id": "B", "label": "", "type": "string"},
+      {"id": "C", "label": "", "type": "string"},
+      {"id": "D", "label": "", "type": "string"},
+      {"id": "E", "label": "", "type": "string"}
+    ],
+    "rows": [
+      {"c": [
+        {"v": "STUDENT_ID"},
+        {"v": "NAME1"},
+        {"v": "CLASS_ID"},
+        {"v": "INSTR"},
+        {"v": "IMPR"}
+      ]},
+      {"c": [
+        {"v": "S1"},
+        {"v": "Ann"},
+        {"v": "CL1"},
+        {"v": "#N/A"},
+        {"v": "impr9"}
+      ]},
+      {"c": [
+        {"v": "S2"},
+        {"v": "Bob"},
+        {"v": "CL1"},
+        {"v": "piano"},
+        {"v": "#REF!"}
+      ]},
+      {"c": [
+        {"v": ""},
+        {"v": ""},
+        {"v": ""},
+        {"v": ""},
+        {"v": ""}
+      ]}
+    ]
+  }
+}
