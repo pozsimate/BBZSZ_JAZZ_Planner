@@ -1,6 +1,6 @@
-# Bartók JAZZ Planner 2026
+# Bartók Planner 2026
 
-A browser-based timetable builder for the Bartók Konzi jazz department.
+A browser-based timetable builder for the Bartók Conservatory.
 
 **Live:** https://pozsimate.github.io/BBZSZ_JAZZ_Planner/
 

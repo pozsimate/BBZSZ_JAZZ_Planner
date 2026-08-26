@@ -2,9 +2,9 @@
 // Brutal endurance fuzzer for runScheduler.
 //
 // Keeps the real school roster (students / groups / classes) and randomizes
-// the constraint surfaces: pinned slots, locked band teachers, Break Management,
-// class reservations (add + drop), band quotas, teacher availability, durations,
-// ROOM 321 flags, and band rosters. Each scenario is checked by an independent
+// the constraint surfaces: pinned slots, locked small group teachers, Break Management,
+// class reservations (add + drop), small group quotas, teacher availability, durations,
+// room locks, and small group rosters. Each scenario is checked by an independent
 // invariant suite — overlaps, reservations, teacher windows, exact break units,
 // quotas, pinned-slot fidelity.
 //
@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { loadApp } from './load-app.mjs';
 import { makeRng } from './rng.mjs';
 import { buildScenario, pickProfile } from './mutate.mjs';
-import { checkSchedule, resultSignature } from './invariants.mjs';
+import { checkSchedule, resultSignature, isSmallGroupId } from './invariants.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FAIL_PATH = path.join(ROOT, 'test/last-failure.json');
@@ -44,8 +44,8 @@ function parseArgs(argv){
 }
 
 function summarizeResult(result){
-  const bands = (result.unresolved || []).filter(u => u.lesson && String(u.lesson.id).startsWith('BAND')).length;
-  return `${(result.scheduled||[]).length} placed, ${(result.unresolved||[]).length} unresolved (${bands} bands)`;
+  const smallGroups = (result.unresolved || []).filter(u => u.lesson && isSmallGroupId(u.lesson.id)).length;
+  return `${(result.scheduled||[]).length} placed, ${(result.unresolved||[]).length} unresolved (${smallGroups} small groups)`;
 }
 
 function runOnce(api, randomize){
@@ -61,13 +61,13 @@ function dumpFailure(payload){
 function replayFile(api, file){
   const data = JSON.parse(fs.readFileSync(file, 'utf8'));
   api.DB = data.db;
-  api.LAST_BANDS = data.bands;
+  api.LAST_SMALL_GROUPS = data.smallGroups;
   const randomize = !!data.randomize;
   console.log(`Replaying ${file}`);
   console.log(`seed=${data.seed} scenario=${data.scenarioIndex} profile=${data.profile} randomize=${randomize}`);
   console.log(data.ops.join('\n'));
   const { result, ms } = runOnce(api, randomize);
-  const errors = checkSchedule(data.db, data.bands, result);
+  const errors = checkSchedule(data.db, data.smallGroups, result);
   console.log(`Finished in ${ms}ms — ${summarizeResult(result)}`);
   if(errors.length){
     console.error(`\n${errors.length} invariant(s) still fail:`);
@@ -126,7 +126,7 @@ function main(){
         console.error(`\nSCENARIO ${i} ${profile} randomize=${randomize} THREW: ${err.stack || err}`);
         dumpFailure({
           seed: args.seed, scenarioIndex: i, profile, randomize,
-          ops: scenario.ops, db: scenario.db, bands: scenario.bands,
+          ops: scenario.ops, db: scenario.db, smallGroups: scenario.smallGroups,
           error: String(err && err.stack || err),
         });
         break;
@@ -135,7 +135,7 @@ function main(){
       maxMs = Math.max(maxMs, packed.ms);
       placed += (packed.result.scheduled || []).length;
       unresolved += (packed.result.unresolved || []).length;
-      const errors = checkSchedule(scenario.db, scenario.bands, packed.result);
+      const errors = checkSchedule(scenario.db, scenario.smallGroups, packed.result);
       if(!randomize) firstSig = resultSignature(packed.result);
       if(!randomize && i % 7 === 0){
         const again = runOnce(api, false);
@@ -152,7 +152,7 @@ function main(){
         if(errors.length > 20) console.error(`  … ${errors.length - 20} more`);
         dumpFailure({
           seed: args.seed, scenarioIndex: i, profile, randomize,
-          ops: scenario.ops, db: scenario.db, bands: scenario.bands,
+          ops: scenario.ops, db: scenario.db, smallGroups: scenario.smallGroups,
           errors, result: {
             scheduled: packed.result.scheduled,
             unresolved: (packed.result.unresolved || []).map(u => ({

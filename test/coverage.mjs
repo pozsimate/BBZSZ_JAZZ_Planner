@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Random coverage fuzzer: mutates teacher availability, 1/1 hours, piano hours,
-// reservations and quotas, then runs bands → timetable → Accept → 1/1 → Accept
-// → Required Jazz Piano. Hard-fails on overlaps / bad IDs / extra placements.
+// reservations and quotas, then runs small groups → timetable → Accept → 1/1 → Accept
+// → Required Piano. Hard-fails on overlaps / bad IDs / extra placements.
 // Prints teacher and student coverage (requested vs placed minutes).
 //
 //   node test/coverage.mjs
@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { loadApp } from './load-app.mjs';
 import { makeRng } from './rng.mjs';
 import { buildScenario, pickProfile } from './mutate.mjs';
-import { checkSchedule } from './invariants.mjs';
+import { checkSchedule, isSmallGroupId } from './invariants.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FAIL_PATH = path.join(ROOT, 'test/last-coverage-failure.json');
@@ -132,8 +132,10 @@ function checkCombined(api, items, label){
       if(a.teacherId && a.teacherId === b.teacherId){
         errors.push(`${label}: teacher ${a.teacherId} ${a.name || a.lessonId} overlaps ${b.name || b.lessonId} at ${when}`);
       }
-      if(a.room321 && b.room321){
-        errors.push(`${label}: ROOM 321 ${a.name || a.lessonId} overlaps ${b.name || b.lessonId} at ${when}`);
+      const ra = a.roomId || '';
+      const rb = b.roomId || '';
+      if(ra && ra === rb){
+        errors.push(`${label}: room ${ra} ${a.name || a.lessonId} overlaps ${b.name || b.lessonId} at ${when}`);
       }
       const sa = api.studentsForScheduledItem(a) || [];
       const sb = new Set((api.studentsForScheduledItem(b) || []).map(s => s.ID));
@@ -176,7 +178,7 @@ function checkAssignments(api, matrix, scheduled, kind){
 function coverageSnapshot(api, groups, one, piano){
   const db = api.DB;
   const oneJobs = api.collectOneOneAssignments(db.oneToOne);
-  const pianoJobs = api.collectOneOneAssignments(db.rjPiano);
+  const pianoJobs = api.collectOneOneAssignments(db.rpiano);
   const onePlaced = (one && one.scheduled) || [];
   const pianoPlaced = (piano && piano.scheduled) || [];
   const allItems = (groups || []).concat(onePlaced).concat(pianoPlaced);
@@ -196,7 +198,7 @@ function coverageSnapshot(api, groups, one, piano){
     const dur = (it.end || 0) - (it.start || 0);
     teacher[it.teacherId].taughtMin += dur;
     if(it.source === 'oneone' || (it.lessonId && String(it.lessonId).startsWith('O2O'))) teacher[it.teacherId].oneGot += dur;
-    else if(it.source === 'rjpiano' || (it.lessonId && String(it.lessonId).startsWith('RJP'))) teacher[it.teacherId].pianoGot += dur;
+    else if(it.source === 'rpiano' || (it.lessonId && (String(it.lessonId).startsWith('RP-') || String(it.lessonId).startsWith('RJP-')))) teacher[it.teacherId].pianoGot += dur;
     else teacher[it.teacherId].groupMin += dur;
   });
 
@@ -205,7 +207,7 @@ function coverageSnapshot(api, groups, one, piano){
     student[s.ID] = {
       id: s.ID, name: `${s.NAME1} ${s.NAME2}`,
       classId: s.CLASS_ID || '',
-      jazzMin: 0, oneReq: 0, oneGot: 0, pianoReq: 0, pianoGot: 0, groupHits: 0, bandHits: 0
+      scheduledMin: 0, oneReq: 0, oneGot: 0, pianoReq: 0, pianoGot: 0, groupHits: 0, smallGroupHits: 0
     };
   });
   oneJobs.forEach(j => { if(student[j.studentId]) student[j.studentId].oneReq += j.duration; });
@@ -213,16 +215,16 @@ function coverageSnapshot(api, groups, one, piano){
   allItems.forEach(it => {
     const members = api.studentsForScheduledItem(it) || [];
     const dur = (it.end || 0) - (it.start || 0);
-    const isBand = it.lessonId && String(it.lessonId).startsWith('BAND');
+    const isSmallGroup = it.lessonId && isSmallGroupId(it.lessonId);
     const isOne = it.source === 'oneone' || (it.lessonId && String(it.lessonId).startsWith('O2O'));
-    const isPiano = it.source === 'rjpiano' || (it.lessonId && String(it.lessonId).startsWith('RJP'));
+    const isPiano = it.source === 'rpiano' || (it.lessonId && (String(it.lessonId).startsWith('RP-') || String(it.lessonId).startsWith('RJP-')));
     members.forEach(s => {
       const row = student[s.ID];
       if(!row) return;
-      row.jazzMin += dur;
+      row.scheduledMin += dur;
       if(isOne) row.oneGot += dur;
       else if(isPiano) row.pianoGot += dur;
-      else if(isBand) row.bandHits++;
+      else if(isSmallGroup) row.smallGroupHits++;
       else row.groupHits++;
     });
   });
@@ -249,8 +251,8 @@ function printTeacherTable(rows, limit){
 
 function printStudentGaps(rows, limit){
   const missing = rows.filter(s => (s.oneReq && s.oneGot < s.oneReq) || (s.pianoReq && s.pianoGot < s.pianoReq));
-  const none = rows.filter(s => s.jazzMin === 0);
-  console.log(`  students with 0 jazz minutes this week: ${none.length}`);
+  const none = rows.filter(s => s.scheduledMin === 0);
+  console.log(`  students with 0 scheduled minutes this week: ${none.length}`);
   if(none.length){
     console.log('    ' + none.slice(0, limit || 12).map(s => `${s.name} (${s.id}${s.classId ? '' : ', no class'})`).join('; '));
   }
@@ -269,14 +271,14 @@ function dumpFailure(payload){
 
 function runPipeline(api){
   api.LAST_ONEONE = null;
-  api.LAST_RJPIANO = null;
+  api.LAST_RPIANO = null;
   api.DB.acceptedSchedule = [];
   api.DB.acceptedTimetable = null;
   (api.DB.lessons || []).forEach(l => { l.scheduledDay = ''; l.scheduledStart = ''; l.scheduledEnd = ''; });
   const groups = api.runScheduler(false);
   api.LAST_RESULT = groups;
   api.LAST_VARIANTS = [groups];
-  const groupErrors = checkSchedule(api.DB, api.LAST_BANDS, groups);
+  const groupErrors = checkSchedule(api.DB, api.LAST_SMALL_GROUPS, groups);
   const groupAudit = api.auditTimetable(groups.scheduled || []);
   const groupReds = (groupAudit.entries || []).filter(e => e.level !== 'warning');
   api.acceptTimetableSchedule();
@@ -287,14 +289,14 @@ function runPipeline(api){
   api.applyIndividualSearch('oneone', [one], '');
   api.acceptOneOneSchedule();
   const piano = api.scheduleAllOneToOne({
-    matrix: api.DB.rjPiano,
+    matrix: api.DB.rpiano,
     acceptedRows: (api.DB.acceptedSchedule || []).concat(api.busyRowsFromScheduled(one.scheduled)),
-    source: 'rjpiano',
+    source: 'rpiano',
     lessonLabel: 'piano',
-    idPrefix: 'RJP'
+    idPrefix: 'RP'
   });
-  api.applyIndividualSearch('rjpiano', [piano], '');
-  api.acceptRjPianoSchedule();
+  api.applyIndividualSearch('rpiano', [piano], '');
+  api.acceptRpianoSchedule();
   return {groups, one, piano, groupErrors, groupReds};
 }
 
@@ -303,7 +305,7 @@ function collectErrors(api, packed){
   (packed.groupErrors || []).forEach(e => errors.push('groups: ' + e));
   (packed.groupReds || []).forEach(e => errors.push('group-audit: ' + stripHtml(e.html)));
   const oneChk = checkAssignments(api, api.DB.oneToOne, packed.one.scheduled, '1/1');
-  const pianoChk = checkAssignments(api, api.DB.rjPiano, packed.piano.scheduled, 'piano');
+  const pianoChk = checkAssignments(api, api.DB.rpiano, packed.piano.scheduled, 'piano');
   errors.push.apply(errors, oneChk.errors);
   errors.push.apply(errors, pianoChk.errors);
   const week = (packed.groups.scheduled || []).concat(packed.one.scheduled || []).concat(packed.piano.scheduled || []);
@@ -344,9 +346,9 @@ function main(){
       scenario = buildScenario(api, seed, rng, profile);
       const intensity = profile === 'chaos' ? 'chaos' : 'normal';
       mutateMatrix(scenario.db, 'oneToOne', rng, scenario.ops, intensity);
-      mutateMatrix(scenario.db, 'rjPiano', rng, scenario.ops, intensity);
+      mutateMatrix(scenario.db, 'rpiano', rng, scenario.ops, intensity);
       api.DB = scenario.db;
-      api.LAST_BANDS = scenario.bands;
+      api.LAST_SMALL_GROUPS = scenario.smallGroups;
     } catch(err){
       crashes++; failed++;
       console.error(`\nSCENARIO ${i} crashed while building (${profile}): ${err.stack || err}`);
@@ -423,7 +425,7 @@ function main(){
 
   console.log('\n——— totals across all random runs ———');
   console.log(`scenarios ${passed}/${args.runs} passed · ${failed} failed · ${crashes} crashed · ${secs}s · seed ${args.seed}`);
-  console.log(`group/band placements ${pct(acc.groupPlaced, acc.groupTotal)}  (${acc.groupPlaced}/${acc.groupTotal})`);
+  console.log(`group/small group placements ${pct(acc.groupPlaced, acc.groupTotal)}  (${acc.groupPlaced}/${acc.groupTotal})`);
   console.log(`1/1 minutes placed    ${pct(acc.oneGot, acc.oneReq)}  (${acc.oneGot}/${acc.oneReq})`);
   console.log(`piano minutes placed  ${pct(acc.pianoGot, acc.pianoReq)}  (${acc.pianoGot}/${acc.pianoReq})`);
   console.log(`teacher load vs avail ${pct(acc.taught, acc.avail)}  (${acc.taught} taught / ${acc.avail} window minutes)`);

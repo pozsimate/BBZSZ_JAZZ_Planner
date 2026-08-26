@@ -16,7 +16,7 @@ const SUITES = [
   ['test/accept.mjs'],
   ['test/drag.mjs'],
   ['test/oneone.mjs'],
-  ['test/rjpiano.mjs'],
+  ['test/rpiano.mjs'],
   ['test/donow.mjs'],
   ['test/coverage.mjs', '--quick'],
   ['test/e2e-drive.mjs', '--seed-only', '--quick']

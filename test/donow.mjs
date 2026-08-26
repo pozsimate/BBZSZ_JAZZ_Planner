@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-// The four "do now" fixes: stable band ids, Generate keep-vs-clear accepted,
+// The four "do now" fixes: stable small group ids, Generate keep-vs-clear accepted,
 // FIXED pin inventory, and that the test harness does not hang on autosave.
 
 import { loadApp } from './load-app.mjs';
+import { isSmallGroupId } from './invariants.mjs';
 
 let failed = 0;
 let passed = 0;
@@ -22,80 +23,81 @@ function ok(name, cond, detail){
 function main(){
   console.log('Loading app into harness…');
   const {api, seed} = loadApp();
+  api.SCHEDULE_SEARCH_ATTEMPTS = 3;
 
-  console.log('\n== stable band ids survive delete / add ==');
+  console.log('\n== stable small group ids survive delete / add ==');
   api.DB = JSON.parse(JSON.stringify(seed));
-  api.LAST_BANDS = api.generateBands(3);
-  const idsAfterGenerate = api.LAST_BANDS.bands.map(b => b.id);
-  ok('fresh generate numbers BAND1… in order',
-    idsAfterGenerate.join(',') === 'BAND1,BAND2,BAND3', idsAfterGenerate.join(','));
-  ok('nextBandSeq is 4 after 3 bands', api.LAST_BANDS.nextBandSeq === 4);
+  api.LAST_SMALL_GROUPS = api.generateSmallGroups(3);
+  const idsAfterGenerate = api.LAST_SMALL_GROUPS.smallGroups.map(b => b.id);
+  ok('fresh generate numbers SG1… in order',
+    idsAfterGenerate.join(',') === 'SG1,SG2,SG3', idsAfterGenerate.join(','));
+  ok('nextSmallGroupSeq is 4 after 3 small groups', api.LAST_SMALL_GROUPS.nextSmallGroupSeq === 4);
 
-  const midId = api.LAST_BANDS.bands[1].id;
-  api.LAST_BANDS.bands.splice(1, 1);
-  ok('deleting the middle band does not renumber the others',
-    api.LAST_BANDS.bands.map(b => b.id).join(',') === 'BAND1,BAND3');
+  const midId = api.LAST_SMALL_GROUPS.smallGroups[1].id;
+  api.LAST_SMALL_GROUPS.smallGroups.splice(1, 1);
+  ok('deleting the middle small group does not renumber the others',
+    api.LAST_SMALL_GROUPS.smallGroups.map(b => b.id).join(',') === 'SG1,SG3');
 
-  const minted = api.mintBandId(api.LAST_BANDS);
-  api.LAST_BANDS.bands.push({
+  const minted = api.mintSmallGroupId(api.LAST_SMALL_GROUPS);
+  api.LAST_SMALL_GROUPS.smallGroups.push({
     id: minted, bass:[], drum:[], acc:[], sol:[],
-    teacherId:'', room321:true, duration:90,
+    teacherId:'', duration:90,
     fixedDay:'', fixedStart:'', fixedEnd:'',
     scheduledDay:'', scheduledStart:'', scheduledEnd:'',
     scheduledTeacherId:'', scheduledTeacher:''
   });
-  ok('add after delete mints BAND4, never reuses BAND2', minted === 'BAND4');
-  ok('BAND2 is gone from the roster', !api.LAST_BANDS.bands.some(b => b.id === midId));
+  ok('add after delete mints SG4, never reuses SG2', minted === 'SG4');
+  ok('SG2 is gone from the roster', !api.LAST_SMALL_GROUPS.smallGroups.some(b => b.id === midId));
 
-  const lessonIds = api.getBandLessons().map(l => l.id);
-  ok('getBandLessons uses remaining ids, not array index',
-    lessonIds.includes('BAND1') && lessonIds.includes('BAND3') && !lessonIds.includes('BAND2'),
+  const lessonIds = api.getSmallGroupLessons().map(l => l.id);
+  ok('getSmallGroupLessons uses remaining ids, not array index',
+    lessonIds.includes('SG1') && lessonIds.includes('SG3') && !lessonIds.includes('SG2'),
     lessonIds.join(','));
 
-  console.log('\n== Accept follows the band id, not the slot ==');
+  console.log('\n== Accept follows the small group id, not the slot ==');
   api.DB = JSON.parse(JSON.stringify(seed));
-  api.LAST_BANDS = api.generateBands(4);
+  api.LAST_SMALL_GROUPS = api.generateSmallGroups(4);
   const result = api.runScheduler(false);
   api.LAST_RESULT = result;
-  const placedBand = result.scheduled.find(s => String(s.lessonId).startsWith('BAND'));
-  ok('scheduler placed a band', !!placedBand, 'no BAND* in scheduled');
-  if(placedBand){
-    const victim = api.LAST_BANDS.bands.find(b => b.id === placedBand.lessonId);
-    const others = api.LAST_BANDS.bands.filter(b => b.id !== placedBand.lessonId);
-    api.LAST_BANDS.bands = others.concat(victim ? [victim] : []);
+  const placedSmallGroup = result.scheduled.find(s => isSmallGroupId(s.lessonId));
+  ok('scheduler placed a small group', !!placedSmallGroup, 'no SG* in scheduled');
+  if(placedSmallGroup){
+    const victim = api.LAST_SMALL_GROUPS.smallGroups.find(b => b.id === placedSmallGroup.lessonId);
+    const others = api.LAST_SMALL_GROUPS.smallGroups.filter(b => b.id !== placedSmallGroup.lessonId);
+    api.LAST_SMALL_GROUPS.smallGroups = others.concat(victim ? [victim] : []);
     api.writeAcceptedToSourceTables(result);
-    const written = api.LAST_BANDS.bands.find(b => b.id === placedBand.lessonId);
-    ok('SCHEDULED lands on the same band id after reorder',
-      written && written.scheduledDay === placedBand.day,
-      written ? `${written.id} ${written.scheduledDay}` : 'missing band');
+    const written = api.LAST_SMALL_GROUPS.smallGroups.find(b => b.id === placedSmallGroup.lessonId);
+    ok('SCHEDULED lands on the same small group id after reorder',
+      written && written.scheduledDay === placedSmallGroup.day,
+      written ? `${written.id} ${written.scheduledDay}` : 'missing small group');
     const byId = new Map(result.scheduled
-      .filter(s => String(s.lessonId).startsWith('BAND'))
+      .filter(s => isSmallGroupId(s.lessonId))
       .map(s => [s.lessonId, s]));
-    const mismatches = api.LAST_BANDS.bands.filter(b => {
+    const mismatches = api.LAST_SMALL_GROUPS.smallGroups.filter(b => {
       const item = byId.get(b.id);
       if(item) return b.scheduledDay !== item.day;
       return !!b.scheduledDay;
     });
-    ok('every band SCHEDULED slot matches its own id, not its list index',
+    ok('every small group SCHEDULED slot matches its own id, not its list index',
       mismatches.length === 0, mismatches.map(b => b.id).join(','));
   }
 
-  console.log('\n== old JSON without ids still maps BAND1 to index 0 ==');
-  api.LAST_BANDS = {
-    bands: [
-      {bass:[{ID:'S1', NAME1:'A', NAME2:'A'}], drum:[], acc:[], sol:[], teacherId:'', duration:90, room321:true},
-      {bass:[], drum:[{ID:'S2', NAME1:'B', NAME2:'B'}], acc:[], sol:[], teacherId:'', duration:90, room321:true},
+  console.log('\n== old JSON without ids still maps SG1 to index 0 ==');
+  api.LAST_SMALL_GROUPS = {
+    smallGroups: [
+      {bass:[{ID:'S1', NAME1:'A', NAME2:'A'}], drum:[], acc:[], sol:[], teacherId:'', duration:90},
+      {bass:[], drum:[{ID:'S2', NAME1:'B', NAME2:'B'}], acc:[], sol:[], teacherId:'', duration:90},
     ]
   };
-  api.ensureBandIdentities(api.LAST_BANDS);
-  ok('legacy bands get BAND1, BAND2',
-    api.LAST_BANDS.bands.map(b => b.id).join(',') === 'BAND1,BAND2');
-  ok('findBandById(BAND2) is the drum band',
-    api.findBandById('BAND2') && api.findBandById('BAND2').drum[0].ID === 'S2');
+  api.ensureSmallGroupIdentities(api.LAST_SMALL_GROUPS);
+  ok('legacy small groups get SG1, SG2',
+    api.LAST_SMALL_GROUPS.smallGroups.map(b => b.id).join(',') === 'SG1,SG2');
+  ok('findSmallGroupById(SG2) is the drum small group',
+    api.findSmallGroupById('SG2') && api.findSmallGroupById('SG2').drum[0].ID === 'S2');
 
   console.log('\n== Generate keep vs clear accepted ==');
   api.DB = JSON.parse(JSON.stringify(seed));
-  api.LAST_BANDS = api.generateBands(16);
+  api.LAST_SMALL_GROUPS = api.generateSmallGroups(16);
   const first = api.runScheduler(false);
   api.LAST_RESULT = first;
   api.LAST_VARIANTS = [first];
@@ -122,60 +124,60 @@ function main(){
     !(api.DB.acceptedSchedule && api.DB.acceptedSchedule.length));
   ok('hasAcceptedRecord is false after clear-generate', !api.hasAcceptedRecord());
 
-  console.log('\n== Generate bands keep vs clear accepted ==');
+  console.log('\n== Generate small groups keep vs clear accepted ==');
   api.DB = JSON.parse(JSON.stringify(seed));
-  api.LAST_BANDS = api.generateBands(16);
-  const bandFirst = api.runScheduler(false);
-  api.LAST_RESULT = bandFirst;
-  api.LAST_VARIANTS = [bandFirst];
-  api.DB.acceptedSchedule = api.buildAcceptedScheduleRows(bandFirst);
+  api.LAST_SMALL_GROUPS = api.generateSmallGroups(16);
+  const smallGroupFirst = api.runScheduler(false);
+  api.LAST_RESULT = smallGroupFirst;
+  api.LAST_VARIANTS = [smallGroupFirst];
+  api.DB.acceptedSchedule = api.buildAcceptedScheduleRows(smallGroupFirst);
   api.DB.acceptedTimetable = {acceptedAt: '2026-08-25T00:00:00.000Z'};
-  api.writeAcceptedToSourceTables(bandFirst);
+  api.writeAcceptedToSourceTables(smallGroupFirst);
   const acceptedN = (api.DB.acceptedSchedule || []).length;
   const lessonSchedN = (api.DB.lessons || []).filter(l => l.scheduledDay).length;
-  ok('accepted is on file before band generate', api.hasAcceptedRecord() && acceptedN > 0);
+  ok('accepted is on file before small group generate', api.hasAcceptedRecord() && acceptedN > 0);
 
-  api.runGenerateBands(false, 16);
-  ok('keep-band-generate leaves accepted table',
+  api.runGenerateSmallGroups(false, 16);
+  ok('keep-small group-generate leaves accepted table',
     (api.DB.acceptedSchedule || []).length === acceptedN);
-  ok('keep-band-generate leaves lesson SCHEDULED cells',
+  ok('keep-small group-generate leaves lesson SCHEDULED cells',
     (api.DB.lessons || []).filter(l => l.scheduledDay).length === lessonSchedN);
-  ok('keep-band-generate clears the timetable grid',
+  ok('keep-small group-generate clears the timetable grid',
     api.LAST_RESULT == null && !(api.LAST_VARIANTS && api.LAST_VARIANTS.length));
-  ok('keep-band-generate still produced a new roster',
-    !!(api.LAST_BANDS && api.LAST_BANDS.bands && api.LAST_BANDS.bands.length));
+  ok('keep-small group-generate still produced a new roster',
+    !!(api.LAST_SMALL_GROUPS && api.LAST_SMALL_GROUPS.smallGroups && api.LAST_SMALL_GROUPS.smallGroups.length));
 
-  api.runGenerateBands(true, 16);
-  ok('clear-band-generate empties accepted table',
+  api.runGenerateSmallGroups(true, 16);
+  ok('clear-small group-generate empties accepted table',
     !(api.DB.acceptedSchedule && api.DB.acceptedSchedule.length));
-  ok('clear-band-generate empties lesson SCHEDULED cells',
+  ok('clear-small group-generate empties lesson SCHEDULED cells',
     (api.DB.lessons || []).every(l => !l.scheduledDay));
-  ok('hasAcceptedRecord is false after clear-band-generate', !api.hasAcceptedRecord());
+  ok('hasAcceptedRecord is false after clear-small group-generate', !api.hasAcceptedRecord());
 
   console.log('\n== FIXED pins inventory ==');
   const pin = (api.DB.lessons || []).find(l => !l.fixedDay);
   pin.fixedDay = 'MON';
   pin.fixedStart = '10:00';
   pin.fixedEnd = '11:30';
-  api.LAST_BANDS.bands[0].fixedDay = 'TUE';
-  api.LAST_BANDS.bands[0].fixedStart = '14:00';
-  api.LAST_BANDS.bands[0].fixedEnd = '15:30';
+  api.LAST_SMALL_GROUPS.smallGroups[0].fixedDay = 'TUE';
+  api.LAST_SMALL_GROUPS.smallGroups[0].fixedStart = '14:00';
+  api.LAST_SMALL_GROUPS.smallGroups[0].fixedEnd = '15:30';
   const pins = api.collectFixedPins();
   ok('collectFixedPins sees the lesson pin', pins.lessons.some(l => l.id === pin.id));
-  ok('collectFixedPins sees the band pin', pins.bands.length >= 1);
+  ok('collectFixedPins sees the small group pin', pins.smallGroups.length >= 1);
   api.clearAllFixedPins();
   const after = api.collectFixedPins();
   ok('clearAllFixedPins empties lesson FIXED', after.lessons.length === 0);
-  ok('clearAllFixedPins empties band FIXED', after.bands.length === 0);
+  ok('clearAllFixedPins empties small group FIXED', after.smallGroups.length === 0);
   ok('lesson teacherId survived clearing FIXED',
     pin.teacherId && pin.fixedDay === '');
 
   console.log('\n== Generate after drag replaces the grid ==');
   api.DB = JSON.parse(JSON.stringify(seed));
-  api.LAST_BANDS = api.generateBands(16);
-  const laid = api.runScheduler(false);
-  api.LAST_RESULT = laid;
-  api.LAST_VARIANTS = [laid];
+  api.LAST_SMALL_GROUPS = api.generateSmallGroups(16);
+  api.runGenerateTimetable(false);
+  const laid = api.LAST_RESULT;
+  ok('first generate produced a layout', !!(laid && laid.scheduled.length));
   const victim = laid.scheduled[0];
   const home = {day: victim.day, start: victim.start, end: victim.end, lessonId: victim.lessonId};
   const dragDay = home.day === 'MON' ? 'FRI' : 'MON';
@@ -198,10 +200,46 @@ function main(){
   ok('the dragged slot did not stick as the generate result',
     !again || again.day !== dragDay || again.start !== dragStart,
     again ? `${again.day} ${again.start}` : 'lesson missing');
+  const poolHasDrag = (api.LAST_VARIANTS || []).some(v =>
+    (v.scheduled || []).some(s => s.lessonId === home.lessonId && s.day === dragDay && s.start === dragStart));
+  ok('the solution pool dropped the dragged layout', !poolHasDrag);
+
+  console.log('\n== Generate after Accept of a drag still shows this search ==');
+  api.DB = JSON.parse(JSON.stringify(seed));
+  api.LAST_SMALL_GROUPS = api.generateSmallGroups(16);
+  api.runGenerateTimetable(false);
+  const acceptedDrag = api.LAST_RESULT;
+  const accVictim = acceptedDrag.scheduled[0];
+  const accHome = {day: accVictim.day, start: accVictim.start, end: accVictim.end, lessonId: accVictim.lessonId};
+  const accDay = accHome.day === 'MON' ? 'FRI' : 'MON';
+  const accStart = 16 * 60;
+  api.ensureDragBaseline(acceptedDrag);
+  accVictim.day = accDay;
+  accVictim.start = accStart;
+  accVictim.end = accStart + (accHome.end - accHome.start);
+  acceptedDrag.dragUndo.push({
+    lessonId: accHome.lessonId,
+    from: {day: accHome.day, start: accHome.start, end: accHome.end},
+    to: {day: accDay, start: accStart, end: accVictim.end}
+  });
+  api.acceptTimetableSchedule();
+  ok('Accept stored the dragged slot',
+    (api.DB.acceptedSchedule || []).some(r =>
+      r.lessonId === accHome.lessonId && r.day === accDay && api.toMin(r.start) === accStart));
+  ok('Accept cleared unaccepted-drag flag', !api.hasUnacceptedDrags());
+  api.runGenerateTimetable(false);
+  ok('keep-generate still has the accepted table',
+    (api.DB.acceptedSchedule || []).some(r => r.lessonId === accHome.lessonId && r.day === accDay));
+  ok('keep-generate shows a new grid object, not the accepted drag',
+    api.LAST_RESULT && api.LAST_RESULT !== acceptedDrag);
+  const afterAccept = api.LAST_RESULT.scheduled.find(s => s.lessonId === accHome.lessonId);
+  ok('the accepted dragged slot is not what Generate paints',
+    !afterAccept || afterAccept.day !== accDay || afterAccept.start !== accStart,
+    afterAccept ? `${afterAccept.day} ${afterAccept.start}` : 'lesson missing');
 
   console.log('\n== Generate confirm stays reachable after teacher-view redraws ==');
   api.DB = JSON.parse(JSON.stringify(seed));
-  api.LAST_BANDS = api.generateBands(16);
+  api.LAST_SMALL_GROUPS = api.generateSmallGroups(16);
   api.LAST_RESULT = api.runScheduler(false);
   api.acceptTimetableSchedule();
   ok('accepted record is on file', api.hasAcceptedRecord());

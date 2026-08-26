@@ -3,6 +3,7 @@
 // FIXED / teacher override stay as search inputs.
 
 import { loadApp } from './load-app.mjs';
+import { isSmallGroupId } from './invariants.mjs';
 
 let failed = 0;
 let passed = 0;
@@ -27,7 +28,7 @@ function snapshotFixed(api){
       id: l.id, teacherId: l.teacherId,
       fixedDay: l.fixedDay || '', fixedStart: l.fixedStart || '', fixedEnd: l.fixedEnd || ''
     })),
-    bands: (api.LAST_BANDS && api.LAST_BANDS.bands || []).map(b => ({
+    smallGroups: (api.LAST_SMALL_GROUPS && api.LAST_SMALL_GROUPS.smallGroups || []).map(b => ({
       id: b.id || '',
       teacherId: b.teacherId || '',
       fixedDay: b.fixedDay || '', fixedStart: b.fixedStart || '', fixedEnd: b.fixedEnd || ''
@@ -43,13 +44,13 @@ function scheduledLessonCount(api){
   return (api.DB.lessons || []).filter(l => l.scheduledDay).length;
 }
 
-function scheduledBandCount(api){
-  return (api.LAST_BANDS && api.LAST_BANDS.bands || []).filter(b => b.scheduledDay).length;
+function scheduledSmallGroupCount(api){
+  return (api.LAST_SMALL_GROUPS && api.LAST_SMALL_GROUPS.smallGroups || []).filter(b => b.scheduledDay).length;
 }
 
 function generateSeed(api, seed){
   api.DB = JSON.parse(JSON.stringify(seed));
-  api.LAST_BANDS = api.generateBands(16);
+  api.LAST_SMALL_GROUPS = api.generateSmallGroups(16);
   api.LAST_RESULT = api.runScheduler(false);
   api.LAST_VARIANTS = [api.LAST_RESULT];
   return api.LAST_RESULT;
@@ -59,7 +60,7 @@ function main(){
   console.log('Loading app into harness…');
   const {api, seed} = loadApp();
   ['computeScheduleFingerprint','buildAcceptedScheduleRows','writeAcceptedToSourceTables',
-   'clearAcceptedScheduledRecord','generateBands','runScheduler','getBandLessons','buildFullExportObject'
+   'clearAcceptedScheduledRecord','generateSmallGroups','runScheduler','getSmallGroupLessons','buildFullExportObject'
   ].forEach(name => {
     if(typeof api[name] !== 'function'){
       failed++;
@@ -91,14 +92,14 @@ function main(){
   const written = api.writeAcceptedToSourceTables(result);
 
   ok('Accept wrote lesson SCHEDULED slots', written.lessonsWritten > 0, 'lessonsWritten=' + written.lessonsWritten);
-  ok('Accept wrote band SCHEDULED slots', written.bandsWritten > 0, 'bandsWritten=' + written.bandsWritten);
+  ok('Accept wrote small group SCHEDULED slots', written.smallGroupsWritten > 0, 'smallGroupsWritten=' + written.smallGroupsWritten);
   ok('accepted table has one row per scheduled + unresolved',
     rows.length === result.scheduled.length + result.unresolved.length,
     `rows=${rows.length} scheduled=${result.scheduled.length} unresolved=${result.unresolved.length}`);
   ok('accepted table marks placed items as scheduled',
     rows.filter(r => r.status === 'scheduled').length === result.scheduled.length);
 
-  const placedLessons = result.scheduled.filter(s => !String(s.lessonId).startsWith('BAND'));
+  const placedLessons = result.scheduled.filter(s => !isSmallGroupId(s.lessonId));
   const sample = placedLessons[0];
   const lesson = (api.DB.lessons || []).find(l => l.id === sample.lessonId);
   ok('sample lesson SCHEDULED day matches Generate', lesson && lesson.scheduledDay === sample.day,
@@ -108,16 +109,16 @@ function main(){
   ok('sample lesson FIXED day stayed empty (or original pin)',
     lesson && (lesson.fixedDay || '') === (beforeFixed.lessons.find(l => l.id === lesson.id).fixedDay || ''));
 
-  const placedBand = result.scheduled.find(s => String(s.lessonId).startsWith('BAND'));
-  if(placedBand){
-    const band = api.LAST_BANDS.bands.find(b => b.id === placedBand.lessonId);
-    const beforeBand = beforeFixed.bands.find(b => b.id === placedBand.lessonId) || beforeFixed.bands[0];
-    ok('sample band SCHEDULED teacher is the placed teacher, not a Generate pin',
-      band && band.scheduledTeacherId === placedBand.teacherId);
-    ok('sample band Teacher override (teacherId) unchanged',
-      band && band.teacherId === beforeBand.teacherId);
+  const placedSmallGroup = result.scheduled.find(s => isSmallGroupId(s.lessonId));
+  if(placedSmallGroup){
+    const sg = api.LAST_SMALL_GROUPS.smallGroups.find(b => b.id === placedSmallGroup.lessonId);
+    const beforeSmallGroup = beforeFixed.smallGroups.find(b => b.id === placedSmallGroup.lessonId) || beforeFixed.smallGroups[0];
+    ok('sample small group SCHEDULED teacher is the placed teacher, not a Generate pin',
+      sg && sg.scheduledTeacherId === placedSmallGroup.teacherId);
+    ok('sample small group Teacher override (teacherId) unchanged',
+      sg && sg.teacherId === beforeSmallGroup.teacherId);
   } else {
-    ok('at least one band was placed (skip band SCHEDULED checks)', false);
+    ok('at least one small group was placed (skip small group SCHEDULED checks)', false);
   }
 
   ok('FIXED / teacherId columns unchanged after Accept', sameFixed(beforeFixed, snapshotFixed(api)));
@@ -126,10 +127,10 @@ function main(){
   ok('fingerprint ignores SCHEDULED so Accept does not look like an input edit',
     api.computeScheduleFingerprint() === fpBefore);
 
-  const bandLessons = api.getBandLessons();
-  const autoCount = bandLessons.filter(l => !l.teacherId).length;
-  ok('getBandLessons still treats empty override as auto-match (ignores scheduledTeacherId)',
-    autoCount > 0, 'autoCount=' + autoCount + ' of ' + bandLessons.length);
+  const smallGroupLessons = api.getSmallGroupLessons();
+  const autoCount = smallGroupLessons.filter(l => !l.teacherId).length;
+  ok('getSmallGroupLessons still treats empty override as auto-match (ignores scheduledTeacherId)',
+    autoCount > 0, 'autoCount=' + autoCount + ' of ' + smallGroupLessons.length);
 
   console.log('\n== dragged times survive into Accept ==');
   const dragged = result.scheduled[0];
@@ -142,10 +143,10 @@ function main(){
   dragged.start = newStart;
   dragged.end = newStart + duration;
   api.writeAcceptedToSourceTables(result);
-  if(String(dragged.lessonId).startsWith('BAND')){
-    const band = api.LAST_BANDS.bands.find(b => b.id === dragged.lessonId);
-    ok('dragged band slot is what Accept writes',
-      band && band.scheduledDay === newDay && band.scheduledStart === api.toHHMM(newStart));
+  if(isSmallGroupId(dragged.lessonId)){
+    const sg = api.LAST_SMALL_GROUPS.smallGroups.find(b => b.id === dragged.lessonId);
+    ok('dragged small group slot is what Accept writes',
+      sg && sg.scheduledDay === newDay && sg.scheduledStart === api.toHHMM(newStart));
   } else {
     const l = api.DB.lessons.find(x => x.id === dragged.lessonId);
     ok('dragged lesson slot is what Accept writes',
@@ -169,7 +170,7 @@ function main(){
   console.log('\n== Generate-style clear wipes SCHEDULED and accepted table ==');
   api.clearAcceptedScheduledRecord();
   ok('lesson SCHEDULED columns empty after clear', scheduledLessonCount(api) === 0);
-  ok('band SCHEDULED columns empty after clear', scheduledBandCount(api) === 0);
+  ok('small group SCHEDULED columns empty after clear', scheduledSmallGroupCount(api) === 0);
   ok('acceptedSchedule emptied', !(api.DB.acceptedSchedule && api.DB.acceptedSchedule.length));
   ok('acceptedTimetable nulled', api.DB.acceptedTimetable == null);
   ok('FIXED still unchanged after clear', sameFixed(beforeFixed, snapshotFixed(api)));

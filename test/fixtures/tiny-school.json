@@ -7,7 +7,7 @@
     {"ID":"S5","NAME1":"NoClass","NAME2":"Five","NAME3":"","INSTR":"piano","INSTR_ID":"INST6","CLASS":"","CLASS_ID":"","IMPR":"","IMPR_ID":"","VOC":"","VOC_ID":"","JTH":"","JTH_ID":"","SOLF":"","SOLF_ID":"","JHIST":"","JHIST_ID":"","RHIMPR":"","RHIMPR_ID":"","AC":"","AC_ID":""}
   ],
   "lessons": [
-    {"id":"LES1","name":"Improv 9","group":"impr9","groupId":"G1","teacher":"Ajtai","teacherId":"T1","duration":45,"room321":true,"fixedDay":"","fixedStart":"","fixedEnd":""}
+    {"id":"LES1","name":"Improv 9","group":"impr9","groupId":"G1","teacher":"Ajtai","teacherId":"T1","duration":45,"roomId":"ROOM1","room":"321","fixedDay":"","fixedStart":"","fixedEnd":""}
   ],
   "teacherAvail": [
     {"teacher":"Ajtai","teacherId":"T1","day":"MON","start":"13:00","end":"20:00","type":"AVAILABLE","option":""},
@@ -24,7 +24,7 @@
     {"class":"9a","classId":"C9","day":"FRI","start":"09:00","end":"13:00","note":"school"}
   ],
   "refTeachers": [{"id":"T1","name":"Ajtai"}],
-  "refClasses": [{"id":"C9","name":"9a","jclass":"9"}],
+  "refClasses": [{"id":"C9","name":"9a","muclass":"9"}],
   "refGroups": [{"id":"G1","name":"impr9","type":"IMPR"}],
   "refInstruments": [
     {"id":"INST8","name":"bassg","type":"bass"},
@@ -33,9 +33,13 @@
     {"id":"INST3","name":"sax","type":"sol"},
     {"id":"INST6","name":"piano","type":"acc"}
   ],
-  "bandQuotas": [{"id":"BQ1","teacherId":"T1","teacher":"Ajtai","amount":2}],
+  "refRooms": [
+    {"id":"ROOM1","name":"321"},
+    {"id":"ROOM2","name":"Drum"}
+  ],
+  "smallGroupQuotas": [{"id":"SMGQ1","teacherId":"T1","teacher":"Ajtai","amount":2}],
   "breaks": [{"id":"B1","teacherId":"T1","teacher":"Ajtai","breakMinutes":15,"breakCount":8}],
   "oneToOne": {"columns":[{"id":"T1","name":"Ajtai"}],"hours":{"S1":{"T1":1}}},
-  "rjPiano": {"columns":[{"id":"T1","name":"Ajtai"}],"hours":{"S3":{"T1":0.5}}},
+  "rpiano": {"columns":[{"id":"T1","name":"Ajtai"}],"hours":{"S3":{"T1":0.5}}},
   "acceptedSchedule": []
 }

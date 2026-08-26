@@ -239,7 +239,7 @@ function checkScheduledValid(db, acceptedRows, scheduled){
     if(s.duration != null && s.end - s.start !== s.duration){
       errors.push(`scheduled[${i}] duration ${s.duration} != ${s.end-s.start}`);
     }
-    if(s.room321) errors.push(`scheduled[${i}] 1/1 should not take ROOM 321`);
+    if(s.roomId) errors.push(`scheduled[${i}] 1/1 should not lock a room`);
     const w = teacherWindows(db, s.teacherId)[s.day];
     if(!w) errors.push(`scheduled[${i}] ${teacherName(db,s.teacherId)} not free on ${s.day}`);
     else if(s.start < w.start || s.end > w.end){
@@ -424,7 +424,7 @@ function main(){
   }];
   const cross = api.scheduleAllOneToOne({matrix: api.DB.oneToOne, acceptedRows: api.DB.acceptedSchedule});
   const s1s = cross.scheduled.filter(s => s.studentId === 'S1');
-  ok('S1 still gets both teachers around the 08–09 accepted band',
+  ok('S1 still gets both teachers around the 08–09 accepted small group',
     s1s.length === 2, 'n=' + s1s.length);
   ok('neither S1 1/1 overlaps 08:00–09:00',
     s1s.every(s => !overlap(s.start, s.end, 8*60, 9*60)),
@@ -434,7 +434,7 @@ function main(){
 
   console.log('\n== full seed Generate → Accept → 1/1 ==');
   api.DB = clone(seed);
-  api.LAST_BANDS = api.generateBands(16);
+  api.LAST_SMALL_GROUPS = api.generateSmallGroups(16);
   const gen = api.runScheduler(false);
   api.LAST_RESULT = gen;
   ok('group Generate placed lessons', gen.scheduled.length > 0, 'n=' + gen.scheduled.length);
@@ -442,9 +442,10 @@ function main(){
   const accepted = acceptedAll.filter(r => r.status === 'scheduled');
   api.DB.acceptedSchedule = acceptedAll;
   api.DB.acceptedTimetable = {acceptedAt: '2026-08-25T00:00:00.000Z'};
+  api.LAST_RESULT = {scheduled: gen.scheduled, accepted: true};
   ok('Accept produced scheduled rows', accepted.length === gen.scheduled.length,
     `accepted=${accepted.length} gen=${gen.scheduled.length}`);
-  ok('tab unlocks after Accept', api.hasAcceptedRecord() === true);
+  ok('tab unlocks after Accept', api.hasAcceptedRecord() === true && api.canOpenOneOne() === true);
 
   const t1 = Date.now();
   const result = api.scheduleAllOneToOne({

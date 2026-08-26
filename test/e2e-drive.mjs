@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// End-to-end super test: Google Drive workbook → bands → timetable → Accept
-// → 1/1 → Accept → Required Jazz Piano → Accept, plus referential integrity,
+// End-to-end super test: Google Drive workbook → small groups → timetable → Accept
+// → 1/1 → Accept → Required Piano → Accept, plus referential integrity,
 // static HTML/JS wiring, dead-code scan, round-trip export, and independent
 // clash checks that do not trust auditTimetable.
 //
@@ -18,7 +18,7 @@ import { checkSchedule } from './invariants.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_ID = '1VmcZq9AyYb-c3iYHSv0Q8Lh90UwnceAxaQvy6lfJyXU';
 const REQUIRED_TABS = ['students','lessons','teacherAvail','classAvail','refTeachers','refClasses','refGroups','refInstruments'];
-const HOURS_TABS = ['oneToOne','rjPiano'];
+const HOURS_TABS = ['oneToOne','rpiano'];
 const IDENTITY_HOURS_COLS = new Set(['STUDENT_ID','ID','NAME1','NAME2','NAME3','PUBLIC_NAME','INSTR','INSTR_ID','NAME']);
 const DYNAMIC_HTML_IDS = new Set(['hoverTooltip']);
 const GROUP_FIELDS = [
@@ -65,7 +65,7 @@ function parseGvizText(text){
 }
 
 async function fetchGvizJson(spreadsheetId, sheetName, sheetKey){
-  const headers = (sheetKey === 'oneToOne' || sheetKey === 'rjPiano') ? '1' : '0';
+  const headers = (sheetKey === 'oneToOne' || sheetKey === 'rpiano') ? '1' : '0';
   const q = new URLSearchParams({
     tqx: 'out:json',
     sheet: sheetName,
@@ -130,8 +130,10 @@ function independentClashes(api, items){
       if(a.teacherId && a.teacherId === b.teacherId){
         errors.push(`teacher ${a.teacherId}: ${a.name || a.lessonId} overlaps ${b.name || b.lessonId} at ${when}`);
       }
-      if(a.room321 && b.room321){
-        errors.push(`ROOM 321: ${a.name || a.lessonId} overlaps ${b.name || b.lessonId} at ${when}`);
+      const ra = a.roomId || '';
+      const rb = b.roomId || '';
+      if(ra && ra === rb){
+        errors.push(`room ${ra}: ${a.name || a.lessonId} overlaps ${b.name || b.lessonId} at ${when}`);
       }
       const sa = api.studentsForScheduledItem(a) || [];
       const sb = new Set((api.studentsForScheduledItem(b) || []).map(s => s.ID));
@@ -249,12 +251,13 @@ async function main(){
 
   const needed = [
     'parseGvizTable','parseSpreadsheetId','SHEET_ALIASES','DEFAULT_SHEETS_URL',
-    'sheetsTablesToDb','sheetLooksLike','restoreFromLoadedObject','generateBands',
+    'sheetsTablesToDb','sheetLooksLike','restoreFromLoadedObject','generateSmallGroups',
     'runGenerateTimetable','runSchedulerSearchAll','runScheduler','acceptTimetableSchedule',
     'scheduleAllOneToOneSearch','applyIndividualSearch','acceptOneOneSchedule',
-    'acceptRjPianoSchedule','auditTimetable','combinedWeekItems','timetableAuditItems',
+    'acceptRpianoSchedule','auditTimetable','combinedWeekItems','timetableAuditItems',
     'studentsForScheduledItem','collectOneOneAssignments','driveTablesToAoa',
-    'hasAcceptedRecord','hasAcceptedOneOne','hasAcceptedRjPiano','markLayoutNeedsAccept',
+    'hasAcceptedRecord','hasAcceptedOneOne','hasAcceptedRpiano','markLayoutNeedsAccept',
+    'isTimetableAccepted','canOpenOneOne','canOpenRpiano','hasPendingAccept','pendingAcceptTab',
     'parseOneOneHours','oneOneHoursToMinutes','GROUP_NAME_FIELDS','busyRowsFromScheduled'
   ];
   needed.forEach(name => {
@@ -282,11 +285,18 @@ async function main(){
   ok('DRIVE_EXPORT_SPECS covers the core Drive tabs',
     REQUIRED_TABS.every(k => exportKeys.has(k)),
     [...REQUIRED_TABS].filter(k => !exportKeys.has(k)).join(', '));
-  ok('1_1 / JRPiano are not in DRIVE_EXPORT_SPECS (spliced via driveTablesToAoa)',
-    !exportKeys.has('oneToOne') && !exportKeys.has('rjPiano'));
+  ok('1_1 / rpiano are not in DRIVE_EXPORT_SPECS (spliced via driveTablesToAoa)',
+    !exportKeys.has('oneToOne') && !exportKeys.has('rpiano'));
   const aliasKeys = Object.keys(api.SHEET_ALIASES || {});
-  ok('SHEET_ALIASES includes 1_1 and JRPiano',
-    aliasKeys.includes('oneToOne') && aliasKeys.includes('rjPiano'));
+  ok('SHEET_ALIASES includes 1_1 and rpiano',
+    aliasKeys.includes('oneToOne') && aliasKeys.includes('rpiano'));
+  ok('SHEET_ALIASES maps SMALLGR_QUOTAS and ROOMS',
+    (api.SHEET_ALIASES.smallGroupQuotas || []).includes('SMALLGR_QUOTAS')
+    && (api.SHEET_ALIASES.refRooms || []).includes('ROOMS'));
+  ok('SHEET_ALIASES maps SMALL_GROUPS',
+    (api.SHEET_ALIASES.smallGroups || []).includes('SMALL_GROUPS'));
+  ok('SMALL_GROUPS is not in DRIVE_EXPORT_SPECS (spliced via driveTablesToAoa)',
+    !exportKeys.has('smallGroups'));
   const defaultId = api.parseSpreadsheetId(api.DEFAULT_SHEETS_URL);
   ok('DEFAULT_SHEETS_URL parses to a spreadsheet id', !!defaultId, api.DEFAULT_SHEETS_URL);
 
@@ -336,6 +346,17 @@ async function main(){
     if(driveKeep.length) find('sheetsTablesToDb kept seed tables for missing Drive tabs', driveKeep.join(', '));
     ok('STUDENTS parsed', (db.students || []).length > 0, String((db.students || []).length));
     api.restoreFromLoadedObject(db);
+    const loadedSg = (api.LAST_SMALL_GROUPS && api.LAST_SMALL_GROUPS.smallGroups) || [];
+    if(tables.smallGroups && tables.smallGroups.length){
+      ok('Drive SMALL_GROUPS restored into the Small Groups tab',
+        loadedSg.length > 0,
+        `groups=${loadedSg.length} rows=${tables.smallGroups.length}`);
+      ok('Drive small groups keep member student ids',
+        loadedSg.some(sg => ['bass','drum','acc','sol'].some(t => (sg[t] || []).some(s => s && s.ID))),
+        loadedSg.map(sg => sg.id).join(','));
+    } else {
+      find('Drive workbook has no SMALL_GROUPS tab');
+    }
     const hadAccepted = (api.DB.acceptedSchedule || []).length
       || (api.DB.lessons || []).some(l => l.scheduledDay);
     if(hadAccepted){
@@ -343,19 +364,18 @@ async function main(){
         `${(api.DB.acceptedSchedule || []).length} accepted rows`);
     }
     api.clearAcceptedScheduledRecord();
-    api.LAST_BANDS = null;
     api.LAST_RESULT = null;
     api.LAST_VARIANTS = [];
     api.LAST_ONEONE = null;
-    api.LAST_RJPIANO = null;
+    api.LAST_RPIANO = null;
   } else {
     api.DB = clone(seed);
     api.clearAcceptedScheduledRecord();
-    api.LAST_BANDS = null;
+    api.LAST_SMALL_GROUPS = null;
     api.LAST_RESULT = null;
     api.LAST_VARIANTS = [];
     api.LAST_ONEONE = null;
-    api.LAST_RJPIANO = null;
+    api.LAST_RPIANO = null;
   }
 
   const db = api.DB;
@@ -408,7 +428,7 @@ async function main(){
   else ok('group TYPEs match the student columns', true);
 
   const noClass = (db.students || []).filter(s => !s.CLASS_ID);
-  if(noClass.length) find('students with no CLASS_ID (excluded from bands)', `${noClass.length}: ${noClass.map(s => s.ID).join(', ')}`);
+  if(noClass.length) find('students with no CLASS_ID (excluded from small groups)', `${noClass.length}: ${noClass.map(s => s.ID).join(', ')}`);
 
   const badLessonT = (db.lessons || []).filter(l => l.teacherId && !teacherIds.has(l.teacherId));
   const badLessonG = (db.lessons || []).filter(l => l.groupId && !groupIds.has(l.groupId));
@@ -420,11 +440,28 @@ async function main(){
   const badAvail = (db.teacherAvail || []).filter(r => r.teacherId && !teacherIds.has(r.teacherId));
   const badCav = (db.classAvail || []).filter(r => r.classId && !classIds.has(r.classId));
   const badBrk = (db.breaks || []).filter(r => r.teacherId && !teacherIds.has(r.teacherId));
-  const badBq = (db.bandQuotas || []).filter(r => r.teacherId && !teacherIds.has(r.teacherId));
+  const badQuota = (db.smallGroupQuotas || []).filter(r => r.teacherId && !teacherIds.has(r.teacherId));
   ok('teacher-avail TEACHER_IDs resolve', badAvail.length === 0, badAvail.slice(0, 8).map(r => r.teacherId).join(', '));
   ok('class-reservation CLASS_IDs resolve', badCav.length === 0, badCav.slice(0, 8).map(r => r.classId).join(', '));
   ok('break-management TEACHER_IDs resolve', badBrk.length === 0, badBrk.map(r => r.teacherId).join(', '));
-  ok('band-quota TEACHER_IDs resolve', badBq.length === 0, badBq.map(r => r.teacherId).join(', '));
+  ok('small group-quota TEACHER_IDs resolve', badQuota.length === 0, badQuota.map(r => r.teacherId).join(', '));
+  if(source === 'drive'){
+    ok('Drive small-group quotas tab is SMALLGR_QUOTAS',
+      usedNames.smallGroupQuotas === 'SMALLGR_QUOTAS', usedNames.smallGroupQuotas || '(missing)');
+    ok('Drive quota rows parsed', (db.smallGroupQuotas || []).length > 0,
+      String((db.smallGroupQuotas || []).length));
+    ok('Drive quota ids are SMGQ*',
+      (db.smallGroupQuotas || []).every(q => /^SMGQ\d+$/i.test(q.id || '')),
+      (db.smallGroupQuotas || []).map(q => q.id).join(', '));
+    ok('Drive rooms tab loaded',
+      usedNames.refRooms === 'ROOMS' && (db.refRooms || []).length > 0,
+      `${usedNames.refRooms || '(missing)'} n=${(db.refRooms || []).length}`);
+    const dupRoomIds = Object.entries((db.refRooms || []).reduce((acc, r) => {
+      if(r.id) acc[r.id] = (acc[r.id] || 0) + 1;
+      return acc;
+    }, {})).filter(([,n]) => n > 1).map(([id,n]) => `${id}×${n}`);
+    if(dupRoomIds.length) find('ROOMS has duplicate ROOM_IDs', dupRoomIds.join(', '));
+  }
 
   const teachersWithoutAvail = [...teacherIds].filter(id =>
     !(db.teacherAvail || []).some(r => r.teacherId === id && r.type !== 'AVOID'));
@@ -436,9 +473,9 @@ async function main(){
   }
 
   const oneAsg = api.collectOneOneAssignments(db.oneToOne);
-  const rjpAsg = api.collectOneOneAssignments(db.rjPiano);
+  const rjpAsg = api.collectOneOneAssignments(db.rpiano);
   ok('1/1 matrix has hours', oneAsg.length > 0, String(oneAsg.length));
-  ok('Required Jazz Piano matrix has hours', rjpAsg.length > 0, String(rjpAsg.length));
+  ok('Required Piano matrix has hours', rjpAsg.length > 0, String(rjpAsg.length));
   const badOneS = oneAsg.filter(a => !studentIds.has(a.studentId));
   const badOneT = oneAsg.filter(a => !teacherIds.has(a.teacherId));
   const badRjpS = rjpAsg.filter(a => !studentIds.has(a.studentId));
@@ -455,28 +492,31 @@ async function main(){
     ok('1_1 parsed hours count matches matched cells', leak1.matched === oneAsg.length,
       `raw ${leak1.matched} vs parsed ${oneAsg.length}`);
   }
-  if(source === 'drive' && tables.rjPiano){
-    const leakP = hoursLeak(api, tables.rjPiano, db.refTeachers);
+  if(source === 'drive' && tables.rpiano){
+    const leakP = hoursLeak(api, tables.rpiano, db.refTeachers);
     ok('JRPiano numeric cells map to a teacher column', leakP.unmatched === 0,
       leakP.unmatchedCols.join(', ') + ` (${leakP.unmatched} cells)`);
     ok('JRPiano parsed hours count matches matched cells', leakP.matched === rjpAsg.length,
       `raw ${leakP.matched} vs parsed ${rjpAsg.length}`);
   }
   if(usedNames.oneToOne) ok('1/1 tab name used', true, usedNames.oneToOne);
-  if(usedNames.rjPiano){
-    ok('Required Jazz Piano tab is JRPiano (not RJPiano-only)',
-      /jrpiano/i.test(usedNames.rjPiano) || usedNames.rjPiano === 'JRPiano',
-      usedNames.rjPiano);
+  if(usedNames.rpiano){
+    ok('Required Piano tab is rpiano',
+      /^rpiano$/i.test(usedNames.rpiano) || /jrpiano/i.test(usedNames.rpiano),
+      usedNames.rpiano);
   }
 
   console.log('\n== 3. Round-trip export (Drive-shaped workbook) ==');
   const aoa = api.driveTablesToAoa(db);
   const sheetNames = aoa.map(s => s.name);
   ok('export includes STUDENTS', sheetNames.includes('STUDENTS'));
+  ok('export includes SMALL_GROUPS', sheetNames.includes('SMALL_GROUPS'));
+  ok('export includes SMALLGR_QUOTAS', sheetNames.includes('SMALLGR_QUOTAS'));
+  ok('export includes ROOMS', sheetNames.includes('ROOMS'));
   ok('export includes 1_1', sheetNames.includes('1_1'));
-  ok('export includes JRPiano', sheetNames.includes('JRPiano'));
+  ok('export includes rpiano', sheetNames.includes('rpiano'));
   const oneSheet = aoa.find(s => s.name === '1_1');
-  const rjpSheet = aoa.find(s => s.name === 'JRPiano');
+  const rjpSheet = aoa.find(s => s.name === 'rpiano');
   const oneBack = api.parseOneToOneTable(aoaToObjects(oneSheet.aoa), db.refTeachers);
   const rjpBack = api.parseOneToOneTable(aoaToObjects(rjpSheet.aoa), db.refTeachers);
   ok('1_1 round-trip keeps assignment count',
@@ -488,23 +528,23 @@ async function main(){
   const exported = api.dbToDriveTables(db);
   const {db: reimported} = api.sheetsTablesToDb(Object.assign({}, exported, {
     oneToOne: tables && tables.oneToOne ? tables.oneToOne : undefined,
-    rjPiano: tables && tables.rjPiano ? tables.rjPiano : undefined
+    rpiano: tables && tables.rpiano ? tables.rpiano : undefined
   }));
   ok('reimport student count', reimported.students.length === db.students.length,
     `${reimported.students.length} vs ${db.students.length}`);
   ok('reimport lesson count', reimported.lessons.length === db.lessons.length,
     `${reimported.lessons.length} vs ${db.lessons.length}`);
 
-  console.log('\n== 4. Generate bands → timetable (15 layouts unless --quick) ==');
-  const bands = api.generateBands(16);
-  api.LAST_BANDS = bands;
-  ok('generated 16 bands (or as many as roster allows)',
-    bands && Array.isArray(bands.bands) && bands.bands.length > 0,
-    bands && bands.bands ? String(bands.bands.length) : 'none');
-  const emptyBands = (bands.bands || []).filter(b =>
+  console.log('\n== 4. Generate small groups → timetable (100 layouts, keep 10, unless --quick) ==');
+  const smallGroups = api.generateSmallGroups(16);
+  api.LAST_SMALL_GROUPS = smallGroups;
+  ok('generated 16 small groups (or as many as roster allows)',
+    smallGroups && Array.isArray(smallGroups.smallGroups) && smallGroups.smallGroups.length > 0,
+    smallGroups && smallGroups.smallGroups ? String(smallGroups.smallGroups.length) : 'none');
+  const emptySmallGroupRecords = (smallGroups.smallGroups || []).filter(b =>
     !['bass','drum','acc','sol'].some(t => (b[t] || []).length));
-  if(emptyBands.length) find('empty band shells', String(emptyBands.length));
-  console.log(`  bands=${bands.bands.length} excluded=${(bands.excluded||[]).length} eligible=${bands.eligibleCount}`);
+  if(emptySmallGroupRecords.length) find('empty small group shells', String(emptySmallGroupRecords.length));
+  console.log(`  small groups=${smallGroups.smallGroups.length} excluded=${(smallGroups.excluded||[]).length} eligible=${smallGroups.eligibleCount}`);
 
   const tSched0 = Date.now();
   if(args.quick){
@@ -518,11 +558,11 @@ async function main(){
   ok('timetable produced a result', !!(api.LAST_RESULT && api.LAST_RESULT.scheduled));
   if(!args.quick){
     const nVar = (api.LAST_VARIANTS || []).length;
-    if(nVar < 15) find('timetable search found fewer than 15 distinct layouts', String(nVar));
-    else ok('timetable search kept 15 distinct layouts (or more in the pool)', nVar >= 15);
+    ok('timetable search keeps at most 10 layouts', nVar <= (api.SCHEDULE_VARIANT_KEEP || 10), String(nVar));
+    if(nVar < 2) find('timetable search found only one distinct layout', String(nVar));
   }
-  const inv = checkSchedule(api.DB, api.LAST_BANDS, api.LAST_RESULT);
-  ok('independent invariant checker: groups + bands', inv.length === 0, inv.slice(0, 8).join(' | '));
+  const inv = checkSchedule(api.DB, api.LAST_SMALL_GROUPS, api.LAST_RESULT);
+  ok('independent invariant checker: groups + small groups', inv.length === 0, inv.slice(0, 8).join(' | '));
   const ttAudit = api.auditTimetable(api.LAST_RESULT.scheduled || []);
   const ttErr = auditErrors(ttAudit);
   ok('auditTimetable has no red errors on generated groups', ttErr.length === 0,
@@ -534,20 +574,22 @@ async function main(){
 
   const unresolved = api.LAST_RESULT.unresolved || [];
   if(unresolved.length){
-    find('unresolved group/band lessons after Generate',
+    find('unresolved group/small group lessons after Generate',
       unresolved.map(u => (u.lesson && u.lesson.id) || '?').join(', '));
   }
-  ok('1/1 still locked before Accept timetable', !api.hasAcceptedRecord());
+  ok('1/1 still locked before Accept timetable', !api.hasAcceptedRecord() && !api.canOpenOneOne());
+  ok('unaccepted generate locks other tabs', api.hasPendingAccept() === true && api.pendingAcceptTab() === 'timetable');
 
   console.log('\n== 5. Accept timetable → Generate 1/1 → Accept 1/1 ==');
   api.acceptTimetableSchedule();
   ok('hasAcceptedRecord after Accept', api.hasAcceptedRecord());
   ok('LAST_RESULT.accepted', !!(api.LAST_RESULT && api.LAST_RESULT.accepted));
+  ok('1/1 tab open after Accept', api.canOpenOneOne());
   ok('acceptedSchedule rows written', (api.DB.acceptedSchedule || []).length > 0,
     String((api.DB.acceptedSchedule || []).length));
   const written = api.writeAcceptedToSourceTables(api.LAST_RESULT);
-  ok('SCHEDULED columns written back onto lessons/bands',
-    (written && (written.lessonsWritten || written.bandsWritten)) > 0,
+  ok('SCHEDULED columns written back onto lessons/small groups',
+    (written && (written.lessonsWritten || written.smallGroupsWritten)) > 0,
     JSON.stringify(written));
 
   const t11 = Date.now();
@@ -567,18 +609,19 @@ async function main(){
     find('unplaced 1/1 assignments',
       oneUnresolved.map(u => formatUnresolvedOne(u, api)).slice(0, 20).join('; '));
   }
-  const oneWeek = api.combinedWeekItems();
+  const oneWeek = api.combinedWeekItems('oneone');
   const oneAudit = api.auditTimetable(oneWeek);
   const oneErr = auditErrors(oneAudit);
   ok('combined week (accepted groups + generated 1/1) has no red errors',
     oneErr.length === 0, oneErr.slice(0, 8).map(e => stripHtml(e.html)).join(' | '));
   const oneClash = independentClashes(api, oneWeek);
   ok('independent clash check: accepted groups + 1/1', oneClash.length === 0, oneClash.slice(0, 8).join(' | '));
-  ok('RJP still locked before Accept 1/1', !api.hasAcceptedOneOne());
+  ok('RJP still locked before Accept 1/1', !api.hasAcceptedOneOne() && !api.canOpenRpiano());
+  ok('unaccepted 1/1 locks every other tab', api.pendingAcceptTab() === 'oneone');
 
   api.acceptOneOneSchedule();
   ok('hasAcceptedOneOne after Accept 1/1', api.hasAcceptedOneOne());
-  ok('Accept 1/1 clears LAST_RJPIANO', api.LAST_RJPIANO == null);
+  ok('RJP still empty after first Accept 1/1', api.LAST_RPIANO == null);
   ok('KIND on accepted 1/1 rows is 1/1',
     ((api.LAST_ONEONE.acceptedSchedule || []).every(r => r.kind === '1/1')),
     (api.LAST_ONEONE.acceptedSchedule || []).slice(0,3).map(r => r.kind).join(','));
@@ -588,31 +631,31 @@ async function main(){
   ok('timetableAuditItems = groups + frozen 1/1 (not drawn, but checked)',
     ttBound.length === (api.LAST_RESULT.scheduled || []).length + (api.LAST_ONEONE.scheduled || []).length);
 
-  console.log('\n== 6. Generate Required Jazz Piano → Accept ==');
-  ok('RJP generate is allowed after Accept 1/1', api.hasAcceptedOneOne());
+  console.log('\n== 6. Generate Required Piano → Accept ==');
+  ok('RJP generate is allowed after Accept 1/1', api.hasAcceptedOneOne() && api.canOpenRpiano());
   const tRjp = Date.now();
   const rjpOpts = {
-    matrix: api.DB.rjPiano,
+    matrix: api.DB.rpiano,
     acceptedRows: (api.DB.acceptedSchedule || []).concat(api.busyRowsFromScheduled(api.LAST_ONEONE && api.LAST_ONEONE.scheduled)),
-    source: 'rjpiano',
+    source: 'rpiano',
     lessonLabel: 'piano',
-    idPrefix: 'RJP'
+    idPrefix: 'RP'
   };
   const rjpVariants = args.quick
     ? [api.scheduleAllOneToOne(rjpOpts)]
     : api.scheduleAllOneToOneSearch(rjpOpts);
-  api.applyIndividualSearch('rjpiano', rjpVariants, '');
-  console.log(`  RJP search ${(Date.now()-tRjp)/1000}s — ${rjpVariants.length} layout(s), ${(api.LAST_RJPIANO.scheduled||[]).length} placed, ${(api.LAST_RJPIANO.unresolved||[]).length} left out`);
-  ok('RJP placed at least one lesson', (api.LAST_RJPIANO.scheduled || []).length > 0);
+  api.applyIndividualSearch('rpiano', rjpVariants, '');
+  console.log(`  RJP search ${(Date.now()-tRjp)/1000}s — ${rjpVariants.length} layout(s), ${(api.LAST_RPIANO.scheduled||[]).length} placed, ${(api.LAST_RPIANO.unresolved||[]).length} left out`);
+  ok('RJP placed at least one lesson', (api.LAST_RPIANO.scheduled || []).length > 0);
   if(!args.quick && rjpVariants.length < 15){
     find('RJP search found fewer than 15 distinct layouts', String(rjpVariants.length));
   }
-  const rjpUnresolved = api.LAST_RJPIANO.unresolved || [];
+  const rjpUnresolved = api.LAST_RPIANO.unresolved || [];
   if(rjpUnresolved.length){
-    find('unplaced Required Jazz Piano assignments',
+    find('unplaced Required Piano assignments',
       rjpUnresolved.map(u => formatUnresolvedOne(u, api)).slice(0, 20).join('; '));
   }
-  const mixedWeek = api.combinedWeekItems();
+  const mixedWeek = api.combinedWeekItems('rpiano');
   const mixedAudit = api.auditTimetable(mixedWeek);
   const mixedErr = auditErrors(mixedAudit);
   ok('combined week (groups + 1/1 + piano) has no red errors',
@@ -622,20 +665,20 @@ async function main(){
   const mixedWarn = ((mixedAudit && mixedAudit.entries) || []).filter(e => e.level === 'warning');
   if(mixedWarn.length) find('combined-week GAP/break warnings', String(mixedWarn.length));
 
-  const pianoIds = new Set((api.LAST_RJPIANO.scheduled || []).map(s => s.lessonId));
+  const pianoIds = new Set((api.LAST_RPIANO.scheduled || []).map(s => s.lessonId));
   const oneIds = new Set((api.LAST_ONEONE.scheduled || []).map(s => s.lessonId));
   const overlapIds = [...pianoIds].filter(id => oneIds.has(id));
   ok('1/1 and RJP lessonIds do not collide', overlapIds.length === 0, overlapIds.join(', '));
-  ok('RJP items use source rjpiano / piano label',
-    (api.LAST_RJPIANO.scheduled || []).every(s => s.source === 'rjpiano' || /piano/i.test(s.name || '')),
-    (api.LAST_RJPIANO.scheduled || []).slice(0,3).map(s => s.source+'/'+s.name).join(', '));
+  ok('RJP items use source rpiano / piano label',
+    (api.LAST_RPIANO.scheduled || []).every(s => s.source === 'rpiano' || /piano/i.test(s.name || '')),
+    (api.LAST_RPIANO.scheduled || []).slice(0,3).map(s => s.source+'/'+s.name).join(', '));
 
-  api.acceptRjPianoSchedule();
-  ok('hasAcceptedRjPiano after Accept', api.hasAcceptedRjPiano());
+  api.acceptRpianoSchedule();
+  ok('hasAcceptedRpiano after Accept', api.hasAcceptedRpiano());
   ok('KIND on accepted piano rows is piano',
-    ((api.LAST_RJPIANO.acceptedSchedule || []).every(r => r.kind === 'piano')));
+    ((api.LAST_RPIANO.acceptedSchedule || []).every(r => r.kind === 'piano')));
   ok('frozen items include 1/1 + piano',
-    api.frozenIndividualItems().length === (api.LAST_ONEONE.scheduled || []).length + (api.LAST_RJPIANO.scheduled || []).length);
+    api.frozenIndividualItems().length === (api.LAST_ONEONE.scheduled || []).length + (api.LAST_RPIANO.scheduled || []).length);
 
   const afterAll = api.auditTimetable(api.timetableAuditItems(api.LAST_RESULT.scheduled || []));
   const afterErr = auditErrors(afterAll);
@@ -651,8 +694,8 @@ async function main(){
   const bundle = api.buildFullExportObject();
   ok('JSON export includes oneToOneState.accepted',
     !!(bundle && bundle.oneToOneState && bundle.oneToOneState.accepted));
-  ok('JSON export includes rjPianoState.accepted',
-    !!(bundle && bundle.rjPianoState && bundle.rjPianoState.accepted));
+  ok('JSON export includes rpianoState.accepted',
+    !!(bundle && bundle.rpianoState && bundle.rpianoState.accepted));
 
   console.log('\n== 7. Drag un-accepts; re-Accept writes the dragged times ==');
   const oneItem = (api.LAST_ONEONE.scheduled || [])[0];
@@ -662,39 +705,44 @@ async function main(){
     moveItem(oneItem, 15, oneItem.day);
     api.markLayoutNeedsAccept('oneone');
     ok('1/1 Accept re-opens after drag', api.LAST_ONEONE.accepted === false);
-    ok('hasAcceptedOneOne is false after 1/1 drag', !api.hasAcceptedOneOne());
+    ok('1/1 drag keeps Required Piano data',
+      api.hasAcceptedRpiano() === true);
+    ok('1/1 drag locks Required Piano until 1/1 is accepted again',
+      api.canOpenRpiano() === false);
+    ok('1/1 drag locks every other tab', api.pendingAcceptTab() === 'oneone');
     ok('frozen 1/1 drops out of timetable audit while unaccepted',
-      api.frozenIndividualItems().length === (api.LAST_RJPIANO && api.LAST_RJPIANO.accepted ? (api.LAST_RJPIANO.scheduled||[]).length : 0));
+      api.frozenIndividualItems().length === (api.LAST_RPIANO && api.LAST_RPIANO.accepted ? (api.LAST_RPIANO.scheduled||[]).length : 0));
     api.acceptOneOneSchedule();
     ok('re-Accept 1/1 freezes the dragged time',
       oneItem.start === from.start + 15 && api.hasAcceptedOneOne());
-    ok('re-Accept 1/1 still clears LAST_RJPIANO', api.LAST_RJPIANO == null);
+    ok('re-Accept 1/1 keeps Required Piano on file', api.LAST_RPIANO != null && api.hasAcceptedRpiano());
+    ok('re-Accept 1/1 unlocks Required Piano', api.canOpenRpiano() === true);
   }
 
-  // RJP was cleared by 1/1 re-accept — regenerate around the dragged 1/1, then drag piano.
+  // Keep the frozen piano while dragging 1/1; regenerate only if packing around the new 1/1.
   const rjpOpts2 = {
-    matrix: api.DB.rjPiano,
+    matrix: api.DB.rpiano,
     acceptedRows: (api.DB.acceptedSchedule || []).concat(api.busyRowsFromScheduled(api.LAST_ONEONE && api.LAST_ONEONE.scheduled)),
-    source: 'rjpiano',
+    source: 'rpiano',
     lessonLabel: 'piano',
-    idPrefix: 'RJP'
+    idPrefix: 'RP'
   };
   const rjpAgain = args.quick
     ? [api.scheduleAllOneToOne(rjpOpts2)]
     : api.scheduleAllOneToOneSearch(rjpOpts2);
-  api.applyIndividualSearch('rjpiano', rjpAgain, '');
-  api.acceptRjPianoSchedule();
-  const rjpItem = (api.LAST_RJPIANO.scheduled || [])[0];
+  api.applyIndividualSearch('rpiano', rjpAgain, '');
+  api.acceptRpianoSchedule();
+  const rjpItem = (api.LAST_RPIANO.scheduled || [])[0];
   ok('have a piano block to drag', !!rjpItem);
   if(rjpItem){
     const from = {day: rjpItem.day, start: rjpItem.start, end: rjpItem.end};
     moveItem(rjpItem, 15, rjpItem.day);
-    api.markLayoutNeedsAccept('rjpiano');
-    ok('RJP Accept re-opens after drag', api.LAST_RJPIANO.accepted === false);
-    ok('hasAcceptedRjPiano is false after piano drag', !api.hasAcceptedRjPiano());
-    api.acceptRjPianoSchedule();
+    api.markLayoutNeedsAccept('rpiano');
+    ok('RJP Accept re-opens after drag', api.LAST_RPIANO.accepted === false);
+    ok('hasAcceptedRpiano is false after piano drag', !api.hasAcceptedRpiano());
+    api.acceptRpianoSchedule();
     ok('re-Accept piano freezes the dragged time',
-      rjpItem.start === from.start + 15 && api.hasAcceptedRjPiano());
+      rjpItem.start === from.start + 15 && api.hasAcceptedRpiano());
     ok('piano drag does not clear 1/1 Accept', api.hasAcceptedOneOne());
   }
 
@@ -705,11 +753,15 @@ async function main(){
     moveItem(ttItem, 5, ttItem.day);
     api.markLayoutNeedsAccept('timetable');
     ok('timetable Accept re-opens after drag', api.LAST_RESULT.accepted === false);
-    ok('timetable drag does not clear acceptedSchedule (1/1 stays unlocked)',
+    ok('timetable drag does not clear acceptedSchedule',
       api.hasAcceptedRecord() && api.hasAcceptedOneOne());
+    ok('timetable drag locks 1/1 until re-Accept', api.canOpenOneOne() === false);
+    ok('timetable drag locks Required Piano until groups are accepted', api.canOpenRpiano() === false);
+    ok('timetable drag locks every other tab', api.pendingAcceptTab() === 'timetable');
     api.acceptTimetableSchedule();
     ok('re-Accept timetable writes the dragged slot',
       ttItem.start === from.start + 5 && api.LAST_RESULT.accepted);
+    ok('re-Accept timetable unlocks 1/1', api.canOpenOneOne() === true);
   }
 
   const finalWeek = api.combinedWeekItems();
@@ -725,7 +777,7 @@ async function main(){
 
   const ms = Date.now() - t0;
   console.log('\n' + '─'.repeat(64));
-  console.log(`Source: ${source}${usedNames.rjPiano ? '  piano-tab='+usedNames.rjPiano : ''}  ${args.quick ? 'quick' : 'full search'}`);
+  console.log(`Source: ${source}${usedNames.rpiano ? '  piano-tab='+usedNames.rpiano : ''}  ${args.quick ? 'quick' : 'full search'}`);
   console.log(`PASS ${passed}   FAIL ${failed}   FINDING ${findings.length}   ${(ms/1000).toFixed(1)}s`);
   if(findings.length){
     console.log('\nFindings (data / coverage / dead code — do not fail the pipeline):');

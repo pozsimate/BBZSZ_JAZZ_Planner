@@ -41,7 +41,7 @@ function auditKinds(audit){
     if(/is not available on|is only available/.test(s)) kinds.add('teacherWindow');
     if(/class reservation/.test(s)) kinds.add('reservation');
     if(/both need teacher/.test(s)) kinds.add('teacherOverlap');
-    if(/both need ROOM 321/.test(s)) kinds.add('room');
+    if(/both need /.test(s) && / at /.test(s) && !/both need teacher/.test(s) && !/both include/.test(s)) kinds.add('room');
     if(/both include/.test(s)) kinds.add('studentOverlap');
     if(/min gap on|break unit/.test(s)) kinds.add('break');
   });
@@ -65,10 +65,11 @@ function invariantKinds(errors){
 function emptyRefs(){
   return {
     refTeachers: [{id:'T1', name:'Tea'}, {id:'T2', name:'Two'}],
-    refClasses: [{id:'C1', name:'9a', jclass:'9'}],
+    refClasses: [{id:'C1', name:'9a', muclass:'9'}],
     refGroups: [{id:'G1', name:'imprA', type:'IMPR'}, {id:'G2', name:'imprB', type:'IMPR'}],
     refInstruments: [{id:'I1', name:'piano', type:'acc'}],
-    bandQuotas: [{teacherId:'T1', amount:4}, {teacherId:'T2', amount:4}],
+    refRooms: [{id:'ROOM1', name:'321'}],
+    smallGroupQuotas: [{teacherId:'T1', amount:4}, {teacherId:'T2', amount:4}],
   };
 }
 
@@ -80,9 +81,9 @@ function installFixture(api, extra){
       {ID:'S2', NAME1:'Bela', NAME2:'B', CLASS_ID:'C1', CLASS:'9a', IMPR_ID:'G2'},
     ],
     lessons: [
-      {id:'L1', name:'Piano', groupId:'G1', group:'imprA', teacherId:'T1', teacher:'Tea', duration:60, room321:true},
-      {id:'L2', name:'Combo', groupId:'G2', group:'imprB', teacherId:'T1', teacher:'Tea', duration:60, room321:true},
-      {id:'L3', name:'Sax', groupId:'G2', group:'imprB', teacherId:'T2', teacher:'Two', duration:60, room321:false},
+      {id:'L1', name:'Piano', groupId:'G1', group:'imprA', teacherId:'T1', teacher:'Tea', duration:60, roomId:'ROOM1', room:'321'},
+      {id:'L2', name:'Combo', groupId:'G2', group:'imprB', teacherId:'T1', teacher:'Tea', duration:60, roomId:'ROOM1', room:'321'},
+      {id:'L3', name:'Sax', groupId:'G2', group:'imprB', teacherId:'T2', teacher:'Two', duration:60, roomId:'', room:''},
     ],
     teacherAvail: [
       {teacherId:'T1', day:'MON', start:'08:00', end:'14:00', type:'AVAILABLE'},
@@ -96,9 +97,9 @@ function installFixture(api, extra){
   };
   Object.assign(base, extra || {});
   api.DB = base;
-  api.LAST_BANDS = {bands: [], excluded: [], appearances: {}, eligibleCount: 0};
+  api.LAST_SMALL_GROUPS = {smallGroups: [], excluded: [], appearances: {}, eligibleCount: 0};
   api.LAST_ONEONE = null;
-  api.LAST_RJPIANO = null;
+  api.LAST_RPIANO = null;
   return base;
 }
 
@@ -114,7 +115,8 @@ function place(partial){
     start: partial.start,
     end: partial.end,
     studentCount: partial.studentCount || 1,
-    room321: !!partial.room321,
+    roomId: partial.roomId || '',
+    room: partial.room || '',
     studentNames: partial.studentNames || [],
   };
 }
@@ -163,9 +165,9 @@ function testFixtureAudit(api){
   installFixture(api);
 
   const legal = [
-    place({lessonId:'L1', name:'Piano', groupId:'G1', teacherId:'T1', teacher:'Tea', day:'MON', start:8*60, end:9*60, room321:true}),
-    place({lessonId:'L2', name:'Combo', groupId:'G2', teacherId:'T1', teacher:'Tea', day:'MON', start:9*60, end:10*60, room321:true}),
-    place({lessonId:'L3', name:'Sax', groupId:'G2', teacherId:'T2', teacher:'Two', day:'MON', start:8*60, end:9*60, room321:false}),
+    place({lessonId:'L1', name:'Piano', groupId:'G1', teacherId:'T1', teacher:'Tea', day:'MON', start:8*60, end:9*60, roomId:'ROOM1', room:'321'}),
+    place({lessonId:'L2', name:'Combo', groupId:'G2', teacherId:'T1', teacher:'Tea', day:'MON', start:9*60, end:10*60, roomId:'ROOM1', room:'321'}),
+    place({lessonId:'L3', name:'Sax', groupId:'G2', teacherId:'T2', teacher:'Two', day:'MON', start:8*60, end:9*60}),
   ];
   api.LAST_RESULT = {scheduled: clone(legal), unresolved: []};
   let audit = api.auditTimetable(api.LAST_RESULT.scheduled);
@@ -184,7 +186,7 @@ function testFixtureAudit(api){
   moveItem(b[0], 'MON', 9*60);
   audit = api.auditTimetable(b);
   ok('teacher overlap reported', auditKinds(audit).has('teacherOverlap'), audit.issues.join(' | '));
-  ok('room overlap also reported (both ROOM 321)', auditKinds(audit).has('room'), audit.issues.join(' | '));
+  ok('room overlap also reported (same room)', auditKinds(audit).has('room'), audit.issues.join(' | '));
   ok('both lessons flagged', audit.conflictIds.has('L1') && audit.conflictIds.has('L2'));
 
   // Student overlap: L3 shares G2/S2 with L2 — move L3 onto L2
@@ -216,7 +218,7 @@ function testFixtureAudit(api){
   ok('legal 45min gap is silent', !auditKinds(audit).has('break') && audit.issues.length === 0, audit.issues.join(' | '));
 
   // Break overspend: two 45-min gaps (08–09, 09:45–10:45, 11:30–12:30) — add a third T1 lesson
-  api.DB.lessons.push({id:'L4', name:'Extra', groupId:'G1', group:'imprA', teacherId:'T1', teacher:'Tea', duration:60, room321:false});
+  api.DB.lessons.push({id:'L4', name:'Extra', groupId:'G1', group:'imprA', teacherId:'T1', teacher:'Tea', duration:60, roomId:'', room:''});
   const g = [
     place({lessonId:'L1', name:'Piano', groupId:'G1', teacherId:'T1', teacher:'Tea', day:'MON', start:8*60, end:9*60}),
     place({lessonId:'L2', name:'Combo', groupId:'G2', teacherId:'T1', teacher:'Tea', day:'MON', start:9*60+45, end:10*60+45}),
@@ -270,8 +272,8 @@ function testCalendarHtml(api){
   console.log('\n== calendar HTML: conflict class + lesson ids ==');
   installFixture(api);
   const items = [
-    place({lessonId:'L1', name:'Piano', groupId:'G1', teacherId:'T1', teacher:'Tea', day:'MON', start:8*60, end:9*60, room321:true}),
-    place({lessonId:'L2', name:'Combo', groupId:'G2', teacherId:'T1', teacher:'Tea', day:'MON', start:8*60, end:9*60, room321:true}),
+    place({lessonId:'L1', name:'Piano', groupId:'G1', teacherId:'T1', teacher:'Tea', day:'MON', start:8*60, end:9*60, roomId:'ROOM1', room:'321'}),
+    place({lessonId:'L2', name:'Combo', groupId:'G2', teacherId:'T1', teacher:'Tea', day:'MON', start:8*60, end:9*60, roomId:'ROOM1', room:'321'}),
   ];
   api.LAST_AUDIT = api.auditTimetable(items);
   const container = {innerHTML: ''};
@@ -287,7 +289,7 @@ function testSavePaths(api){
   console.log('\n== save / ICS / Accept see the moved times ==');
   installFixture(api);
   const scheduled = [
-    place({lessonId:'L1', name:'Piano', groupId:'G1', teacherId:'T1', teacher:'Tea', day:'MON', start:8*60, end:9*60, room321:true}),
+    place({lessonId:'L1', name:'Piano', groupId:'G1', teacherId:'T1', teacher:'Tea', day:'MON', start:8*60, end:9*60, roomId:'ROOM1', room:'321'}),
     place({lessonId:'L3', name:'Sax', groupId:'G2', teacherId:'T2', teacher:'Two', day:'MON', start:8*60, end:9*60}),
   ];
   api.LAST_RESULT = {scheduled, unresolved: []};
@@ -318,7 +320,7 @@ function testSavePaths(api){
 
 function kindsFromInvariants(api, scheduled){
   const result = {scheduled, unresolved: []};
-  const errors = checkSchedule(api.DB, api.LAST_BANDS, result);
+  const errors = checkSchedule(api.DB, api.LAST_SMALL_GROUPS, result);
   return {errors, kinds: invariantKinds(errors)};
 }
 
@@ -326,9 +328,9 @@ function testSeedGenerateAndFuzz(api, seed){
   console.log('\n== seed generate: audit vs independent checker + random drops ==');
   api.DB = clone(seed);
   api.LAST_ONEONE = null;
-  api.LAST_RJPIANO = null;
+  api.LAST_RPIANO = null;
   api.SearchLog.quiet = true;
-  api.LAST_BANDS = api.generateBands(16);
+  api.LAST_SMALL_GROUPS = api.generateSmallGroups(16);
   const result = api.runScheduler(false);
   api.LAST_RESULT = result;
   api.LAST_VARIANTS = [result];
@@ -336,7 +338,7 @@ function testSeedGenerateAndFuzz(api, seed){
   ok('scheduler placed something', (result.scheduled || []).length > 0, `scheduled=${(result.scheduled||[]).length}`);
   const origAudit = api.auditTimetable(result.scheduled);
   ok('generated timetable is audit-clean (no false positives)', origAudit.issues.length === 0, origAudit.issues.slice(0,8).join(' | '));
-  const inv = checkSchedule(api.DB, api.LAST_BANDS, result);
+  const inv = checkSchedule(api.DB, api.LAST_SMALL_GROUPS, result);
   ok('generated timetable also passes independent invariants', inv.length === 0, inv.slice(0,8).join(' | '));
 
   const snapshot = clone(result.scheduled);
@@ -437,7 +439,7 @@ function testDropHandler(api){
   console.log('\n== drop handler: apply / click / Escape ==');
   installFixture(api);
   const scheduled = [
-    place({lessonId:'L1', name:'Piano', groupId:'G1', teacherId:'T1', teacher:'Tea', day:'MON', start:8*60, end:9*60, room321:true}),
+    place({lessonId:'L1', name:'Piano', groupId:'G1', teacherId:'T1', teacher:'Tea', day:'MON', start:8*60, end:9*60, roomId:'ROOM1', room:'321'}),
   ];
   api.LAST_RESULT = {scheduled, unresolved: []};
   api.LAST_VARIANTS = [api.LAST_RESULT];
@@ -515,7 +517,7 @@ function testDragReopensAccept(api){
   console.log('\n== drag re-enables Accept and Accept freezes the dragged slots ==');
   installFixture(api);
   const scheduled = [
-    place({lessonId:'L1', name:'Piano', groupId:'G1', teacherId:'T1', teacher:'Tea', day:'MON', start:8*60, end:9*60, room321:true}),
+    place({lessonId:'L1', name:'Piano', groupId:'G1', teacherId:'T1', teacher:'Tea', day:'MON', start:8*60, end:9*60, roomId:'ROOM1', room:'321'}),
   ];
   api.LAST_RESULT = {scheduled, unresolved: []};
   api.acceptTimetableSchedule();
@@ -536,11 +538,14 @@ function testDragReopensAccept(api){
   ok('timetable drag re-opens Accept', api.LAST_RESULT.accepted === false);
   ok('old freeze stays until re-accept',
     (api.DB.acceptedSchedule || []).some(r => r.lessonId === 'L1' && r.day === 'MON' && r.start === '08:00'));
+  ok('timetable drag locks 1/1 tab', api.canOpenOneOne() === false);
+  ok('timetable drag locks every other tab', api.pendingAcceptTab() === 'timetable');
 
   api.acceptTimetableSchedule();
   ok('re-accept freezes Thursday 11:00',
     api.LAST_RESULT.accepted === true
     && (api.DB.acceptedSchedule || []).some(r => r.lessonId === 'L1' && r.day === 'THU' && r.start === '11:00'));
+  ok('re-accept unlocks 1/1 tab', api.canOpenOneOne() === true);
 
   const one = {
     lessonId:'O2O-T1-S1', name:'Anna 1/1', teacherId:'T1', teacher:'Tea',
@@ -565,28 +570,47 @@ function testDragReopensAccept(api){
     && api.LAST_ONEONE.acceptedSchedule[0].day === 'WED'
     && api.LAST_ONEONE.acceptedSchedule[0].start === '14:00');
 
-  const piano = {
-    lessonId:'RJP-T1-S1', name:'Anna piano', teacherId:'T1', teacher:'Tea',
-    day:'MON', start:10*60, end:11*60, studentIds:'S1', studentId:'S1', source:'rjpiano'
+  const pianoKeep = {
+    lessonId:'RP-KEEP', name:'Anna piano', teacherId:'T1', teacher:'Tea',
+    day:'MON', start:10*60, end:11*60, studentIds:'S1', studentId:'S1', source:'rpiano'
   };
-  api.LAST_RJPIANO = {scheduled:[piano], unresolved:[], accepted:false};
-  api.acceptRjPianoSchedule();
-  ok('piano starts accepted', api.hasAcceptedRjPiano() === true);
+  api.LAST_RPIANO = {scheduled:[pianoKeep], unresolved:[], accepted:true, acceptedSchedule:[{lessonId:'RP-KEEP'}]};
   api.CAL_DRAG = {
     pointerId: 1, block: inert, container, dayBodies: [],
-    lessonId: 'RJP-T1-S1', kind: 'rjpiano', duration: 60,
+    lessonId: 'O2O-T1-S1', kind: 'oneone', duration: 60,
+    originX: 0, originY: 0, active: true,
+    hover: {day:'THU', start:15*60}, previewBody: null
+  };
+  api.endCalendarDrag(true);
+  ok('1/1 drag keeps Required Piano accepted', api.hasAcceptedRpiano() === true);
+  ok('1/1 drag locks Required Piano tab', api.canOpenRpiano() === false);
+  ok('1/1 drag locks every other tab', api.pendingAcceptTab() === 'oneone');
+  api.acceptOneOneSchedule();
+  ok('re-Accept 1/1 still keeps Required Piano', api.hasAcceptedRpiano() === true);
+  ok('re-Accept 1/1 unlocks Required Piano tab', api.canOpenRpiano() === true);
+
+  const piano = {
+    lessonId:'RP-T1-S1', name:'Anna piano', teacherId:'T1', teacher:'Tea',
+    day:'MON', start:10*60, end:11*60, studentIds:'S1', studentId:'S1', source:'rpiano'
+  };
+  api.LAST_RPIANO = {scheduled:[piano], unresolved:[], accepted:false};
+  api.acceptRpianoSchedule();
+  ok('piano starts accepted', api.hasAcceptedRpiano() === true);
+  api.CAL_DRAG = {
+    pointerId: 1, block: inert, container, dayBodies: [],
+    lessonId: 'RP-T1-S1', kind: 'rpiano', duration: 60,
     originX: 0, originY: 0, active: true,
     hover: {day:'FRI', start:16*60}, previewBody: null
   };
   api.endCalendarDrag(true);
   ok('piano drag moves the lesson', piano.day === 'FRI' && piano.start === 16*60);
-  ok('piano drag re-opens Accept Required Jazz Piano', api.hasAcceptedRjPiano() === false);
+  ok('piano drag re-opens Accept Required Piano', api.hasAcceptedRpiano() === false);
 
-  api.acceptRjPianoSchedule();
+  api.acceptRpianoSchedule();
   ok('re-accept piano freezes Friday 16:00',
-    api.hasAcceptedRjPiano() === true
-    && api.LAST_RJPIANO.acceptedSchedule[0].day === 'FRI'
-    && api.LAST_RJPIANO.acceptedSchedule[0].start === '16:00');
+    api.hasAcceptedRpiano() === true
+    && api.LAST_RPIANO.acceptedSchedule[0].day === 'FRI'
+    && api.LAST_RPIANO.acceptedSchedule[0].start === '16:00');
 }
 
 function testFrozenTimetableAudit(api){
@@ -596,7 +620,7 @@ function testFrozenTimetableAudit(api){
   const oneone = {
     lessonId:'O2O-T2-S1', name:'Anna 1/1', teacherId:'T2', teacher:'Two',
     day:'MON', start:8*60, end:9*60, studentIds:'S1', studentId:'S1',
-    studentCount:1, studentNames:['Anna A'], source:'oneone', room321:false
+    studentCount:1, studentNames:['Anna A'], source:'oneone'
   };
 
   api.LAST_ONEONE = {scheduled:[oneone], unresolved:[], accepted:false};
@@ -624,17 +648,17 @@ function testFrozenTimetableAudit(api){
   ok('group vs frozen 1/1 same teacher is teacher overlap', auditKinds(audit).has('teacherOverlap'), audit.issues.join(' | '));
 
   const piano = {
-    lessonId:'RJP-T2-S1', name:'Anna piano', teacherId:'T2', teacher:'Two',
+    lessonId:'RP-T2-S1', name:'Anna piano', teacherId:'T2', teacher:'Two',
     day:'MON', start:8*60, end:9*60, studentIds:'S1', studentId:'S1',
-    source:'rjpiano'
+    source:'rpiano'
   };
   api.LAST_ONEONE = {scheduled:[oneone], unresolved:[], accepted:true};
-  api.LAST_RJPIANO = {scheduled:[piano], unresolved:[], accepted:false};
+  api.LAST_RPIANO = {scheduled:[piano], unresolved:[], accepted:false};
   items = api.timetableAuditItems([group]);
-  ok('unaccepted piano is not on Timetable audit', !items.some(i => i.source === 'rjpiano'));
-  api.LAST_RJPIANO.accepted = true;
+  ok('unaccepted piano is not on Timetable audit', !items.some(i => i.source === 'rpiano'));
+  api.LAST_RPIANO.accepted = true;
   items = api.timetableAuditItems([group]);
-  ok('accepted piano is on Timetable audit', items.some(i => i.lessonId === 'RJP-T2-S1'));
+  ok('accepted piano is on Timetable audit', items.some(i => i.lessonId === 'RP-T2-S1'));
   audit = api.auditTimetable(items);
   ok('group vs frozen piano sharing Anna is student overlap', auditKinds(audit).has('studentOverlap'), audit.issues.join(' | '));
 
@@ -642,7 +666,7 @@ function testFrozenTimetableAudit(api){
   ok('frozen 1/1 vs frozen piano same student is student overlap', auditKinds(audit).has('studentOverlap'), audit.issues.join(' | '));
 
   api.LAST_ONEONE = {scheduled:[oneone], unresolved:[], accepted:true};
-  api.LAST_RJPIANO = {scheduled:[], unresolved:[], accepted:false};
+  api.LAST_RPIANO = {scheduled:[], unresolved:[], accepted:false};
   api.LAST_AUDIT = api.auditTimetable(api.timetableAuditItems([group]));
   const container = {innerHTML:''};
   api.renderCalendar(container, [group], true);
@@ -651,26 +675,26 @@ function testFrozenTimetableAudit(api){
   ok('group still highlights from the frozen 1/1 clash', /cal-block has-conflict/.test(container.innerHTML));
 }
 
-function testBandMemberLookup(api){
-  console.log('\n== band members participate in student-overlap audit ==');
+function testSmallGroupMemberLookup(api){
+  console.log('\n== small group members participate in student-overlap audit ==');
   installFixture(api);
-  api.LAST_BANDS = {
-    bands: [{
+  api.LAST_SMALL_GROUPS = {
+    smallGroups: [{
       bass: [{ID:'S1', NAME1:'Anna', NAME2:'A', CLASS_ID:'C1', CLASS:'9a'}],
       drum: [], acc: [], sol: [],
-      teacherId:'T2', room321:false, duration:60,
+      teacherId:'T2', duration:60,
       fixedDay:'', fixedStart:'', fixedEnd:'',
     }],
     excluded: [], appearances: {}, eligibleCount: 1,
   };
   const scheduled = [
     place({lessonId:'L1', name:'Piano', groupId:'G1', teacherId:'T1', teacher:'Tea', day:'MON', start:8*60, end:9*60}),
-    place({lessonId:'BAND1', name:'Band 1 rehearsal', group:'BAND', teacherId:'T2', teacher:'Two', day:'MON', start:8*60, end:9*60}),
+    place({lessonId:'SG1', name:'Small Group 1 rehearsal', group:'SMALLGROUP', teacherId:'T2', teacher:'Two', day:'MON', start:8*60, end:9*60}),
   ];
   const students = api.studentsForScheduledItem(scheduled[1]);
-  ok('band lookup returns Anna', students.some(s => s.ID === 'S1'), JSON.stringify(students.map(s => s && s.ID)));
+  ok('small group lookup returns Anna', students.some(s => s.ID === 'S1'), JSON.stringify(students.map(s => s && s.ID)));
   const audit = api.auditTimetable(scheduled);
-  ok('piano vs band sharing Anna is a student overlap', auditKinds(audit).has('studentOverlap'), audit.issues.join(' | '));
+  ok('piano vs small group sharing Anna is a student overlap', auditKinds(audit).has('studentOverlap'), audit.issues.join(' | '));
 }
 
 function main(){
@@ -696,7 +720,7 @@ function main(){
   testDropHandler(api);
   testDragReopensAccept(api);
   testFrozenTimetableAudit(api);
-  testBandMemberLookup(api);
+  testSmallGroupMemberLookup(api);
   testSeedGenerateAndFuzz(api, seed);
 
   console.log(`\n${passed} passed, ${failed} failed`);

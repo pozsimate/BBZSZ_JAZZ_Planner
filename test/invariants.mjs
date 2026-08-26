@@ -5,7 +5,11 @@ const DAYS = ['MON','TUE','WED','THU','FRI'];
 const TYPE_RANK = {AVAILABLE:0, PREFERRED:0, FALLBACK:1, CANDIDATE:2};
 const DEFAULT_START = 8*60, DEFAULT_END = 20*60;
 const GROUP_FIELDS = ['IMPR_ID','VOC_ID','JTH_ID','SOLF_ID','JHIST_ID','RHIMPR_ID','AC_ID'];
-const BAND_TYPES = ['bass','drum','acc','sol'];
+const SMALL_GROUP_TYPES = ['bass','drum','acc','sol'];
+
+export function isSmallGroupId(id){
+  return /^SG\d+$/i.test(String(id || ''));
+}
 
 function toMin(t){
   if(!t) return null;
@@ -47,29 +51,29 @@ function breakSettings(db, teacherId){
   };
 }
 
-function bandByLessonId(bands, lessonId){
-  if(!bands || !lessonId) return null;
-  const found = bands.find(b => b.id === lessonId);
+function smallGroupByLessonId(smallGroups, lessonId){
+  if(!smallGroups || !lessonId) return null;
+  const found = smallGroups.find(b => b.id === lessonId);
   if(found) return found;
-  if(bands.some(b => b.id)) return null;
-  const idx = parseInt(String(lessonId).replace(/^BAND/i, ''), 10) - 1;
-  return idx >= 0 ? bands[idx] || null : null;
+  if(smallGroups.some(b => b.id)) return null;
+  const idx = parseInt(String(lessonId).replace(/^SG/i, ''), 10) - 1;
+  return idx >= 0 ? smallGroups[idx] || null : null;
 }
-function membersOf(db, bands, lessonId){
-  if(String(lessonId).startsWith('BAND')){
-    const band = bandByLessonId(bands, lessonId);
-    if(!band) return [];
-    return BAND_TYPES.flatMap(t => band[t] || []);
+function membersOf(db, smallGroups, lessonId){
+  if(isSmallGroupId(lessonId)){
+    const sg = smallGroupByLessonId(smallGroups, lessonId);
+    if(!sg) return [];
+    return SMALL_GROUP_TYPES.flatMap(t => sg[t] || []);
   }
   const lesson = (db.lessons || []).find(l => l.id === lessonId);
   if(!lesson) return [];
   return (db.students || []).filter(s => GROUP_FIELDS.some(f => s[f] === lesson.groupId));
 }
 
-function sourceOf(db, bands, lessonId){
-  if(String(lessonId).startsWith('BAND')){
-    const band = bandByLessonId(bands, lessonId);
-    return band ? {kind:'band', id:lessonId, src:band} : null;
+function sourceOf(db, smallGroups, lessonId){
+  if(isSmallGroupId(lessonId)){
+    const sg = smallGroupByLessonId(smallGroups, lessonId);
+    return sg ? {kind:'smallgroup', id:lessonId, src:sg} : null;
   }
   const lesson = (db.lessons || []).find(l => l.id === lessonId);
   return lesson ? {kind:'lesson', id:lessonId, src:lesson} : null;
@@ -78,7 +82,7 @@ function sourceOf(db, bands, lessonId){
 function expectedDuration(kind, src){
   const n = parseInt(src && src.duration, 10);
   if(n > 0) return n;
-  return kind === 'band' ? 90 : 45;
+  return kind === 'smallgroup' ? 90 : 45;
 }
 
 function pinnedWindow(src){
@@ -94,11 +98,11 @@ function label(p){
   return `${p.name || p.lessonId} ${p.day} ${toHHMM(p.start)}–${toHHMM(p.end)}`;
 }
 
-export function checkSchedule(db, bands, result){
+export function checkSchedule(db, smallGroups, result){
   const errors = [];
   const scheduled = (result && result.scheduled) || [];
   const unresolved = (result && result.unresolved) || [];
-  const bandList = (bands && bands.bands) || bands || [];
+  const smallGroupList = (smallGroups && smallGroups.smallGroups) || smallGroups || [];
 
   const scheduledIds = new Set();
   scheduled.forEach(p => {
@@ -115,10 +119,10 @@ export function checkSchedule(db, bands, result){
     const failed = unresolved.some(u => u.lesson && u.lesson.id === l.id);
     if(!placed && !failed) errors.push(`lesson ${l.id} (${l.name}) missing from scheduled and unresolved`);
   });
-  bandList.forEach((b, i) => {
-    const members = BAND_TYPES.flatMap(t => b[t] || []);
+  smallGroupList.forEach((b, i) => {
+    const members = SMALL_GROUP_TYPES.flatMap(t => b[t] || []);
     if(members.length === 0) return;
-    const id = b.id || ('BAND' + (i+1));
+    const id = b.id || ('SG' + (i+1));
     const placed = scheduled.some(p => p.lessonId === id);
     const failed = unresolved.some(u => u.lesson && u.lesson.id === id);
     if(!placed && !failed) errors.push(`${id} has members but is missing from scheduled and unresolved`);
@@ -130,9 +134,9 @@ export function checkSchedule(db, bands, result){
     if(p.start < DEFAULT_START || p.end > DEFAULT_END){
       errors.push(`${label(p)}: outside school day 08:00–20:00`);
     }
-    const src = sourceOf(db, bandList, p.lessonId);
+    const src = sourceOf(db, smallGroupList, p.lessonId);
     if(!src){
-      errors.push(`${label(p)}: unknown lesson/band id`);
+      errors.push(`${label(p)}: unknown lesson/small group id`);
       return;
     }
     const dur = expectedDuration(src.kind, src.src);
@@ -152,7 +156,7 @@ export function checkSchedule(db, bands, result){
         errors.push(`${label(p)}: teacher ${p.teacherId} only free ${toHHMM(win.start)}–${toHHMM(win.end)}`);
       }
     }
-    const members = membersOf(db, bandList, p.lessonId);
+    const members = membersOf(db, smallGroupList, p.lessonId);
     members.forEach(s => {
       if(!s.CLASS_ID) return;
       const hit = (db.classAvail || []).find(r => {
@@ -190,8 +194,8 @@ export function checkSchedule(db, bands, result){
   }
 
   clashPairs(scheduled, p => p.teacherId, 'teacher');
-  clashPairs(scheduled.filter(p => p.room321), () => 'ROOM321', 'room');
-  clashPairs(scheduled, p => new Set(membersOf(db, bandList, p.lessonId).map(s => s.ID)), 'student');
+  clashPairs(scheduled.filter(p => p.roomId), p => p.roomId, 'room');
+  clashPairs(scheduled, p => new Set(membersOf(db, smallGroupList, p.lessonId).map(s => s.ID)), 'student');
 
   const byTeacher = {};
   scheduled.forEach(p => {
@@ -222,16 +226,16 @@ export function checkSchedule(db, bands, result){
   });
 
   const quota = {};
-  (db.bandQuotas || []).forEach(bq => { quota[bq.teacherId] = Math.max(0, parseInt(bq.amount, 10) || 0); });
+  (db.smallGroupQuotas || []).forEach(q => { quota[q.teacherId] = Math.max(0, parseInt(q.amount, 10) || 0); });
   const used = {};
   scheduled.forEach(p => {
-    if(!String(p.lessonId).startsWith('BAND') || !p.teacherId) return;
+    if(!isSmallGroupId(p.lessonId) || !p.teacherId) return;
     used[p.teacherId] = (used[p.teacherId] || 0) + 1;
   });
   Object.entries(used).forEach(([tid, n]) => {
     const cap = quota[tid];
-    if(cap == null) errors.push(`teacher ${tid} has ${n} band(s) but is not on the quota list`);
-    else if(n > cap) errors.push(`teacher ${tid} used ${n} band quota, cap is ${cap}`);
+    if(cap == null) errors.push(`teacher ${tid} has ${n} small group(s) but is not on the quota list`);
+    else if(n > cap) errors.push(`teacher ${tid} used ${n} small group quota, cap is ${cap}`);
   });
 
   return errors;

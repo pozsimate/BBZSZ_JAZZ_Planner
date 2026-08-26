@@ -3,13 +3,17 @@
     {"ID": "TEAC1", "NAME": "Csuhaj"}
   ],
   "refClasses": [
-    {"CLASS_ID": "CL1", "CLASS": "9a", "JCLASS_TYPE": "9"}
+    {"CLASS_ID": "CL1", "CLASS": "9a", "MUCLASS_TYPE": "9"}
   ],
   "refGroups": [
     {"GROUP_ID": "GR1", "TYPE": "IMPR", "NAME": "impr9"}
   ],
   "refInstruments": [
     {"INSTR_ID": "INST6", "TYPE": "acc", "INSTR": "piano"}
+  ],
+  "refRooms": [
+    {"ROOM_ID": "ROOM1", "ROOM": "321jazz"},
+    {"ROOM_ID": "ROOM2", "ROOM": "Drum"}
   ],
   "students": [
     {
@@ -29,7 +33,7 @@
       "GROUP": "impr9",
       "TEACHER": "Csuhaj",
       "DURATION_MIN": "45",
-      "ROOM_321": "TRUE",
+      "ROOM_LOCK": "321jazz",
       "FIXED_DAY": "Hétfő",
       "FIXED_START": "14:00",
       "FIXED_END": "15:00"
@@ -59,6 +63,26 @@
       "INSTR": "piano",
       "Csuhaj": "1,5",
       "NotATeacher": "2"
+    }
+  ],
+  "smallGroups": [
+    {
+      "SMALL_GROUP_ID": "SG7",
+      "SMALL_GROUP": "Small Group 7",
+      "TEACHER": "Csuhaj",
+      "TEACHER_ID": "TEAC1",
+      "DURATION_MIN": "90",
+      "ROOM_ID": "ROOM1",
+      "ROOM": "321jazz",
+      "FIXED_DAY": "Kedd",
+      "FIXED_START": "14:00",
+      "FIXED_END": "15:30",
+      "ROLE": "ACC",
+      "STUDENT_ID": "S1",
+      "NAME": "Ann A",
+      "INSTRUMENT": "piano",
+      "CLASS": "9a",
+      "MUCLASS_TYPE": "9"
     }
   ]
 }

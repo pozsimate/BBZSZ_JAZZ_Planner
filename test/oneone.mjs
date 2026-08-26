@@ -54,7 +54,7 @@ function main(){
   console.log('Loading app into harness…');
   const {api, seed} = loadApp();
 
-  ['scheduleOneToOne','scheduleAllOneToOne','scheduleAllOneToOneSearch','classFreeGaps','parseOneOneHours','oneOneHoursToMinutes','parseOneToOneTable','collectOneOneAssignments','hasAcceptedRecord','buildFullExportObject','scheduledIdleGapMinutes','oneOneResultScore','compareOneOneResults'
+  ['scheduleOneToOne','scheduleAllOneToOne','scheduleAllOneToOneSearch','classFreeGaps','parseOneOneHours','oneOneHoursToMinutes','parseOneToOneTable','collectOneOneAssignments','hasAcceptedRecord','isTimetableAccepted','canOpenOneOne','buildFullExportObject','scheduledIdleGapMinutes','oneOneResultScore','compareOneOneResults'
   ].forEach(name => {
     if(typeof api[name] !== 'function'){
       failed++;
@@ -263,7 +263,7 @@ function main(){
     classAvail: [],
     accepted: [{
       status: 'scheduled', teacherId: 'T9', day: 'MON',
-      start: 8*60, end: 10*60, name: 'Band', studentIds: 'S1'
+      start: 8*60, end: 10*60, name: 'Small Group', studentIds: 'S1'
     }],
   });
   const busyStu = api.scheduleOneToOne({
@@ -398,15 +398,22 @@ function main(){
   ok('oneToOne matrix is in the full export',
     dumped.oneToOne && dumped.oneToOne.hours && dumped.oneToOne.hours.S1 && dumped.oneToOne.hours.S1.T1 === 1);
 
-  console.log('\n== hasAcceptedRecord gates the tab ==');
+  console.log('\n== hasAcceptedRecord vs current-grid tab lock ==');
   api.DB = clone(seed);
   api.DB.acceptedSchedule = [];
   api.DB.acceptedTimetable = null;
-  api.LAST_BANDS = null;
+  api.LAST_SMALL_GROUPS = null;
+  api.LAST_RESULT = null;
   (api.DB.lessons || []).forEach(l => { l.scheduledDay = ''; });
   ok('locked before Accept', api.hasAcceptedRecord() === false);
+  ok('1/1 tab locked without a current accepted grid', api.canOpenOneOne() === false);
   api.DB.acceptedTimetable = {acceptedAt: '2026-08-24T00:00:00.000Z'};
   ok('unlocked after acceptedTimetable is set', api.hasAcceptedRecord() === true);
+  ok('old freeze alone does not open 1/1', api.canOpenOneOne() === false);
+  api.LAST_RESULT = {scheduled:[{lessonId:'L1'}], accepted:true};
+  ok('current accepted grid opens 1/1', api.canOpenOneOne() === true);
+  api.LAST_RESULT.accepted = false;
+  ok('unaccepted grid locks 1/1 even if freeze exists', api.hasAcceptedRecord() && api.canOpenOneOne() === false);
 
   console.log(`\n${passed} passed, ${failed} failed`);
   if(failures.length){
