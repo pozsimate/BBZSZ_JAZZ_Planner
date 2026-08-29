@@ -154,6 +154,39 @@ function main(){
     (api.DB.lessons || []).every(l => !l.scheduledDay));
   ok('hasAcceptedRecord is false after clear-small group-generate', !api.hasAcceptedRecord());
 
+  console.log('\n== Generate small groups always asks first ==');
+  api.DB = JSON.parse(JSON.stringify(seed));
+  api.LAST_SMALL_GROUPS = api.generateSmallGroups(16);
+  const rosterBefore = api.LAST_SMALL_GROUPS.smallGroups.map(b => b.id).join(',');
+  api.LAST_RESULT = null;
+  api.LAST_VARIANTS = [];
+  ok('no accepted timetable before the confirm', !api.hasAcceptedRecord());
+  api.requestGenerateSmallGroups();
+  ok('confirm opens even without a generated timetable', api.isGenerateConfirmOpen());
+  const sgUi = api.generateConfirmUi();
+  ok('title asks to replace small groups', /small groups/i.test(sgUi.title), sgUi.title);
+  ok('body warns that current bands are deleted', /band/i.test(sgUi.body), sgUi.body);
+  ok('keep-accepted is hidden when nothing is accepted', sgUi.keepDisplay === 'none');
+  ok('clear-accepted is hidden when nothing is accepted', sgUi.clearDisplay === 'none');
+  ok('Generate button is shown instead', sgUi.goDisplay !== 'none');
+  api.hideGenerateConfirm();
+  ok('cancel closes without generating', !api.isGenerateConfirmOpen());
+  ok('roster is unchanged after cancel',
+    api.LAST_SMALL_GROUPS.smallGroups.map(b => b.id).join(',') === rosterBefore);
+
+  api.LAST_RESULT = api.runScheduler(false);
+  api.LAST_VARIANTS = [api.LAST_RESULT];
+  api.acceptTimetableSchedule();
+  ok('accepted record is on file for keep/clear', api.hasAcceptedRecord());
+  api.requestGenerateSmallGroups();
+  ok('confirm still opens with accepted on file', api.isGenerateConfirmOpen());
+  const sgUiAccepted = api.generateConfirmUi();
+  ok('keep-accepted is shown when accepted exists', sgUiAccepted.keepDisplay !== 'none');
+  ok('clear-accepted is shown when accepted exists', sgUiAccepted.clearDisplay !== 'none');
+  ok('plain Generate is hidden when accepted exists', sgUiAccepted.goDisplay === 'none');
+  ok('accepted body still warns bands are deleted', /band/i.test(sgUiAccepted.body), sgUiAccepted.body);
+  api.hideGenerateConfirm();
+
   console.log('\n== FIXED pins inventory ==');
   const pin = (api.DB.lessons || []).find(l => !l.fixedDay);
   pin.fixedDay = 'MON';
@@ -257,6 +290,43 @@ function main(){
   ok('keep/clear popup opens instead of a silent generate', api.isGenerateConfirmOpen());
   api.hideGenerateConfirm();
   ok('cancel closes the popup', !api.isGenerateConfirmOpen());
+
+  console.log('\n== autosave restores on a simulated reload ==');
+  const store = new Map();
+  const session = loadApp({store});
+  session.api.DB.students = [{id:'ST-RELOAD', name:'Reload Teszt', CLASS_ID:'', INSTR_ID:''}];
+  session.api.LAST_SMALL_GROUPS = {
+    smallGroups: [{
+      id:'SG-RELOAD', bass:[], drum:[], acc:[], sol:[],
+      teacherId:'', duration:90,
+      fixedDay:'', fixedStart:'', fixedEnd:'',
+      scheduledDay:'', scheduledStart:'', scheduledEnd:'',
+      scheduledTeacherId:'', scheduledTeacher:''
+    }],
+    excluded: [],
+    nextSmallGroupSeq: 2
+  };
+  store.set(session.api.AUTOSAVE_KEY, JSON.stringify(session.api.buildFullExportObject()));
+  store.set(session.api.AUTOSAVE_META_KEY, JSON.stringify({savedAt:'2026-08-27T07:00:00.000Z', dirty:true}));
+
+  const reloaded = loadApp({store});
+  ok('reload restores students from autosave',
+    (reloaded.api.DB.students || []).some(s => s.id === 'ST-RELOAD'),
+    (reloaded.api.DB.students || []).map(s => s.id).join(',') || 'none');
+  ok('reload restores small groups from autosave',
+    !!(reloaded.api.LAST_SMALL_GROUPS && reloaded.api.LAST_SMALL_GROUPS.smallGroups.some(b => b.id === 'SG-RELOAD')));
+  ok('fresh load with empty storage keeps the harness seed', (() => {
+    const fresh = loadApp();
+    const ids = (fresh.api.DB.students || []).map(s => s.id);
+    return ids.length > 0 && !ids.includes('ST-RELOAD');
+  })());
+
+  const broken = new Map();
+  broken.set(session.api.AUTOSAVE_KEY, '{not-json');
+  const recovered = loadApp({store: broken});
+  ok('corrupt autosave falls back to seed instead of crashing',
+    (recovered.api.DB.students || []).length > 0 &&
+    !(recovered.api.DB.students || []).some(s => s.id === 'ST-RELOAD'));
 
   console.log(`\n${passed} passed, ${failed} failed`);
   if(failed){

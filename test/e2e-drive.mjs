@@ -257,7 +257,7 @@ async function main(){
     'acceptRpianoSchedule','auditTimetable','combinedWeekItems','timetableAuditItems',
     'studentsForScheduledItem','collectOneOneAssignments','driveTablesToAoa',
     'hasAcceptedRecord','hasAcceptedOneOne','hasAcceptedRpiano','markLayoutNeedsAccept',
-    'isTimetableAccepted','canOpenOneOne','canOpenRpiano','hasPendingAccept','pendingAcceptTab',
+    'isTimetableAccepted','canOpenOneOne','canOpenRpiano','canOpenReports','hasPendingAccept','pendingAcceptTab',
     'parseOneOneHours','oneOneHoursToMinutes','GROUP_NAME_FIELDS','busyRowsFromScheduled'
   ];
   needed.forEach(name => {
@@ -345,6 +345,21 @@ async function main(){
     driveKeep = keep || [];
     if(driveKeep.length) find('sheetsTablesToDb kept seed tables for missing Drive tabs', driveKeep.join(', '));
     ok('STUDENTS parsed', (db.students || []).length > 0, String((db.students || []).length));
+    const drivePins = (tables.lessons || []).filter(r => String(r.FIXED_DAY || '').trim());
+    const missedPins = drivePins.filter(r => {
+      const les = (db.lessons || []).find(l => l.id === (r.LESSON_ID || r.ID));
+      return !les || !les.fixedDay;
+    });
+    ok('Drive LESSONS FIXED_DAY / FIXED_START / FIXED_END import onto lessons',
+      missedPins.length === 0,
+      missedPins.map(r => r.LESSON_ID || r.ID).join(',') || `pins=${drivePins.length}`);
+    if(drivePins.length){
+      find('Drive lesson pins',
+        drivePins.map(r => {
+          const les = (db.lessons || []).find(l => l.id === (r.LESSON_ID || r.ID)) || {};
+          return `${les.id || r.LESSON_ID} ${les.fixedDay || ''} ${les.fixedStart || ''}–${les.fixedEnd || ''}`;
+        }).join(', '));
+    }
     api.restoreFromLoadedObject(db);
     const loadedSg = (api.LAST_SMALL_GROUPS && api.LAST_SMALL_GROUPS.smallGroups) || [];
     if(tables.smallGroups && tables.smallGroups.length){
@@ -579,12 +594,14 @@ async function main(){
   }
   ok('1/1 still locked before Accept timetable', !api.hasAcceptedRecord() && !api.canOpenOneOne());
   ok('unaccepted generate locks other tabs', api.hasPendingAccept() === true && api.pendingAcceptTab() === 'timetable');
+  ok('unaccepted generate locks Reports', api.canSwitchTab('reports') === false);
 
   console.log('\n== 5. Accept timetable → Generate 1/1 → Accept 1/1 ==');
   api.acceptTimetableSchedule();
   ok('hasAcceptedRecord after Accept', api.hasAcceptedRecord());
   ok('LAST_RESULT.accepted', !!(api.LAST_RESULT && api.LAST_RESULT.accepted));
   ok('1/1 tab open after Accept', api.canOpenOneOne());
+  ok('Reports open after Accept timetable', api.canOpenReports() && api.canSwitchTab('reports'));
   ok('acceptedSchedule rows written', (api.DB.acceptedSchedule || []).length > 0,
     String((api.DB.acceptedSchedule || []).length));
   const written = api.writeAcceptedToSourceTables(api.LAST_RESULT);

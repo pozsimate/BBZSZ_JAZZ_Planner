@@ -23,6 +23,46 @@ function toHHMM(mins){
 }
 function overlap(aS,aE,bS,bE){ return aS < bE && bS < aE; }
 
+function subtractBusy(intervals, busy){
+  const cuts = (busy || []).slice().sort((x,y) => x.start - y.start);
+  let cur = (intervals || []).map(iv => iv.slice());
+  cuts.forEach(b => {
+    const next = [];
+    cur.forEach(([s,e]) => {
+      if(b.end <= s || b.start >= e){ next.push([s,e]); return; }
+      if(b.start > s) next.push([s, Math.min(b.start, e)]);
+      if(b.end < e) next.push([Math.max(b.end, s), e]);
+    });
+    cur = next.filter(([s,e]) => e > s);
+  });
+  return cur;
+}
+function windowIntervals(win){
+  if(!win) return [];
+  if(Array.isArray(win.intervals) && win.intervals.length) return win.intervals;
+  return [[win.start, win.end]];
+}
+function slotFitsWin(win, start, end){
+  return windowIntervals(win).some(([s,e]) => start >= s && end <= e);
+}
+function availableMinutesBetween(intervals, from, to){
+  if(!(to > from)) return 0;
+  let n = 0;
+  (intervals || []).forEach(([s,e]) => {
+    const a = Math.max(from, s), b = Math.min(to, e);
+    if(b > a) n += b - a;
+  });
+  return n;
+}
+function breakGapBetweenIntervals(intervals, prevEnd, curStart){
+  const ivs = intervals || [];
+  const prevIv = ivs.find(([s,e]) => prevEnd > s && prevEnd <= e);
+  const curIv = ivs.find(([s,e]) => curStart >= s && curStart < e);
+  if(prevIv && curIv && prevIv[0] === curIv[0] && prevIv[1] === curIv[1]){
+    return availableMinutesBetween(ivs, prevEnd, curStart);
+  }
+  return 0;
+}
 function teacherWindows(db, teacherId){
   const rows = (db.teacherAvail || []).filter(r => r.teacherId === teacherId && r.type !== 'AVOID' && r.day && DAYS.includes(r.day));
   const byDay = {};
@@ -37,17 +77,31 @@ function teacherWindows(db, teacherId){
       byDay[r.day].end = Math.max(byDay[r.day].end, end);
     }
   });
-  (db.teacherAvail || []).forEach(r => {
-    if(r.teacherId === teacherId && r.type === 'AVOID') delete byDay[r.day];
+  Object.keys(byDay).forEach(day => {
+    const w = byDay[day];
+    const avoided = (db.teacherAvail || [])
+      .filter(r => r.teacherId === teacherId && r.type === 'AVOID' && r.day === day)
+      .map(r => ({start: toMin(r.start) ?? DEFAULT_START, end: toMin(r.end) ?? DEFAULT_END}))
+      .filter(iv => iv.end > iv.start);
+    const ivs = subtractBusy([[w.start, w.end]], avoided);
+    if(!ivs.length){
+      delete byDay[day];
+      return;
+    }
+    w.intervals = ivs;
+    w.start = ivs[0][0];
+    w.end = ivs[ivs.length - 1][1];
   });
   return byDay;
 }
 
 function breakSettings(db, teacherId){
   const b = (db.breaks || []).find(r => r.teacherId === teacherId);
+  if(!b) return { minutes: 0, count: 0, unconstrained: true };
   return {
-    minutes: Math.max(0, parseInt(b && b.breakMinutes, 10) || 0),
-    count: Math.max(0, parseInt(b && b.breakCount, 10) || 0),
+    minutes: Math.max(0, parseInt(b.breakMinutes, 10) || 0),
+    count: Math.max(0, parseInt(b.breakCount, 10) || 0),
+    unconstrained: false
   };
 }
 
@@ -152,8 +206,9 @@ export function checkSchedule(db, smallGroups, result){
     } else {
       const win = teacherWindows(db, p.teacherId)[p.day];
       if(!win) errors.push(`${label(p)}: teacher ${p.teacherId} has no availability on ${p.day}`);
-      else if(p.start < win.start || p.end > win.end){
-        errors.push(`${label(p)}: teacher ${p.teacherId} only free ${toHHMM(win.start)}–${toHHMM(win.end)}`);
+      else if(!slotFitsWin(win, p.start, p.end)){
+        const ranges = windowIntervals(win).map(([s,e]) => `${toHHMM(s)}–${toHHMM(e)}`).join(', ');
+        errors.push(`${label(p)}: teacher ${p.teacherId} only free ${ranges}`);
       }
     }
     const members = membersOf(db, smallGroupList, p.lessonId);
@@ -166,7 +221,13 @@ export function checkSchedule(db, smallGroups, result){
         return overlap(p.start, p.end, rs, re);
       });
       if(hit){
-        errors.push(`${label(p)}: ${s.NAME1} ${s.NAME2} (${s.CLASS || s.CLASS_ID}) overlaps class reservation ${hit.start}–${hit.end}`);
+        const pin = pinnedWindow(src.src);
+        if(pin && p.day === pin.day && p.start === pin.start && p.end === pin.end){
+          // Pinned slot overlapping a class reservation is placed with a UI warning,
+          // not treated as a hard invariant failure.
+        } else {
+          errors.push(`${label(p)}: ${s.NAME1} ${s.NAME2} (${s.CLASS || s.CLASS_ID}) overlaps class reservation ${hit.start}–${hit.end}`);
+        }
       }
     });
   });
@@ -204,15 +265,27 @@ export function checkSchedule(db, smallGroups, result){
     byTeacher[p.teacherId][p.day] = byTeacher[p.teacherId][p.day] || [];
     byTeacher[p.teacherId][p.day].push(p);
   });
+  function placementIsPinned(p){
+    const src = sourceOf(db, smallGroupList, p.lessonId);
+    if(!src) return false;
+    const pin = pinnedWindow(src.src);
+    return !!(pin && p.day === pin.day && p.start === pin.start && p.end === pin.end);
+  }
+
   Object.entries(byTeacher).forEach(([tid, byDay]) => {
     const bs = breakSettings(db, tid);
     let units = 0;
+    const wins = teacherWindows(db, tid);
     DAYS.forEach(day => {
       const list = (byDay[day] || []).slice().sort((a,b)=>a.start-b.start);
       for(let i=1;i<list.length;i++){
-        const gap = list[i].start - list[i-1].end;
+        const gap = breakGapBetweenIntervals(windowIntervals(wins[day]), list[i-1].end, list[i].start);
         if(gap < 0) return;
         if(gap === 0) continue;
+        // Pin–pin holes are placed with a UI warning, not a hard invariant failure.
+        if(placementIsPinned(list[i-1]) && placementIsPinned(list[i])) continue;
+        // No Break Management row: any gap is legal (same as 1/1).
+        if(bs.unconstrained) continue;
         if(!(bs.minutes > 0 && gap % bs.minutes === 0)){
           errors.push(`teacher ${tid} ${day}: illegal ${gap}-min gap between ${label(list[i-1])} and ${label(list[i])} (break ${bs.minutes}×${bs.count})`);
           continue;
@@ -220,7 +293,7 @@ export function checkSchedule(db, smallGroups, result){
         units += gap / bs.minutes;
       }
     });
-    if(units > bs.count){
+    if(!bs.unconstrained && units > bs.count){
       errors.push(`teacher ${tid}: used ${units} break units, budget is ${bs.minutes}×${bs.count}`);
     }
   });

@@ -118,7 +118,12 @@ function mutateMatrix(db, key, rng, ops, intensity){
 
 function availMinutes(api, teacherId){
   const w = api.teacherDayWindows(teacherId) || {};
-  return DAYS.reduce((n, d) => n + (w[d] ? Math.max(0, w[d].end - w[d].start) : 0), 0);
+  return DAYS.reduce((n, d) => {
+    const win = w[d];
+    if(!win) return n;
+    const ivs = (win.intervals && win.intervals.length) ? win.intervals : [[win.start, win.end]];
+    return n + ivs.reduce((m, [s,e]) => m + Math.max(0, e - s), 0);
+  }, 0);
 }
 
 function checkCombined(api, items, label){

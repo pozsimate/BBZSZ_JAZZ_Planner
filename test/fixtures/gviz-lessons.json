@@ -1,0 +1,59 @@
+{
+  "status": "ok",
+  "table": {
+    "cols": [
+      {"id": "A", "label": "", "type": "string"},
+      {"id": "B", "label": "", "type": "string"},
+      {"id": "C", "label": "", "type": "string"},
+      {"id": "D", "label": "", "type": "string"},
+      {"id": "E", "label": "", "type": "string"},
+      {"id": "F", "label": "", "type": "string"},
+      {"id": "G", "label": "", "type": "number"},
+      {"id": "H", "label": "", "type": "string"},
+      {"id": "I", "label": "", "type": "string"},
+      {"id": "J", "label": "", "type": "timeofday"},
+      {"id": "K", "label": "", "type": "timeofday"}
+    ],
+    "rows": [
+      {"c": [
+        {"v": "LESSON_ID"},
+        {"v": "LESSON NAME"},
+        {"v": "GROUP"},
+        {"v": "GROUP_ID"},
+        {"v": "TEACHER"},
+        {"v": "TEACHER_ID"},
+        null,
+        {"v": "ROOM_LOCK"},
+        {"v": "FIXED_DAY"},
+        {"v": "FIXED_START"},
+        {"v": "FIXED_END"}
+      ]},
+      {"c": [
+        {"v": "LES17"},
+        {"v": "Jazz Theory 9"},
+        {"v": "jazztheory9"},
+        {"v": "GR13"},
+        {"v": "Pozsar"},
+        {"v": "TEAC15"},
+        {"v": 45.0, "f": "45"},
+        {"v": "321jazz"},
+        {"v": "MON"},
+        {"v": [13, 0, 0, 0], "f": "1:00:00 PM"},
+        {"v": [13, 45, 0, 0], "f": "1:45:00 PM"}
+      ]},
+      {"c": [
+        {"v": "LES21"},
+        {"v": "Solfege 9"},
+        {"v": "solf9"},
+        {"v": "GR22"},
+        {"v": "HorvathG"},
+        {"v": "TEAC18"},
+        {"v": 45.0, "f": "45"},
+        {"v": "321jazz"},
+        {"v": "Hétfő"},
+        {"v": "13:45"},
+        {"v": "14:30"}
+      ]}
+    ]
+  }
+}

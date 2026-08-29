@@ -74,6 +74,28 @@ function parseCsv(text){
   });
 }
 
+function subtractBusy(intervals, busy){
+  const cuts = (busy || []).slice().sort((x,y) => x.start - y.start);
+  let cur = (intervals || []).map(iv => iv.slice());
+  cuts.forEach(b => {
+    const next = [];
+    cur.forEach(([s,e]) => {
+      if(b.end <= s || b.start >= e){ next.push([s,e]); return; }
+      if(b.start > s) next.push([s, Math.min(b.start, e)]);
+      if(b.end < e) next.push([Math.max(b.end, s), e]);
+    });
+    cur = next.filter(([s,e]) => e > s);
+  });
+  return cur;
+}
+function windowIntervals(win){
+  if(!win) return [];
+  if(Array.isArray(win.intervals) && win.intervals.length) return win.intervals;
+  return [[win.start, win.end]];
+}
+function slotFitsWin(win, start, end){
+  return windowIntervals(win).some(([s,e]) => start >= s && end <= e);
+}
 function teacherWindows(db, teacherId){
   const rows = (db.teacherAvail || []).filter(r => r.teacherId === teacherId && r.type !== 'AVOID' && r.day && DAYS.includes(r.day));
   const byDay = {};
@@ -88,8 +110,20 @@ function teacherWindows(db, teacherId){
       byDay[r.day].end = Math.max(byDay[r.day].end, end);
     }
   });
-  (db.teacherAvail || []).forEach(r => {
-    if(r.teacherId === teacherId && r.type === 'AVOID') delete byDay[r.day];
+  Object.keys(byDay).forEach(day => {
+    const w = byDay[day];
+    const avoided = (db.teacherAvail || [])
+      .filter(r => r.teacherId === teacherId && r.type === 'AVOID' && r.day === day)
+      .map(r => ({start: toMin(r.start) ?? DEFAULT_START, end: toMin(r.end) ?? DEFAULT_END}))
+      .filter(iv => iv.end > iv.start);
+    const ivs = subtractBusy([[w.start, w.end]], avoided);
+    if(!ivs.length){
+      delete byDay[day];
+      return;
+    }
+    w.intervals = ivs;
+    w.start = ivs[0][0];
+    w.end = ivs[ivs.length - 1][1];
   });
   return byDay;
 }
@@ -154,13 +188,15 @@ function allStarts(db, teacherId, student, duration, busy){
   DAYS.forEach(day => {
     const w = wins[day];
     if(!w) return;
-    for(let t = w.start; t + duration <= w.end; t += 5){
-      const end = t + duration;
-      if(hitsBusy(busy.teacher, teacherId, day, t, end)) continue;
-      if(hitsBusy(busy.student, student.ID, day, t, end)) continue;
-      if(classHits(db, student.CLASS_ID, day, t, end)) continue;
-      out.push({day, start: t, end, rank: w.rank});
-    }
+    windowIntervals(w).forEach(([s,e]) => {
+      for(let t = s; t + duration <= e; t += 5){
+        const end = t + duration;
+        if(hitsBusy(busy.teacher, teacherId, day, t, end)) continue;
+        if(hitsBusy(busy.student, student.ID, day, t, end)) continue;
+        if(classHits(db, student.CLASS_ID, day, t, end)) continue;
+        out.push({day, start: t, end, rank: w.rank});
+      }
+    });
   });
   return out;
 }
@@ -242,8 +278,8 @@ function checkScheduledValid(db, acceptedRows, scheduled){
     if(s.roomId) errors.push(`scheduled[${i}] 1/1 should not lock a room`);
     const w = teacherWindows(db, s.teacherId)[s.day];
     if(!w) errors.push(`scheduled[${i}] ${teacherName(db,s.teacherId)} not free on ${s.day}`);
-    else if(s.start < w.start || s.end > w.end){
-      errors.push(`scheduled[${i}] outside window ${toHHMM(w.start)}–${toHHMM(w.end)} got ${toHHMM(s.start)}–${toHHMM(s.end)}`);
+    else if(!slotFitsWin(w, s.start, s.end)){
+      errors.push(`scheduled[${i}] outside window ${windowIntervals(w).map(([a,b]) => `${toHHMM(a)}–${toHHMM(b)}`).join(', ')} got ${toHHMM(s.start)}–${toHHMM(s.end)}`);
     }
     if(student && classHits(db, student.CLASS_ID, s.day, s.start, s.end)){
       errors.push(`scheduled[${i}] ${s.studentId} overlaps class reservation ${s.day} ${toHHMM(s.start)}–${toHHMM(s.end)}`);
@@ -386,6 +422,21 @@ function main(){
   });
   ok('AVOID day is not used', avoid.scheduled.length === 1 && avoid.scheduled[0].day === 'MON',
     avoid.scheduled[0] ? avoid.scheduled[0].day : 'unplaced');
+
+  api.DB.teacherAvail = [
+    {teacherId:'T1', day:'MON', start:'08:00', end:'16:00', type:'AVAILABLE'},
+    {teacherId:'T1', day:'TUE', start:'08:00', end:'16:00', type:'AVAILABLE'},
+    {teacherId:'T1', day:'TUE', start:'12:00', end:'14:00', type:'AVOID'},
+  ];
+  const tueHole = api.scheduleOneToOne({
+    teacherId:'T1', studentIds:['S1'], duration:60, perStudent:1, acceptedRows:[]
+  });
+  ok('timed AVOID still allows Tuesday outside 12–14',
+    tueHole.scheduled.length === 1,
+    tueHole.unresolved[0] && tueHole.unresolved[0].reason);
+  ok('timed AVOID 1/1 misses 12–14',
+    !tueHole.scheduled[0] || tueHole.scheduled[0].end <= 12*60 || tueHole.scheduled[0].start >= 14*60,
+    tueHole.scheduled[0] ? `${tueHole.scheduled[0].day} ${tueHole.scheduled[0].start}-${tueHole.scheduled[0].end}` : 'unplaced');
 
   api.DB.oneToOne = {columns:[{id:'T1', name:'One'}], hours:{}};
   const empty = api.scheduleAllOneToOne({matrix: api.DB.oneToOne, acceptedRows:[]});

@@ -262,6 +262,21 @@ function testFixtureAudit(api){
   moveItem(j[0], 'WED', 10*60);
   audit = api.auditTimetable(j);
   ok('AVOID day reports teacher not available', /not available on Wednesday/.test(audit.issues.join(' ')), audit.issues.join(' | '));
+  api.DB.teacherAvail = [
+    {teacherId:'T1', day:'MON', start:'08:00', end:'14:00', type:'AVAILABLE'},
+    {teacherId:'T1', day:'WED', start:'08:00', end:'14:00', type:'AVAILABLE'},
+    {teacherId:'T1', day:'WED', start:'10:00', end:'12:00', type:'AVOID'},
+    {teacherId:'T2', day:'MON', start:'08:00', end:'14:00', type:'AVAILABLE'},
+    {teacherId:'T2', day:'TUE', start:'08:00', end:'14:00', type:'AVAILABLE'},
+  ];
+  const timedAvoid = clone(legal);
+  moveItem(timedAvoid[0], 'WED', 10*60);
+  audit = api.auditTimetable(timedAvoid);
+  ok('timed AVOID reports the blocked interval', /10:00/.test(audit.issues.join(' ')), audit.issues.join(' | '));
+  const aroundHole = clone(legal);
+  moveItem(aroundHole[0], 'WED', 8*60);
+  audit = api.auditTimetable(aroundHole);
+  ok('slot before timed AVOID is allowed', !auditKinds(audit).has('teacherWindow'), audit.issues.join(' | '));
   const k = clone(legal);
   moveItem(k[0], 'MON', 15*60);
   audit = api.auditTimetable(k);

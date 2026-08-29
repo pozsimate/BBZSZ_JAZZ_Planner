@@ -326,8 +326,11 @@ const AVAIL_COLDEFS = [
 const CAVAIL_COLDEFS = [
   {key:'classId', label:'CLASS', type:'select', options:classOpts, syncField:'class'},
   {key:'day', label:'DAY', type:'daySelect'},
+  {key:'lStar', label:'L_STAR', type:'text', width:'70px'},
+  {key:'lEnd', label:'L_END', type:'text', width:'70px'},
   {key:'start', label:'START', type:'text'},
   {key:'end', label:'END', type:'text'},
+  {key:'avail', label:'AVAIL', type:'text', width:'90px'},
   {key:'note', label:'NOTE', type:'text'},
 ];
 
@@ -491,7 +494,7 @@ document.getElementById('addAvailBtn').addEventListener('click', () => {
   renderAvail();
 });
 document.getElementById('addCAvailBtn').addEventListener('click', () => {
-  DB.classAvail.push({class:'',classId:'',day:'MON',start:'',end:'',note:''});
+  DB.classAvail.push({class:'',classId:'',day:'MON',lStar:'',lEnd:'',start:'',end:'',avail:'RESERVED',note:''});
   renderCAvail();
 });
 document.getElementById('addRefTeacher').addEventListener('click', () => {
@@ -550,6 +553,7 @@ function canSwitchTab(to){
   if(dirty && to !== dirty) return false;
   if(to === 'oneone' && !canOpenOneOne()) return false;
   if(to === 'rpiano' && !canOpenRpiano()) return false;
+  if(to === 'reports' && !canOpenReports()) return false;
   return true;
 }
 function tabLockReason(to){
@@ -568,6 +572,9 @@ function tabLockReason(to){
       ? 'Accept 1/1 first. Required Piano only opens while 1/1 is accepted.'
       : 'Accept this schedule first. Required Piano only opens while the current group grid and 1/1 are accepted.';
   }
+  if(to === 'reports' && !canOpenReports()){
+    return 'Accept a layout first. Reports only opens while group lessons, 1/1, or Required Piano is accepted.';
+  }
   return '';
 }
 function showTab(tab){
@@ -581,6 +588,7 @@ function showTab(tab){
   if(tab === 'timetable' && LAST_RESULT) renderGrid();
   if(tab === 'oneone') renderOneOneTab();
   if(tab === 'rpiano') renderRpianoTab();
+  if(tab === 'reports') renderReportsTab();
   updateAllTabLocks();
   return true;
 }
@@ -692,6 +700,42 @@ function getSmallGroupLessons(){
   return out;
 }
 
+function teacherAvoidBusy(teacherId, day){
+  return (DB.teacherAvail || [])
+    .filter(r => r.teacherId === teacherId && r.type === 'AVOID' && r.day === day)
+    .map(r => ({
+      start: toMin(r.start) ?? DEFAULT_START,
+      end: toMin(r.end) ?? DEFAULT_END
+    }))
+    .filter(iv => iv.end > iv.start);
+}
+function teacherWindowIntervals(win){
+  if(!win) return [];
+  if(Array.isArray(win.intervals) && win.intervals.length) return win.intervals;
+  if(win.start != null && win.end != null && win.end > win.start) return [[win.start, win.end]];
+  return [];
+}
+function slotFitsTeacherWindow(win, start, end){
+  return teacherWindowIntervals(win).some(([s,e]) => start >= s && end <= e);
+}
+function availableMinutesBetween(intervals, from, to){
+  if(!(to > from)) return 0;
+  let n = 0;
+  (intervals || []).forEach(([s,e]) => {
+    const a = Math.max(from, s), b = Math.min(to, e);
+    if(b > a) n += b - a;
+  });
+  return n;
+}
+function breakGapBetweenIntervals(intervals, prevEnd, curStart){
+  const ivs = intervals || [];
+  const prevIv = ivs.find(([s,e]) => prevEnd > s && prevEnd <= e);
+  const curIv = ivs.find(([s,e]) => curStart >= s && curStart < e);
+  if(prevIv && curIv && prevIv[0] === curIv[0] && prevIv[1] === curIv[1]){
+    return availableMinutesBetween(ivs, prevEnd, curStart);
+  }
+  return 0;
+}
 function teacherDayWindows(teacherId){
   const rows = DB.teacherAvail.filter(r => r.teacherId === teacherId && r.type !== 'AVOID' && r.day && DAYS.includes(r.day));
   const byDay = {};
@@ -706,15 +750,25 @@ function teacherDayWindows(teacherId){
       byDay[r.day].end = Math.max(byDay[r.day].end, end);
     }
   });
-  const avoidDays = new Set(DB.teacherAvail.filter(r=>r.teacherId===teacherId && r.type==='AVOID').map(r=>r.day));
-  avoidDays.forEach(d => delete byDay[d]);
+  Object.keys(byDay).forEach(day => {
+    const w = byDay[day];
+    const ivs = subtractBusyFromIntervals([[w.start, w.end]], teacherAvoidBusy(teacherId, day));
+    if(!ivs.length){
+      delete byDay[day];
+      return;
+    }
+    w.intervals = ivs;
+    w.start = ivs[0][0];
+    w.end = ivs[ivs.length - 1][1];
+  });
   return byDay;
 }
 
 // CLASS RESERVATIONS sheet: each row is a time the class is BUSY (regular schoolwork),
-// not a time it's free. A class's actual free window for a jazz lesson is whatever's
-// left over that day once every reservation is subtracted — we return the largest such
-// gap. A class/day with no reservation rows at all is treated as free all day.
+// not a time it's free. Group packing uses the largest leftover that still intersects
+// the teacher's window that day — so a morning hole is not dropped just because the
+// class's biggest leftover is afternoon. Small groups and 1/1 walk every leftover.
+// classWindow() still returns the single biggest hole for display/tests.
 function classWindow(classId, day){
   if(!classId) return null;
   const reserved = DB.classAvail
@@ -764,6 +818,45 @@ function classFreeGaps(classId, day){
   return gaps.filter(g => g[1] > g[0]);
 }
 
+function studentsFreeIntervals(students, day){
+  let ivs = [[DEFAULT_START, DEFAULT_END]];
+  for(const s of students || []){
+    const gaps = classFreeGaps(s && s.CLASS_ID, day);
+    if(!gaps.length) return [];
+    ivs = intersectIntervals(ivs, gaps);
+    if(!ivs.length) return [];
+  }
+  return ivs;
+}
+
+function leftoversInSegment(students, day, seg, duration){
+  return studentsFreeIntervals(students, day)
+    .map(([s,e]) => [Math.max(s, seg.start), Math.min(e, seg.end)])
+    .filter(([s,e]) => e - s >= duration);
+}
+
+// Prefer a leftover that can sit flush (or on a legal break) against a pin that
+// splits the teacher-day. The largest leftover is often later (16:00–20:00) and
+// would open an illegal gap after a 13:00 pin — that used to leave the 13:00–14:30
+// hole unused and the lesson unresolved.
+function pickItemWindowInSegment(item, day, seg, breakSettings, alreadyUsed){
+  const ivs = leftoversInSegment(item.students, day, seg, item.duration);
+  if(!ivs.length) return null;
+  const can = gap => breakGapOk(gap, breakSettings, alreadyUsed || 0).ok;
+  if(seg.precededByObstacle){
+    const attach = ivs.filter(([s]) => can(s - seg.start))
+      .sort((a,b) => a[0]-b[0] || (b[1]-b[0])-(a[1]-a[0]));
+    if(attach.length) return {winStart:attach[0][0], winEnd:attach[0][1]};
+  }
+  if(seg.followedByObstacle){
+    const attach = ivs.filter(([,e]) => can(seg.end - e))
+      .sort((a,b) => b[1]-a[1] || (b[1]-b[0])-(a[1]-a[0]));
+    if(attach.length) return {winStart:attach[0][0], winEnd:attach[0][1]};
+  }
+  ivs.sort((a,b) => (b[1]-b[0]) - (a[1]-a[0]) || a[0]-b[0]);
+  return {winStart:ivs[0][0], winEnd:ivs[0][1]};
+}
+
 function intersectIntervals(a, b){
   const out = [];
   (a || []).forEach(([as,ae]) => {
@@ -789,13 +882,16 @@ function subtractBusyFromIntervals(intervals, busy){
   return cur;
 }
 
-// A teacher's allowed break: `minutes` is the unit, `count` is how many units they
-// may spend across the whole week (not per day). Defaults to 0/0 — no gaps at all.
+// A listed Break Management row is a hard budget: only BREAK MIN units, up to
+// BREAK COUNT, across the week. No row means unconstrained — any gap is legal,
+// same as 1/1 packing, and Generate ranks by least total idle time.
 function teacherBreakSettings(teacherId){
   const b = (DB.breaks || []).find(r => r.teacherId === teacherId);
+  if(!b) return { minutes: 0, count: 0, unconstrained: true };
   return {
-    minutes: Math.max(0, parseInt(b && b.breakMinutes, 10) || 0),
-    count: Math.max(0, parseInt(b && b.breakCount, 10) || 0),
+    minutes: Math.max(0, parseInt(b.breakMinutes, 10) || 0),
+    count: Math.max(0, parseInt(b.breakCount, 10) || 0),
+    unconstrained: false
   };
 }
 
@@ -820,10 +916,13 @@ function teacherWindowClash(teacherId, teacherLabel, day, start, end){
   const w = teacherDayWindows(teacherId)[day];
   const label = teacherLabel || teacherName(teacherId) || teacherId;
   if(!w) return `teacher ${label} is not available on ${DAY_LABEL[day]}`;
-  if(start < w.start || end > w.end){
-    return `teacher ${label} is only available ${DAY_LABEL[day]} ${toHHMM(w.start)}–${toHHMM(w.end)}`;
+  if(slotFitsTeacherWindow(w, start, end)) return null;
+  const hit = teacherAvoidBusy(teacherId, day).find(iv => intervalsOverlap(start, end, iv.start, iv.end));
+  if(hit){
+    return `teacher ${label} is not available on ${DAY_LABEL[day]} ${toHHMM(hit.start)}–${toHHMM(hit.end)}`;
   }
-  return null;
+  const ranges = teacherWindowIntervals(w).map(([s,e]) => `${toHHMM(s)}–${toHHMM(e)}`).join(', ');
+  return `teacher ${label} is only available ${DAY_LABEL[day]} ${ranges}`;
 }
 
 function studentReservationClash(students, day, start, end){
@@ -896,47 +995,61 @@ function findMuclassSnapStart(item, day, windowStart, windowEnd, muclassBusy, bu
   return null;
 }
 
-// BREAK MIN is the unit, BREAK COUNT is how many units a teacher may spend in their
-// whole timetable (Mon–Fri combined). A gap may be 0, or any positive multiple of
+// BREAK MIN is the unit, BREAK COUNT is how many units a listed teacher may spend in
+// their whole timetable (Mon–Fri combined). A gap may be 0, or any positive multiple of
 // BREAK MIN (45×2 → one 90-minute hole, or two 45-minute holes on the same or
-// different days). Any other length is illegal. Not listed / 0/0 → no gaps.
+// different days). Any other length is illegal. An explicit 0/0 row still means no
+// gaps. Not listed = unconstrained (any gap, like 1/1).
 function breakUnitsForGap(gap, minutes){
   if(gap === 0) return 0;
   if(gap > 0 && minutes > 0 && gap % minutes === 0) return gap / minutes;
   return null;
 }
-function breakUnitsInIntervals(intervals, minutes){
+function breakUnitsInIntervals(intervals, minutes, availableIvs){
   if(!intervals || intervals.length <= 1) return 0;
   const busy = intervals.slice().sort((a,b)=>a.start-b.start);
   let units = 0;
   for(let i=1;i<busy.length;i++){
-    const gap = busy[i].start - busy[i-1].end;
-    if(gap < 0) return Infinity;
+    const raw = busy[i].start - busy[i-1].end;
+    if(raw < 0) return Infinity;
+    const gap = availableIvs
+      ? breakGapBetweenIntervals(availableIvs, busy[i-1].end, busy[i].start)
+      : raw;
+    if(gap === 0) continue;
     const extra = breakUnitsForGap(gap, minutes);
     if(extra === null) return Infinity;
     units += extra;
   }
   return units;
 }
-function breakUnitsAcrossDays(byDay, minutes){
+function breakUnitsAcrossDays(byDay, minutes, teacherId){
+  if(teacherId && teacherBreakSettings(teacherId).unconstrained) return 0;
+  const wins = teacherId ? teacherDayWindows(teacherId) : {};
   let units = 0;
-  DAYS.forEach(day => { units += breakUnitsInIntervals((byDay && byDay[day]) || [], minutes); });
+  DAYS.forEach(day => {
+    const av = teacherId ? teacherWindowIntervals(wins[day]) : null;
+    units += breakUnitsInIntervals((byDay && byDay[day]) || [], minutes, av);
+  });
   return units;
 }
 function breakUnitsUsedOutsideSegment(teacherBusy, teacherId, day, seg, minutes){
+  const wins = teacherDayWindows(teacherId);
   let units = 0;
   DAYS.forEach(d => {
+    const av = teacherWindowIntervals(wins[d]);
     const ivs = ((teacherBusy[teacherId] && teacherBusy[teacherId][d]) || []).slice();
     if(d !== day){
-      units += breakUnitsInIntervals(ivs, minutes);
+      units += breakUnitsInIntervals(ivs, minutes, av);
     } else {
-      units += breakUnitsInIntervals(ivs.filter(iv => iv.end <= seg.start), minutes);
-      units += breakUnitsInIntervals(ivs.filter(iv => iv.start >= seg.end), minutes);
+      units += breakUnitsInIntervals(ivs.filter(iv => iv.end <= seg.start), minutes, av);
+      units += breakUnitsInIntervals(ivs.filter(iv => iv.start >= seg.end), minutes, av);
     }
   });
   return units;
 }
 function breakGapOk(gap, breakSettings, breaksUsed){
+  if(gap < 0) return {ok:false, extra:0};
+  if(breakSettings && breakSettings.unconstrained) return {ok:true, extra:0};
   const extra = breakUnitsForGap(gap, breakSettings.minutes);
   if(extra === null) return {ok:false, extra:0};
   if(breaksUsed + extra > breakSettings.count) return {ok:false, extra:0};
@@ -1045,11 +1158,20 @@ function simulateOrder(order, day, studentBusy, roomBusy, breakSettings, muclass
   return placements;
 }
 
+function placementsIdleMinutes(placements){
+  let n = 0;
+  const list = (placements || []).slice().sort((a,b) => a.start - b.start);
+  for(let i=1;i<list.length;i++){
+    const g = list[i].start - list[i-1].end;
+    if(g > 0) n += g;
+  }
+  return n;
+}
+
 // Tries every ordering (small sets) — or a few sensible heuristics for large sets —
-// to find the arrangement that packs as many of this teacher's remaining lessons as
-// possible into one block on this day (gap-free, except for the teacher's allowed break
-// budget) — but never more than maxCount, so a single day doesn't hoover up lessons that
-// should be spread across the teacher's other available days (see scheduleTeacherAcrossDays).
+// to pack as many of this teacher's remaining lessons as possible into this day
+// (flush when a Break Management row requires it; otherwise like 1/1, any gap is
+// legal and the tightest pack wins) — but never more than maxCount.
 function bestPermutationPlacements(items, day, studentBusy, roomBusy, breakSettings, muclassBusy, maxCount, existingTeacherBusy, initialBreaksUsed){
   const cap = maxCount == null ? items.length : Math.min(maxCount, items.length);
   let orders;
@@ -1065,8 +1187,12 @@ function bestPermutationPlacements(items, day, studentBusy, roomBusy, breakSetti
   let best = [];
   for(const order of orders){
     const placements = simulateOrder(order, day, studentBusy, roomBusy, breakSettings, muclassBusy, existingTeacherBusy, initialBreaksUsed).slice(0, cap);
-    if(placements.length > best.length) best = placements;
-    if(best.length === cap) break; // reached the target for this day, stop searching
+    const idle = placementsIdleMinutes(placements);
+    const bestIdle = placementsIdleMinutes(best);
+    if(placements.length > best.length || (placements.length === best.length && idle < bestIdle)){
+      best = placements;
+    }
+    if(best.length === cap && placementsIdleMinutes(best) === 0) break;
   }
   return best;
 }
@@ -1155,42 +1281,43 @@ function scheduleTeacherAcrossDays(teacherId, items, teacherBusy, studentBusy, r
       // same Break Management rule as a gap between two packed lessons.
       const existingBusy = ((teacherBusy[teacherId] && teacherBusy[teacherId][day]) || []).slice().sort((a,b)=>a.start-b.start);
       const segments = [];
-      let cursor = win.start;
-      existingBusy.forEach(iv => {
-        if(iv.start > cursor) segments.push({
-          start:cursor, end:iv.start,
-          precededByObstacle: existingBusy.some(e => e.end === cursor),
-          followedByObstacle: true
+      teacherWindowIntervals(win).forEach(([segStart, segEnd]) => {
+        let cursor = segStart;
+        const busyIn = existingBusy.filter(iv => iv.start < segEnd && iv.end > segStart);
+        busyIn.forEach(iv => {
+          const cutStart = Math.max(iv.start, segStart);
+          const cutEnd = Math.min(iv.end, segEnd);
+          if(cutStart > cursor) segments.push({
+            start:cursor, end:cutStart,
+            precededByObstacle: busyIn.some(e => e.end === cursor),
+            followedByObstacle: true
+          });
+          cursor = Math.max(cursor, cutEnd);
         });
-        cursor = Math.max(cursor, iv.end);
-      });
-      if(cursor < win.end) segments.push({
-        start:cursor, end:win.end,
-        precededByObstacle: existingBusy.some(e => e.end === cursor),
-        followedByObstacle: false
+        if(cursor < segEnd) segments.push({
+          start:cursor, end:segEnd,
+          precededByObstacle: busyIn.some(e => e.end === cursor),
+          followedByObstacle: false
+        });
       });
 
       let dayTarget = target;
       for(const seg of segments){
         if(remaining.length === 0 || dayTarget <= 0) break;
 
+        // Largest leftover that actually intersects this teacher segment — not the
+        // earliest leftover, and not classWindow() clipped from outside the segment
+        // (that dropped a morning hole when the class's biggest leftover was afternoon
+        // and the teacher was only free in the morning).
+        const alreadyUsed = breakUnitsUsedOutsideSegment(teacherBusy, teacherId, day, seg, breakSettings.minutes);
         const withWindow = remaining.map(it => {
-          let start = seg.start, end = seg.end, feasible = true;
-          for(const s of it.students){
-            const cw = classWindow(s.CLASS_ID, day);
-            if(!cw){ feasible = false; break; }
-            start = Math.max(start, cw[0]);
-            end = Math.min(end, cw[1]);
-          }
-          return {...it, feasible, winStart:start, winEnd:end};
+          const win = pickItemWindowInSegment(it, day, seg, breakSettings, alreadyUsed);
+          if(!win) return {...it, feasible:false, winStart:seg.start, winEnd:seg.end};
+          return {...it, feasible:true, winStart:win.winStart, winEnd:win.winEnd};
         }).filter(it => it.feasible && it.winStart + it.duration <= it.winEnd);
 
         if(withWindow.length === 0) continue;
 
-        // Tell simulateOrder about the preceding fixed booking so the first item
-        // attaches to it (or uses an allowed break) instead of starting later.
-        // Budget already spent in this teacher's WEEK, minus the hole this segment fills.
-        const alreadyUsed = breakUnitsUsedOutsideSegment(teacherBusy, teacherId, day, seg, breakSettings.minutes);
         const existingForSim = seg.precededByObstacle ? [{start: seg.start - 1, end: seg.start}] : [];
 
         let best = [];
@@ -1285,7 +1412,8 @@ function showLogForSelected(){
 function resultLogLine(result){
   const smallGroups = result.unresolved.filter(u => u.lesson.id && isSmallGroupId(u.lesson.id)).length;
   const extra = smallGroups ? `, ${smallGroups} small group${smallGroups===1?'':'s'} stuck` : '';
-  return `${result.scheduled.length} scheduled, ${result.unresolved.length} unresolved${extra}`;
+  const idle = Number.isFinite(result.idleGapMinutes) ? `, ${result.idleGapMinutes} min idle` : '';
+  return `${result.scheduled.length} scheduled, ${result.unresolved.length} unresolved${extra}${idle}`;
 }
 
 function logQuotaLedger(scheduled, heading){
@@ -1352,9 +1480,9 @@ function runScheduler(randomize){
     SearchLog.info(qParts.length ? `Small group quotas at start: ${qParts.join(', ')}` : 'Small group quotas: none listed — auto-match cannot assign any teacher');
     const br = (DB.breaks || []).filter(b => (parseInt(b.breakMinutes,10)||0) > 0);
     SearchLog.info(br.length
-      ? `Week break budget: ${br.map(b => `${b.teacher || teacherName(b.teacherId)} ${b.breakMinutes} min × ${b.breakCount}`).join(', ')}`
-      : 'Week break budget: none — a teacher\'s own lessons must sit flush');
-    SearchLog.info('Hard checks: teacher availability, class reservations, room overlap, no student/teacher double-book, break units across the week');
+      ? `Week break budget: ${br.map(b => `${b.teacher || teacherName(b.teacherId)} ${b.breakMinutes} min × ${b.breakCount}`).join(', ')} — unlisted teachers may gap; Generate prefers the least total idle time`
+      : 'Week break budget: none listed — any gap is allowed (like 1/1); Generate prefers the least total idle time');
+    SearchLog.info('Hard checks: teacher availability, room overlap, no student/teacher double-book. Pinned slots that overlap a class reservation or open an illegal teacher gap are placed with a warning.');
   }
 
   // ---------- PHASE 0: fixed-time lessons/small groups — no searching, no negotiating. Placed
@@ -1362,10 +1490,11 @@ function runScheduler(randomize){
   // them. A lesson/small group only needs FIXED DAY set to be "fixed"; FIXED START/END give the
   // exact window (falls back to the lesson's own duration ending 90 min after start, or
   // the whole day, if end is left blank). A fixed slot still has to pass the same hard
-  // constraints as a searched one: teacher availability, class reservations, no
-  // double-booking a student/teacher, a locked room, and the teacher's week break budget
-  // (a second pin that opens an illegal hole next to the first is rejected). If any
-  // of those fail it's left unresolved — no alternative time is ever substituted for it.
+  // constraints as a searched one for teacher availability, no double-booking a
+  // student/teacher, and a locked room. A pin that overlaps a student's class
+  // reservation, or that opens an illegal hole next to another of that teacher's
+  // bookings, is still placed; audit lists a warning. If any hard check fails it's
+  // left unresolved — no alternative time is ever substituted for it.
   function pushFixedPlacement(l, teacherId, teacherLabel, day, start, end, students){
     scheduled.push({
       lessonId: l.id, name: l.name, group: l.group || '', groupId: l.groupId || '',
@@ -1402,12 +1531,17 @@ function runScheduler(randomize){
     const byDay = {};
     DAYS.forEach(d => { byDay[d] = ((teacherBusy[teacherId] && teacherBusy[teacherId][d]) || []).slice(); });
     byDay[day] = (byDay[day] || []).concat([{start, end}]);
-    if(breakUnitsAcrossDays(byDay, bs.minutes) <= bs.count) return null;
+    if(breakUnitsAcrossDays(byDay, bs.minutes, teacherId) <= bs.count) return null;
     const label = teacherLabel || teacherName(teacherId) || teacherId;
+    const sameDay = scheduled.filter(s => s.teacherId === teacherId && s.day === day);
+    const prev = sameDay.filter(s => s.end <= start).sort((a,b) => b.end - a.end)[0];
+    const next = sameDay.filter(s => s.start >= end).sort((a,b) => a.start - b.start)[0];
+    const beside = [prev && `${prev.name} ending ${toHHMM(prev.end)}`, next && `${next.name} starting ${toHHMM(next.start)}`].filter(Boolean).join(' and ');
+    const nextTo = beside ? ` next to ${beside}` : '';
     if(bs.minutes === 0 || bs.count === 0){
-      return `teacher ${label} has no break budget, so this pinned slot would leave an illegal gap next to another booking`;
+      return `teacher ${label} has no break budget, so this pinned slot leaves an illegal gap${nextTo}`;
     }
-    return `teacher ${label}'s break budget is ${bs.minutes} min × ${bs.count} and this pinned slot would overspend it`;
+    return `teacher ${label}'s break budget is ${bs.minutes} min × ${bs.count} and this pinned slot would overspend it${nextTo}`;
   }
 
   const fixedRegularLessons = DB.lessons.filter(l => l.fixedDay);
@@ -1428,8 +1562,8 @@ function runScheduler(randomize){
       return;
     }
     const {day, start, end} = win;
-    let clash = teacherWindowClash(l.teacherId, l.teacher, day, start, end)
-      || studentReservationClash(students, day, start, end);
+    const reservationClash = studentReservationClash(students, day, start, end);
+    let clash = teacherWindowClash(l.teacherId, l.teacher, day, start, end);
     if(!clash && l.id && isSmallGroupId(l.id)){
       if((quotaRemaining[l.teacherId] || 0) <= 0){
         clash = `teacher ${l.teacher || teacherName(l.teacherId) || l.teacherId} has no remaining SMALL GROUP QUOTA — add them in ⚙ Small Group Quotas (Small Groups tab) or raise their amount`;
@@ -1445,15 +1579,19 @@ function runScheduler(randomize){
     if(!clash && itemRoomId(l)){
       if(roomSlotTaken(roomBusy, itemRoomId(l), day, start, end)) clash = `${roomClashLabel(l)} is already taken by another fixed booking then`;
     }
-    if(!clash){
-      clash = pinnedBreaksClash(l.teacherId, l.teacher, day, start, end);
-    }
+    const breakClash = clash ? null : pinnedBreaksClash(l.teacherId, l.teacher, day, start, end);
     if(clash){
       SearchLog.warn(`${l.name}: pinned ${DAY_LABEL[day]} ${toHHMM(start)}–${toHHMM(end)} — ${clash}`);
       unresolved.push({lesson:l, students, dayWin:{}, customReason:`fixed to ${DAY_LABEL[day]} ${toHHMM(start)}–${toHHMM(end)}, but ${clash} — no alternative time is tried for a fixed slot.`});
     } else {
       if(win.adjusted) SearchLog.info(`${l.name}: FIXED window snapped to ${win.duration} min — booked ${toHHMM(start)}–${toHHMM(end)}`);
       SearchLog.ok(`${l.name}: pinned ${DAY_LABEL[day]} ${toHHMM(start)}–${toHHMM(end)}${l.teacherId ? ' · '+ (l.teacher||teacherName(l.teacherId)) : ''}${l.id && isSmallGroupId(l.id) ? ' · uses 1 small group quota' : ''}`);
+      if(reservationClash){
+        SearchLog.warn(`${l.name}: pinned slot overlaps a class reservation — ${reservationClash} (placed anyway)`);
+      }
+      if(breakClash){
+        SearchLog.warn(`${l.name}: pinned slot ${breakClash} (placed anyway)`);
+      }
       pushFixedPlacement(l, l.teacherId, l.teacher, day, start, end, students);
       if(l.id && isSmallGroupId(l.id) && l.teacherId){
         quotaRemaining[l.teacherId]--;
@@ -1471,10 +1609,8 @@ function runScheduler(randomize){
       return;
     }
     const {day, start, end} = win;
-    let clash = studentReservationClash(students, day, start, end);
-    if(!clash){
-      clash = studentFixedBookingClash(students, studentBusy, day, start, end, 'members');
-    }
+    const reservationClash = studentReservationClash(students, day, start, end);
+    let clash = studentFixedBookingClash(students, studentBusy, day, start, end, 'members');
     if(!clash && itemRoomId(l)){
       if(roomSlotTaken(roomBusy, itemRoomId(l), day, start, end)) clash = `${roomClashLabel(l)} is already taken by another fixed booking then`;
     }
@@ -1493,20 +1629,28 @@ function runScheduler(randomize){
       });
       return minGap;
     }
-    const candidate = DB.refTeachers
+    const eligible = DB.refTeachers
       .filter(t => (quotaRemaining[t.id] || 0) > 0)
       .filter(t => {
         const w = teacherDayWindows(t.id)[day];
-        if(!w || start < w.start || end > w.end) return false;
+        if(!w || !slotFitsTeacherWindow(w, start, end)) return false;
         const tBusy = (teacherBusy[t.id] && teacherBusy[t.id][day]) || [];
-        if(tBusy.some(iv => intervalsOverlap(start, end, iv.start, iv.end))) return false;
-        return !pinnedBreaksClash(t.id, t.name, day, start, end);
-      })
-      .sort((a,b) => gapForFixedCandidate(a.id) - gapForFixedCandidate(b.id) || (quotaRemaining[b.id]||0) - (quotaRemaining[a.id]||0))[0];
+        return !tBusy.some(iv => intervalsOverlap(start, end, iv.start, iv.end));
+      });
+    const flush = eligible.filter(t => !pinnedBreaksClash(t.id, t.name, day, start, end));
+    const pool = (flush.length ? flush : eligible).slice();
+    const candidate = pool.sort((a,b) => gapForFixedCandidate(a.id) - gapForFixedCandidate(b.id) || (quotaRemaining[b.id]||0) - (quotaRemaining[a.id]||0))[0];
     if(candidate){
       if(win.adjusted) SearchLog.info(`${l.name}: FIXED window snapped to ${win.duration} min — booked ${toHHMM(start)}–${toHHMM(end)}`);
       quotaRemaining[candidate.id]--;
       SearchLog.ok(`${l.name}: pinned ${DAY_LABEL[day]} ${toHHMM(start)}–${toHHMM(end)} · auto-matched ${candidate.name} (quota left ${quotaRemaining[candidate.id]})`);
+      if(reservationClash){
+        SearchLog.warn(`${l.name}: pinned slot overlaps a class reservation — ${reservationClash} (placed anyway)`);
+      }
+      const breakClash = pinnedBreaksClash(candidate.id, candidate.name, day, start, end);
+      if(breakClash){
+        SearchLog.warn(`${l.name}: pinned slot ${breakClash} (placed anyway)`);
+      }
       SearchLog.info(`Quota ${candidate.name}: consume 1 (pinned auto-match) → ${quotaRemaining[candidate.id]} left`);
       pushFixedPlacement(l, candidate.id, candidate.name, day, start, end, students);
     } else {
@@ -1547,7 +1691,7 @@ function runScheduler(randomize){
 
   if(!SearchLog.quiet){
     SearchLog.section('Phase 1 — teacher-first (subjects + override small groups)');
-    SearchLog.info(`Teachers in order of fewest available days, then most minutes. Days used by rank (PREFERRED/AVAILABLE → FALLBACK → CANDIDATE), packed flush within a day.`);
+    SearchLog.info(`Teachers in order of fewest available days, then most minutes. Days used by rank (PREFERRED/AVAILABLE → FALLBACK → CANDIDATE); listed Break Management teachers stay on BREAK MIN × COUNT, unlisted teachers may gap like 1/1.`);
   }
   teacherIds.forEach(teacherId => {
     const {placed, unresolved: leftover} = scheduleTeacherAcrossDays(teacherId, byTeacher[teacherId], teacherBusy, studentBusy, roomBusy, muclassBusy, randomize);
@@ -1593,14 +1737,11 @@ function runScheduler(randomize){
   function smallGroupSlotOptions(students, duration){
     const opts = [];
     for(const day of DAYS){
-      let start = DEFAULT_START, end = DEFAULT_END, feasible = true;
-      for(const s of students){
-        const cw = classWindow(s.CLASS_ID, day);
-        if(!cw){ feasible = false; break; }
-        start = Math.max(start, cw[0]); end = Math.min(end, cw[1]);
+      const ivs = studentsFreeIntervals(students, day);
+      for(const [start, end] of ivs){
+        if(start + duration > end) continue;
+        for(let t = start; t + duration <= end; t += 15) opts.push({day, start:t, end:t+duration});
       }
-      if(!feasible || start + duration > end) continue;
-      for(let t = start; t + duration <= end; t += 15) opts.push({day, start:t, end:t+duration});
     }
     return opts;
   }
@@ -1636,7 +1777,7 @@ function runScheduler(randomize){
   }
   function teacherWindowOk(teacherId, day, start, end){
     const win = teacherDayWindows(teacherId)[day];
-    return !!win && start >= win.start && end <= win.end;
+    return !!win && slotFitsTeacherWindow(win, start, end);
   }
   // Checks against the teacher's existing commitments from Phase 1 (regular subject
   // lessons and any manually-assigned small groups) — this was missing before and could let an
@@ -1706,12 +1847,12 @@ function runScheduler(randomize){
     const bs = teacherBreakSettings(teacherId);
     const byDay = teacherWeekByDay(teacherId, excludeIdx);
     byDay[day] = (byDay[day] || []).concat([{start, end}]);
-    return breakUnitsAcrossDays(byDay, bs.minutes) <= bs.count;
+    return breakUnitsAcrossDays(byDay, bs.minutes, teacherId) <= bs.count;
   }
 
   function teacherWeekGapsValid(teacherId){
     const bs = teacherBreakSettings(teacherId);
-    return breakUnitsAcrossDays(teacherWeekByDay(teacherId, -1), bs.minutes) <= bs.count;
+    return breakUnitsAcrossDays(teacherWeekByDay(teacherId, -1), bs.minutes, teacherId) <= bs.count;
   }
 
   function tryPlaceRecursive(idx, depth, visited){
@@ -1879,7 +2020,7 @@ function runScheduler(randomize){
   const attemptLog = SearchLog.lines.slice();
   SearchLog.lines = parentLines;
   SearchLog.quiet = parentQuiet;
-  return {scheduled, unresolved, searchLog: attemptLog};
+  return {scheduled, unresolved, searchLog: attemptLog, idleGapMinutes: scheduledIdleGapMinutes(scheduled)};
 }
 
 // ---------- Rendering results ----------
@@ -1928,7 +2069,17 @@ function readScheduleSearchAttempts(){
 }
 function resultScore(result){
   const unresolvedSmallGroups = result.unresolved.filter(u => u.lesson.id && isSmallGroupId(u.lesson.id)).length;
-  return [unresolvedSmallGroups, result.unresolved.length];
+  const idle = result && Number.isFinite(result.idleGapMinutes)
+    ? result.idleGapMinutes
+    : scheduledIdleGapMinutes(result && result.scheduled);
+  return [unresolvedSmallGroups, result.unresolved.length, idle];
+}
+function compareGroupResults(a, b){
+  const sa = resultScore(a), sb = resultScore(b);
+  for(let i=0;i<sa.length;i++){
+    if(sa[i] !== sb[i]) return sa[i] - sb[i];
+  }
+  return 0;
 }
 function resultSignature(result){
   return result.scheduled.map(s => `${s.lessonId}|${s.day}|${s.start}|${s.teacherId}`).sort().join(';');
@@ -2068,14 +2219,11 @@ function collectSchedulerSearch(attempts, onTick){
   }
   SearchLog.always('info', `${discarded} shuffled ${discarded === 1 ? 'try was' : 'tries were'} the same as an earlier layout — discarded`);
   const variants = [...seen.values()];
-  variants.sort((a,b) => {
-    const sa = resultScore(a), sb = resultScore(b);
-    return sa[0] !== sb[0] ? sa[0]-sb[0] : sa[1]-sb[1];
-  });
+  variants.sort((a,b) => compareGroupResults(a, b));
   const best = variants[0];
   const bestN = foundOnAttempt.get(resultSignature(best));
   SearchLog.section('Pick');
-  SearchLog.info(`Ranking: fewest unresolved small groups, then fewest unresolved items overall. ${variants.length} distinct layout(s) this click; the Solution list keeps the best ${SCHEDULE_VARIANT_KEEP}.`);
+  SearchLog.info(`Ranking: fewest unresolved small groups, then fewest unresolved items, then least idle gap (like 1/1). ${variants.length} distinct layout(s) this click; the Solution list keeps the best ${SCHEDULE_VARIANT_KEEP}.`);
   SearchLog.ok(`Best this click is attempt ${bestN}: ${resultLogLine(best)}. Search log opens on the ★ layout.`);
   variants.forEach(v => {
     const extra = collectHowRedsCleared(first, v, v.attemptNo);
@@ -2120,14 +2268,11 @@ async function collectSchedulerSearchAsync(attempts, onTick){
   }
   SearchLog.always('info', `${discarded} shuffled ${discarded === 1 ? 'try was' : 'tries were'} the same as an earlier layout — discarded`);
   const variants = [...seen.values()];
-  variants.sort((a,b) => {
-    const sa = resultScore(a), sb = resultScore(b);
-    return sa[0] !== sb[0] ? sa[0]-sb[0] : sa[1]-sb[1];
-  });
+  variants.sort((a,b) => compareGroupResults(a, b));
   const best = variants[0];
   const bestN = foundOnAttempt.get(resultSignature(best));
   SearchLog.section('Pick');
-  SearchLog.info(`Ranking: fewest unresolved small groups, then fewest unresolved items overall. ${variants.length} distinct layout(s) this click; the Solution list keeps the best ${SCHEDULE_VARIANT_KEEP}.`);
+  SearchLog.info(`Ranking: fewest unresolved small groups, then fewest unresolved items, then least idle gap (like 1/1). ${variants.length} distinct layout(s) this click; the Solution list keeps the best ${SCHEDULE_VARIANT_KEEP}.`);
   SearchLog.ok(`Best this click is attempt ${bestN}: ${resultLogLine(best)}. Search log opens on the ★ layout.`);
   variants.forEach(v => {
     const extra = collectHowRedsCleared(first, v, v.attemptNo);
@@ -2160,9 +2305,14 @@ function hasUnacceptedDrags(){
   return false;
 }
 let PENDING_GENERATE = 'timetable';
+const GENERATE_CONFIRM_TITLE = {
+  timetable: 'Accepted schedule is on file',
+  smallgroups: 'Replace current small groups?'
+};
 const GENERATE_CONFIRM_BODY = {
   timetable: 'Generate can search again and leave the frozen roster in place, or clear it (and the SCHEDULED columns) so the next search starts unconstrained. Generate still only reads FIXED times and small group Teacher override.',
-  smallgroups: 'New small groups replace the current roster and clear the generated timetable grid. You can leave the frozen accepted roster in place, or clear it (and the SCHEDULED columns) so the next search starts unconstrained. Generate still only reads FIXED times and small group Teacher override.'
+  smallgroups: 'Generate small groups deletes the current bands and builds a new roster. Any generated timetable grid is also cleared.',
+  smallgroupsAccepted: 'New small groups replace the current roster (existing bands are deleted) and clear the generated timetable grid. You can leave the frozen accepted roster in place, or clear it (and the SCHEDULED columns) so the next search starts unconstrained. Generate still only reads FIXED times and small group Teacher override.'
 };
 const GENERATE_CONFIRM_EXTRA = {
   timetable: 'The current grid also has dragged times that were not accepted — a new search replaces the grid.',
@@ -2189,14 +2339,29 @@ function showGenerateConfirm(kind){
   abortCalendarInteraction();
   setModalOverlay('searchLogOverlay', false);
   setModalOverlay('smallGroupQuotasOverlay', false);
+  hideSmallGroupStudentsEditor();
   PENDING_GENERATE = kind === 'smallgroups' ? 'smallgroups' : 'timetable';
+  const title = document.getElementById('generateConfirmTitle');
   const extra = document.getElementById('generateConfirmExtra');
   const body = document.getElementById('generateConfirmBody');
-  if(body) body.textContent = GENERATE_CONFIRM_BODY[PENDING_GENERATE];
+  const keepBtn = document.getElementById('generateKeepAcceptedBtn');
+  const clearBtn = document.getElementById('generateClearAcceptedBtn');
+  const goBtn = document.getElementById('generateConfirmGoBtn');
+  const accepted = hasAcceptedRecord();
+  const smallgroupsPlain = PENDING_GENERATE === 'smallgroups' && !accepted;
+  if(title) title.textContent = GENERATE_CONFIRM_TITLE[PENDING_GENERATE];
+  if(body){
+    body.textContent = PENDING_GENERATE === 'smallgroups' && accepted
+      ? GENERATE_CONFIRM_BODY.smallgroupsAccepted
+      : GENERATE_CONFIRM_BODY[PENDING_GENERATE];
+  }
   if(extra){
     extra.textContent = GENERATE_CONFIRM_EXTRA[PENDING_GENERATE];
-    extra.style.display = PENDING_GENERATE === 'smallgroups' || hasUnacceptedDrags() ? 'block' : 'none';
+    extra.style.display = (PENDING_GENERATE === 'smallgroups' && LAST_RESULT) || hasUnacceptedDrags() ? 'block' : 'none';
   }
+  if(keepBtn) keepBtn.style.display = smallgroupsPlain ? 'none' : '';
+  if(clearBtn) clearBtn.style.display = smallgroupsPlain ? 'none' : '';
+  if(goBtn) goBtn.style.display = smallgroupsPlain ? '' : 'none';
   setModalOverlay('generateConfirmOverlay', true);
 }
 function queuePendingGenerate(clearAccepted){
@@ -2217,6 +2382,7 @@ function setSearchUiLock(on){
     abortCalendarInteraction();
     setModalOverlay('searchLogOverlay', false);
     setModalOverlay('smallGroupQuotasOverlay', false);
+    hideSmallGroupStudentsEditor();
     hideGenerateConfirm();
   }
   updateAllTabLocks();
@@ -2315,10 +2481,7 @@ function prepareGenerateTimetable(clearAccepted){
 }
 function mergeGenerateVariants(freshVariants){
   freshVariants = freshVariants || [];
-  freshVariants.sort((a,b) => {
-    const sa = resultScore(a), sb = resultScore(b);
-    return sa[0] !== sb[0] ? sa[0]-sb[0] : sa[1]-sb[1];
-  });
+  freshVariants.sort((a,b) => compareGroupResults(a, b));
   const freshBest = freshVariants[0] || null;
   const skipAccepted = LAST_RESULT && LAST_RESULT.accepted ? LAST_RESULT : null;
   const merged = new Map();
@@ -2328,10 +2491,7 @@ function mergeGenerateVariants(freshVariants){
     const sig = resultSignature(v);
     if(!merged.has(sig)) merged.set(sig, v);
   });
-  LAST_VARIANTS = [...merged.values()].sort((a,b) => {
-    const sa = resultScore(a), sb = resultScore(b);
-    return sa[0] !== sb[0] ? sa[0]-sb[0] : sa[1]-sb[1];
-  }).slice(0, SCHEDULE_VARIANT_KEEP);
+  LAST_VARIANTS = [...merged.values()].sort((a,b) => compareGroupResults(a, b)).slice(0, SCHEDULE_VARIANT_KEEP);
   LAST_VARIANTS.forEach(v => {
     if(!v) return;
     v.accepted = false;
@@ -2398,15 +2558,23 @@ document.getElementById('scheduleSearchAttempts').addEventListener('change', () 
 document.getElementById('generateCancelBtn').addEventListener('click', hideGenerateConfirm);
 document.getElementById('generateKeepAcceptedBtn').addEventListener('click', () => queuePendingGenerate(false));
 document.getElementById('generateClearAcceptedBtn').addEventListener('click', () => queuePendingGenerate(true));
+const generateConfirmGoBtn = document.getElementById('generateConfirmGoBtn');
+if(generateConfirmGoBtn) generateConfirmGoBtn.addEventListener('click', () => queuePendingGenerate(false));
 document.getElementById('generateConfirmOverlay').addEventListener('click', (e) => {
   if(e.target.id === 'generateConfirmOverlay') hideGenerateConfirm();
 });
 document.addEventListener('keydown', (e) => {
   if(e.key !== 'Escape') return;
   if(CAL_DRAG) return;
-  if(!isGenerateConfirmOpen()) return;
-  e.preventDefault();
-  hideGenerateConfirm();
+  if(isGenerateConfirmOpen()){
+    e.preventDefault();
+    hideGenerateConfirm();
+    return;
+  }
+  if(isSmallGroupStudentsEditorOpen()){
+    e.preventDefault();
+    hideSmallGroupStudentsEditor();
+  }
 });
 
 function populateVariantSelector(){
@@ -2672,30 +2840,39 @@ function renderCalendar(container, items, colorByTeacher, dragSource){
 
   let daysHtml = '';
   DAYS.forEach(day => {
-    const dayItems = layoutColumns(items.filter(i => i.day === day));
+    const dayReservations = layoutColumns(items.filter(i => i.day === day && i.source === 'class'));
+    const dayItems = layoutColumns(items.filter(i => i.day === day && i.source !== 'class'));
     let blocksHtml = '';
-    dayItems.forEach(i => {
+    function paintBlock(i, z){
       const top = (i.start - CAL_DAY_START) * CAL_PX_PER_MIN;
       const height = Math.max((i.end - i.start) * CAL_PX_PER_MIN - 2, 14);
       const widthPct = 100 / i._totalCols;
       const leftPct = i._col * widthPct;
-      const style = (colorByTeacher && !i.source) ? (() => {
+      const isClass = i.source === 'class';
+      const style = (!isClass && colorByTeacher && !i.source) ? (() => {
         const c = colorForTeacher(i.teacherId);
         return `background:${c.bg};border-left-color:${c.border};`;
       })() : '';
-      const teacherLine = (colorByTeacher && !i.source) ? `<span class="meta">${i.teacher||i.teacherId}</span>` : '';
-      const roomTag = itemRoomId(i) ? ' 🔒' + itemRoomLabel(i) : '';
-      const studentTitle = escapeAttr((i.studentNames && i.studentNames.length) ? `${i.name} — ${i.studentNames.length} students:\n${i.studentNames.join('\n')}` : i.name);
-      const sourceCls = i.source === 'accepted' ? ' is-accepted-bg'
+      const teacherLine = (!isClass && colorByTeacher && !i.source) ? `<span class="meta">${i.teacher||i.teacherId}</span>` : '';
+      const roomTag = !isClass && itemRoomId(i) ? ' 🔒' + itemRoomLabel(i) : '';
+      const studentTitle = escapeAttr(isClass
+        ? ((i.classNames && i.classNames.length) ? `${i.name}\n${i.classNames.join('\n')}` : (i.name || 'Class reservation'))
+        : ((i.studentNames && i.studentNames.length) ? `${i.name} — ${i.studentNames.length} students:\n${i.studentNames.join('\n')}` : i.name));
+      const sourceCls = isClass ? ' is-class'
+        : (i.source === 'accepted' ? ' is-accepted-bg'
         : (i.source === 'oneone' ? ' is-oneone'
-        : (i.source === 'rpiano' ? ' is-rpiano' : ''));
-      const canDrag = dragSource ? i.source === dragSource : !i.source;
-      const conflictCls = itemHasConflict(i) ? ' has-conflict' : '';
-      const countLabel = i.studentCount === 1 ? '1 student' : `${i.studentCount} students`;
-      blocksHtml += `<div class="cal-block${conflictCls}${sourceCls}${canDrag ? ' is-draggable' : ''}" data-lesson-id="${escapeAttr(i.lessonId)}" data-source="${escapeAttr(i.source || '')}" data-draggable="${canDrag ? '1' : ''}" data-tooltip="${studentTitle}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);width:calc(${widthPct}% - 4px);${style}">
+        : (i.source === 'rpiano' ? ' is-rpiano' : '')));
+      const canDrag = isClass ? false : (dragSource ? i.source === dragSource : !i.source);
+      const conflictCls = !isClass && itemHasConflict(i) ? ' has-conflict' : '';
+      const countLabel = isClass
+        ? 'reserved'
+        : (i.studentCount === 1 ? '1 student' : `${i.studentCount} students`);
+      return `<div class="cal-block${conflictCls}${sourceCls}${canDrag ? ' is-draggable' : ''}" data-lesson-id="${escapeAttr(i.lessonId)}" data-source="${escapeAttr(i.source || '')}" data-draggable="${canDrag ? '1' : ''}" data-tooltip="${studentTitle}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);width:calc(${widthPct}% - 4px);z-index:${z};${style}">
         <b>${i.name}${roomTag}</b>${teacherLine}<span class="meta">${toHHMM(i.start)}–${toHHMM(i.end)} · ${countLabel}</span>
       </div>`;
-    });
+    }
+    dayReservations.forEach(i => { blocksHtml += paintBlock(i, 0); });
+    dayItems.forEach(i => { blocksHtml += paintBlock(i, 1); });
     daysHtml += `<div class="cal-day">
       <div class="cal-day-header">${DAY_LABEL[day]}</div>
       <div class="cal-day-body" style="height:${totalHeight}px">${blocksHtml}</div>
@@ -2730,6 +2907,14 @@ function lookupLessonForScheduled(item){
     return getSmallGroupLessons().find(l => l.id === item.lessonId) || null;
   }
   return DB.lessons.find(l => l.id === item.lessonId) || null;
+}
+function scheduledItemIsPinned(item){
+  const l = lookupLessonForScheduled(item);
+  if(!l || !l.fixedDay || !DAYS.includes(l.fixedDay)) return false;
+  const start = toMin(l.fixedStart);
+  if(start == null || item.day !== l.fixedDay || item.start !== start) return false;
+  const end = start + lessonDurationMinutes(l);
+  return item.end === end;
 }
 function studentsForScheduledItem(item){
   const l = lookupLessonForScheduled(item);
@@ -2779,6 +2964,382 @@ function combinedWeekItems(kind){
   if(kind === 'rpiano') return groups.concat(hasAcceptedOneOne() ? one : []).concat(piano);
   return groups.concat(hasAcceptedOneOne() ? one : []).concat(hasAcceptedRpiano() ? piano : []);
 }
+function emptyReportFilters(){
+  return { classId:'', studentId:'', muclass:'', roomId:'', teacherId:'', kind:'', showClassReservations: true };
+}
+let REPORT_FILTERS = emptyReportFilters();
+function reportItemKind(item){
+  if(!item) return 'group';
+  if(item.source === 'class') return 'class';
+  if(item.source === 'oneone') return 'oneone';
+  if(item.source === 'rpiano' || item.source === 'piano') return 'rpiano';
+  return 'group';
+}
+function reportKindLabel(kind){
+  if(kind === 'oneone') return '1/1';
+  if(kind === 'rpiano') return 'Required Piano';
+  if(kind === 'class') return 'Class reservation';
+  return 'Group lessons';
+}
+function classReservationItems(){
+  return (DB.classAvail || []).map((r, idx) => {
+    if(!r || !r.day || !DAYS.includes(r.day)) return null;
+    const start = toMin(r.start);
+    const end = toMin(r.end);
+    const s = start != null ? start : DEFAULT_START;
+    const e = end != null ? end : DEFAULT_END;
+    if(e <= s) return null;
+    if(!r.start && !r.end) return null;
+    const classId = r.classId || '';
+    const label = r.class || className(classId) || classId || 'Class';
+    return {
+      lessonId: 'CLASS-' + (classId || idx) + '-' + r.day + '-' + s,
+      name: label + ' reserved',
+      day: r.day,
+      start: s,
+      end: e,
+      source: 'class',
+      classId,
+      class: label,
+      classIds: classId ? [classId] : [],
+      classNames: [label],
+      teacherId: '',
+      teacher: '',
+      roomId: '',
+      room: '',
+      studentCount: 0,
+      studentNames: [label],
+      note: r.note || ''
+    };
+  }).filter(Boolean);
+}
+function mergeClassReservationItems(items){
+  const groups = new Map();
+  (items || []).forEach(i => {
+    const key = [i.day, i.start, i.end].join('|');
+    if(!groups.has(key)){
+      groups.set(key, {
+        lessonId: 'CLASS-' + i.day + '-' + i.start + '-' + i.end,
+        name: '',
+        day: i.day,
+        start: i.start,
+        end: i.end,
+        source: 'class',
+        classId: i.classId || '',
+        classIds: [],
+        classNames: [],
+        teacherId: '',
+        teacher: '',
+        roomId: '',
+        room: '',
+        studentCount: 0,
+        studentNames: [],
+        note: i.note || ''
+      });
+    }
+    const g = groups.get(key);
+    const id = i.classId || '';
+    const label = i.class || (id ? className(id) : '') || id;
+    if(id && !g.classIds.includes(id)){
+      g.classIds.push(id);
+      g.classNames.push(label);
+    } else if(!id && label && !g.classNames.includes(label)){
+      g.classNames.push(label);
+    }
+  });
+  return [...groups.values()].map(g => {
+    const names = g.classNames;
+    g.name = names.length <= 3
+      ? names.join(', ') + ' reserved'
+      : names.slice(0, 2).join(', ') + ' +' + (names.length - 2) + ' reserved';
+    g.class = names.join(', ');
+    g.classId = g.classIds.length === 1 ? g.classIds[0] : '';
+    g.studentNames = names.slice();
+    return g;
+  });
+}
+function reportClassReservationItems(filters, lessonItems){
+  const f = filters || emptyReportFilters();
+  if(f.showClassReservations === false) return [];
+  const rows = classReservationItems();
+  let classIds = null;
+  if(f.classId){
+    classIds = new Set([f.classId]);
+  } else if(f.studentId){
+    const st = (DB.students || []).find(s => s && s.ID === f.studentId);
+    classIds = new Set(st && st.CLASS_ID ? [st.CLASS_ID] : []);
+  } else if(f.muclass){
+    classIds = new Set((DB.refClasses || []).filter(c => classMuclass(c.id) === f.muclass).map(c => c.id));
+  } else if(f.teacherId || f.roomId || (f.kind && f.kind !== 'class')){
+    classIds = new Set();
+    (lessonItems || []).forEach(i => {
+      reportItemClasses(i).forEach(c => { if(c && c.id) classIds.add(c.id); });
+    });
+  }
+  if(!classIds) return rows;
+  return rows.filter(r => r.classId && classIds.has(r.classId));
+}
+function reportWeekItems(){
+  const seen = new Set();
+  const out = [];
+  function add(list){
+    (list || []).forEach(i => {
+      if(!i || !i.day || i.start == null || i.end == null) return;
+      const key = [i.lessonId || i.name, i.day, i.start, i.end, reportItemKind(i)].join('|');
+      if(seen.has(key)) return;
+      seen.add(key);
+      out.push(i);
+    });
+  }
+  if(LAST_RESULT && (LAST_RESULT.scheduled || []).length) add(LAST_RESULT.scheduled);
+  else add(acceptedGroupItems());
+  add((LAST_ONEONE && LAST_ONEONE.scheduled) || []);
+  add((LAST_RPIANO && LAST_RPIANO.scheduled) || []);
+  out.sort((a,b) => DAYS.indexOf(a.day) - DAYS.indexOf(b.day) || a.start - b.start || String(a.name||'').localeCompare(String(b.name||'')));
+  return out;
+}
+function reportItemStudentIds(item){
+  const fromRoster = studentsForScheduledItem(item).map(s => s && s.ID).filter(Boolean);
+  if(fromRoster.length) return fromRoster;
+  const raw = [item && item.studentId, item && item.studentIds].filter(Boolean).join(',');
+  return String(raw).split(/[,;]+/).map(x => String(x).trim()).filter(Boolean);
+}
+function reportItemMatches(item, filters){
+  const f = filters || emptyReportFilters();
+  if(reportItemKind(item) === 'class'){
+    if(f.kind && f.kind !== 'class') return false;
+    if(f.teacherId || f.roomId) return false;
+    if(f.classId && item.classId !== f.classId && !(item.classIds || []).includes(f.classId)) return false;
+    if(f.studentId){
+      const st = (DB.students || []).find(s => s && s.ID === f.studentId);
+      if(!st || !st.CLASS_ID || (item.classId !== st.CLASS_ID && !(item.classIds || []).includes(st.CLASS_ID))) return false;
+    }
+    if(f.muclass){
+      const ids = (item.classIds && item.classIds.length) ? item.classIds : (item.classId ? [item.classId] : []);
+      if(!ids.some(id => classMuclass(id) === f.muclass)) return false;
+    }
+    return true;
+  }
+  if(f.kind && reportItemKind(item) !== f.kind) return false;
+  if(f.teacherId && String(item.teacherId || '') !== String(f.teacherId)) return false;
+  if(f.roomId && itemRoomId(item) !== String(f.roomId)) return false;
+  const students = studentsForScheduledItem(item);
+  const ids = reportItemStudentIds(item);
+  if(f.studentId){
+    const sid = String(f.studentId);
+    if(!ids.includes(sid) && !students.some(s => s && s.ID === sid)) return false;
+  }
+  if(f.classId){
+    if(!students.some(s => s && s.CLASS_ID === f.classId)) return false;
+  }
+  if(f.muclass){
+    if(!students.some(s => s && classMuclass(s.CLASS_ID) === f.muclass)) return false;
+  }
+  return true;
+}
+function filterReportItems(items, filters){
+  return (items || []).filter(i => reportItemMatches(i, filters));
+}
+function reportItemClasses(item){
+  if(item && item.source === 'class'){
+    const ids = (item.classIds && item.classIds.length) ? item.classIds : (item.classId ? [item.classId] : []);
+    return ids.map(id => ({
+      id,
+      name: item.class && ids.length === 1 ? item.class : (className(id) || id),
+      muclass: classMuclass(id)
+    }));
+  }
+  const seen = new Set();
+  const out = [];
+  studentsForScheduledItem(item).forEach(s => {
+    if(!s || !s.CLASS_ID || seen.has(s.CLASS_ID)) return;
+    seen.add(s.CLASS_ID);
+    out.push({ id: s.CLASS_ID, name: className(s.CLASS_ID) || s.CLASS_ID, muclass: classMuclass(s.CLASS_ID) });
+  });
+  return out;
+}
+function reportCsvAoa(items){
+  const headers = ['DAY','START','END','KIND','LESSON','TEACHER','TEACHER_ID','ROOM','ROOM_ID','STUDENTS','STUDENT_IDS','CLASS','MUCLASS_TYPE'];
+  const rows = (items || []).map(i => {
+    const students = studentsForScheduledItem(i);
+    const names = (i.studentNames && i.studentNames.length)
+      ? i.studentNames.slice()
+      : students.map(studentDisplayName);
+    const classes = reportItemClasses(i);
+    const kind = reportItemKind(i);
+    return [
+      i.day || '',
+      i.start != null ? toHHMM(i.start) : '',
+      i.end != null ? toHHMM(i.end) : '',
+      reportKindLabel(kind),
+      i.name || '',
+      kind === 'class' ? '' : (i.teacher || teacherName(i.teacherId) || ''),
+      kind === 'class' ? '' : (i.teacherId || ''),
+      kind === 'class' ? '' : itemRoomLabel(i),
+      kind === 'class' ? '' : itemRoomId(i),
+      names.join(', '),
+      reportItemStudentIds(i).join(', '),
+      classes.map(c => c.name).join(', '),
+      [...new Set(classes.map(c => c.muclass).filter(Boolean))].join(', ')
+    ];
+  });
+  return [headers].concat(rows);
+}
+function fillReportSelect(el, options, blankLabel, current){
+  if(!el) return;
+  const opts = [`<option value="">${blankLabel}</option>`].concat((options || []).map(o => {
+    const value = escapeAttr(o.value);
+    const label = escapeAttr(o.label);
+    return `<option value="${value}">${label}</option>`;
+  }));
+  el.innerHTML = opts.join('');
+  if(current && [...(el.options || [])].some(o => o.value === current)){
+    el.value = current;
+  } else if(current){
+    el.value = current;
+  } else {
+    el.value = '';
+  }
+}
+function readReportFiltersFromUi(){
+  const val = (id) => {
+    const el = document.getElementById(id);
+    return el && el.value != null ? String(el.value) : '';
+  };
+  REPORT_FILTERS = {
+    classId: val('reportClassFilter'),
+    studentId: val('reportStudentFilter'),
+    muclass: val('reportMuclassFilter'),
+    roomId: val('reportRoomFilter'),
+    teacherId: val('reportTeacherFilter'),
+    kind: val('reportKindFilter'),
+    showClassReservations: (() => {
+      const el = document.getElementById('reportShowClassReservations');
+      if(!el) return REPORT_FILTERS.showClassReservations !== false;
+      return !!el.checked;
+    })()
+  };
+}
+function fillReportFilterOptions(){
+  const classes = (DB.refClasses || []).slice().sort((a,b) => String(a.name||a.id).localeCompare(String(b.name||b.id)));
+  const students = (DB.students || []).slice().sort((a,b) => studentDisplayName(a).localeCompare(studentDisplayName(b)));
+  const muclasses = [...new Set((DB.refClasses || []).map(c => classMuclass(c.id)).filter(Boolean))].sort((a,b) => String(a).localeCompare(String(b)));
+  const rooms = (DB.refRooms || []).slice().sort((a,b) => String(a.name||a.id).localeCompare(String(b.name||b.id)));
+  const teachers = (DB.refTeachers || []).slice().sort((a,b) => String(a.name||a.id).localeCompare(String(b.name||b.id)));
+  fillReportSelect(document.getElementById('reportClassFilter'),
+    classes.map(c => ({ value: c.id, label: (c.name || c.id) + (classMuclass(c.id) ? ' · ' + classMuclass(c.id) : '') })),
+    'All classes', REPORT_FILTERS.classId);
+  fillReportSelect(document.getElementById('reportStudentFilter'),
+    students.map(s => ({ value: s.ID, label: studentDisplayName(s) })),
+    'All students', REPORT_FILTERS.studentId);
+  fillReportSelect(document.getElementById('reportMuclassFilter'),
+    muclasses.map(m => ({ value: m, label: m })),
+    'All MUCLASS_TYPE', REPORT_FILTERS.muclass);
+  fillReportSelect(document.getElementById('reportRoomFilter'),
+    rooms.map(r => ({ value: r.id, label: r.name || r.id })),
+    'All rooms', REPORT_FILTERS.roomId);
+  fillReportSelect(document.getElementById('reportTeacherFilter'),
+    teachers.map(t => ({ value: t.id, label: t.name || t.id })),
+    'All teachers', REPORT_FILTERS.teacherId);
+  const kindEl = document.getElementById('reportKindFilter');
+  if(kindEl && REPORT_FILTERS.kind) kindEl.value = REPORT_FILTERS.kind;
+  const showClassEl = document.getElementById('reportShowClassReservations');
+  if(showClassEl) showClassEl.checked = REPORT_FILTERS.showClassReservations !== false;
+}
+function renderReportList(container, items){
+  if(!container) return;
+  if(!items.length){
+    container.innerHTML = '';
+    return;
+  }
+  let html = '<table class="data tt"><thead><tr><th>Day</th><th>Time</th><th>Kind</th><th>Lesson</th><th>Teacher</th><th>Room</th><th>Class</th><th>Students</th></tr></thead><tbody>';
+  items.forEach(i => {
+    const isClass = reportItemKind(i) === 'class';
+    const students = isClass ? [] : studentsForScheduledItem(i);
+    const names = isClass
+      ? (i.classNames || []).slice()
+      : ((i.studentNames && i.studentNames.length) ? i.studentNames.slice() : students.map(studentDisplayName));
+    const classes = reportItemClasses(i).map(c => c.name).join(', ');
+    const studentTitle = escapeAttr(names.length ? `${i.name}\n${names.join('\n')}` : (i.name || ''));
+    const blockCls = isClass ? ' lesson-block is-class' : 'lesson-block';
+    html += `<tr>
+      <td class="tt-time">${DAY_LABEL[i.day] || i.day}</td>
+      <td class="tt-time">${toHHMM(i.start)}–${toHHMM(i.end)}</td>
+      <td>${reportKindLabel(reportItemKind(i))}</td>
+      <td><div class="${blockCls}" data-tooltip="${studentTitle}"><b>${i.name || ''}${!isClass && itemRoomId(i) ? ' 🔒'+itemRoomLabel(i) : ''}</b></div></td>
+      <td>${isClass ? '—' : (i.teacher || teacherName(i.teacherId) || '')}</td>
+      <td>${isClass ? '—' : (itemRoomLabel(i) || '—')}</td>
+      <td>${classes || '—'}</td>
+      <td>${isClass ? '—' : names.length}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+function classReservationLegendChip(){
+  return `<span class="legend-chip"><span class="swatch" style="background:rgba(224,87,107,.30);border-color:#c43b50"></span>Class reservation</span>`;
+}
+function renderReportsTab(){
+  fillReportFilterOptions();
+  const all = reportWeekItems();
+  const items = REPORT_FILTERS.kind === 'class' ? [] : filterReportItems(all, REPORT_FILTERS);
+  const reservations = reportClassReservationItems(REPORT_FILTERS, items);
+  const overlay = mergeClassReservationItems(reservations);
+  const count = document.getElementById('reportCount');
+  const empty = document.getElementById('reportEmpty');
+  const grid = document.getElementById('reportGrid');
+  const list = document.getElementById('reportList');
+  const legend = document.getElementById('reportLegend');
+  const total = all.length;
+  const bits = [];
+  if(total) bits.push(`${items.length} of ${total} items`);
+  if(reservations.length) bits.push(`${reservations.length} class reservation${reservations.length === 1 ? '' : 's'}`);
+  if(count) count.textContent = bits.join(' · ') || 'No calendar items yet';
+  if(empty){
+    if(items.length || reservations.length) empty.textContent = '';
+    else if(total) empty.textContent = 'Nothing matches these filters.';
+    else empty.textContent = 'Generate group lessons (and 1/1 / Required Piano) to fill the week calendar. Tick Class reservations to overlay CLASS_CONST busy times in red.';
+  }
+  if(legend){
+    const groups = items.filter(i => reportItemKind(i) === 'group');
+    const chips = [];
+    if(reservations.length) chips.push(classReservationLegendChip());
+    if(groups.length){
+      legend.style.display = 'flex';
+      renderTeacherLegend(legend, groups);
+      if(chips.length) legend.innerHTML = chips.join('') + (legend.innerHTML || '');
+    } else if(chips.length){
+      legend.style.display = 'flex';
+      legend.innerHTML = chips.join('');
+    } else {
+      legend.style.display = 'none';
+      legend.innerHTML = '';
+    }
+  }
+  if(grid) renderCalendar(grid, items.concat(overlay), true, 'none');
+  renderReportList(list, items.concat(reservations));
+  if(grid) attachHoverTooltips(grid);
+  if(list) attachHoverTooltips(list);
+}
+function downloadReportCsv(){
+  const all = reportWeekItems();
+  const items = REPORT_FILTERS.kind === 'class' ? [] : filterReportItems(all, REPORT_FILTERS);
+  const reservations = reportClassReservationItems(REPORT_FILTERS, items);
+  const rows = items.concat(reservations);
+  if(!rows.length){ alert('Nothing to export for these filters.'); return; }
+  const aoa = reportCsvAoa(rows);
+  downloadFile('bartokkonzi_timetable_report.csv', aoa.map(toCsvRow).join('\r\n'));
+}
+function printReports(){
+  if(typeof document === 'undefined' || !document.body) return;
+  document.body.classList.add('is-print-report');
+  const done = () => document.body.classList.remove('is-print-report');
+  if(typeof window !== 'undefined' && window.addEventListener){
+    window.addEventListener('afterprint', done, { once: true });
+  }
+  if(typeof window !== 'undefined' && typeof window.print === 'function') window.print();
+  else done();
+}
 function timetableAuditItems(scheduled){
   return (scheduled || []).concat(frozenIndividualItems());
 }
@@ -2818,7 +3379,13 @@ function auditTimetable(scheduled){
     const tw = teacherWindowClash(item.teacherId, item.teacher, item.day, item.start, item.end);
     if(tw) addIssue(`<b>${item.name}</b> ${itemSlotLabel(item)} — ${tw}`, item.lessonId);
     const sr = studentReservationClash(studentsOf.get(item) || [], item.day, item.start, item.end);
-    if(sr) addIssue(`<b>${item.name}</b> ${itemSlotLabel(item)} — ${sr}`, item.lessonId);
+    if(sr){
+      if(scheduledItemIsPinned(item)){
+        addWarning(`<b>${item.name}</b> ${itemSlotLabel(item)} — ${sr} (pinned; placed anyway)`, item.lessonId);
+      } else {
+        addIssue(`<b>${item.name}</b> ${itemSlotLabel(item)} — ${sr}`, item.lessonId);
+      }
+    }
   });
 
   for(let i=0;i<list.length;i++){
@@ -2857,9 +3424,11 @@ function auditTimetable(scheduled){
       const dayItems = items.filter(it => it.day === day).slice().sort((a,b)=> a.start-b.start || a.end-b.end);
       for(let i=1;i<dayItems.length;i++){
         const prev = dayItems[i-1], cur = dayItems[i];
-        const gap = cur.start - prev.end;
+        const win = teacherDayWindows(tid)[day];
+        const gap = breakGapBetweenIntervals(teacherWindowIntervals(win), prev.end, cur.start);
         if(gap < 0) continue;
         const extra = breakUnitsForGap(gap, bs.minutes);
+        if(bs.unconstrained) continue;
         if(gap > 0 && extra === null){
           const allowed = (bs.minutes === 0 || bs.count === 0)
             ? 'no gap (this teacher has no break budget)'
@@ -2870,7 +3439,7 @@ function auditTimetable(scheduled){
         }
       }
     });
-    if(units > bs.count){
+    if(!bs.unconstrained && units > bs.count){
       const budget = (bs.minutes === 0 || bs.count === 0)
         ? '0 (no gaps allowed)'
         : `${bs.minutes} min × ${bs.count}`;
@@ -3716,6 +4285,7 @@ function collectUiState(){
     scheduleSearchAttempts: document.getElementById('scheduleSearchAttempts') ? document.getElementById('scheduleSearchAttempts').value : '',
     viewMode: document.getElementById('viewMode') ? document.getElementById('viewMode').value : 'week',
     teacherFilter: document.getElementById('teacherFilter') ? document.getElementById('teacherFilter').value : '',
+    reportFilters: Object.assign({}, REPORT_FILTERS),
     activeTab: activeBtn && activeBtn.dataset.tab ? activeBtn.dataset.tab : 'students'
   };
 }
@@ -3738,6 +4308,7 @@ function applyUiState(ui){
       else {
         if(tab === 'rpiano' && !canOpenRpiano()) tab = canOpenOneOne() ? 'oneone' : 'timetable';
         if(tab === 'oneone' && !canOpenOneOne()) tab = 'timetable';
+        if(tab === 'reports' && !canOpenReports()) tab = 'timetable';
       }
       showTab(tab);
     } catch(e){
@@ -3753,6 +4324,9 @@ function applyUiState(ui){
   const tf = document.getElementById('teacherFilter');
   if(tf && ui.teacherFilter && [...tf.options].some(o => o.value === ui.teacherFilter)){
     tf.value = ui.teacherFilter;
+  }
+  if(ui.reportFilters && typeof ui.reportFilters === 'object'){
+    REPORT_FILTERS = Object.assign(emptyReportFilters(), ui.reportFilters);
   }
   if(LAST_RESULT && (ui.viewMode || ui.teacherFilter)) renderGrid();
 }
@@ -3936,14 +4510,22 @@ function gvizDateToTime(v){
   if(!m) return '';
   return String(m[4]).padStart(2,'0') + ':' + String(m[5]).padStart(2,'0');
 }
+function gvizTimeOfDay(v){
+  if(!Array.isArray(v) || v.length < 2) return '';
+  const h = Number(v[0]), m = Number(v[1]);
+  if(!Number.isFinite(h) || !Number.isFinite(m) || h < 0 || h > 23 || m < 0 || m > 59) return '';
+  return String(h).padStart(2,'0') + ':' + String(Math.floor(m)).padStart(2,'0');
+}
 function cellStr(c){
   if(c == null) return '';
   if(typeof c !== 'object'){
-    return gvizDateToTime(c) || cleanCellText(c);
+    return gvizDateToTime(c) || gvizTimeOfDay(c) || cleanCellText(c);
   }
+  const fromV = gvizDateToTime(c.v) || gvizTimeOfDay(c.v);
+  if(fromV) return fromV;
   if(c.f != null && String(c.f).trim() !== '') return cleanCellText(c.f);
   if(c.v == null) return '';
-  return gvizDateToTime(c.v) || cleanCellText(c.v);
+  return cleanCellText(c.v);
 }
 function isBlankHeader(h){
   const n = normHeader(h);
@@ -3973,6 +4555,35 @@ function inferHeaders(labels, colTypes, sheetKey){
       continue;
     }
     if(out[i]) continue;
+    if(sheetKey === 'classAvail' && !out[i] && prev === 'DAY'){
+      const later = out.slice(i + 1);
+      out[i] = later.some(h => h === 'START') ? 'L_STAR' : 'START';
+      continue;
+    }
+    if(sheetKey === 'classAvail' && !out[i] && (prev === 'L_STAR' || prev === 'L_START' || prev === 'LSTAR')){
+      out[i] = 'L_END';
+      continue;
+    }
+    if(sheetKey === 'classAvail' && !out[i] && (prev === 'L_END' || prev === 'LEND')){
+      out[i] = 'START';
+      continue;
+    }
+    if(prev === 'FIXED_DAY' || prev === 'FIXEDDAY' || prev === 'PIN_DAY'){
+      out[i] = 'FIXED_START';
+      continue;
+    }
+    if(prev === 'FIXED_START' || prev === 'FIXEDSTART' || prev === 'PIN_START'){
+      out[i] = 'FIXED_END';
+      continue;
+    }
+    if(prev === 'SCHEDULED_DAY'){
+      out[i] = 'SCHEDULED_START';
+      continue;
+    }
+    if(prev === 'SCHEDULED_START'){
+      out[i] = 'SCHEDULED_END';
+      continue;
+    }
     if(typ === 'datetime' || typ === 'timeofday' || prev === 'DAY' || prev === 'START'){
       out[i] = prev === 'START' ? 'END' : 'START';
       continue;
@@ -4348,9 +4959,9 @@ function sheetsTablesToDb(tables){
         duration: parseInt(rowGet(r,'DURATION_MIN','DURATION'),10) || 90,
         roomId: room.roomId,
         room: room.room,
-        fixedDay: normDay(rowGet(r,'FIXED_DAY')),
-        fixedStart: normTime(rowGet(r,'FIXED_START')),
-        fixedEnd: normTime(rowGet(r,'FIXED_END')),
+        fixedDay: normDay(rowGet(r,'FIXED_DAY','FIXEDDAY','PIN_DAY')),
+        fixedStart: normTime(rowGet(r,'FIXED_START','FIXEDSTART','PIN_START')),
+        fixedEnd: normTime(rowGet(r,'FIXED_END','FIXEDEND','PIN_END')),
         scheduledDay: normDay(rowGet(r,'SCHEDULED_DAY')),
         scheduledStart: normTime(rowGet(r,'SCHEDULED_START')),
         scheduledEnd: normTime(rowGet(r,'SCHEDULED_END')),
@@ -4389,8 +5000,11 @@ function sheetsTablesToDb(tables){
         class: resolveName(cById, classId, cls),
         classId,
         day: normDay(rowGet(r,'DAY')),
+        lStar: rowGet(r,'L_STAR','LSTAR','L_START','LSTART','LESSON_START'),
+        lEnd: rowGet(r,'L_END','LEND','LESSON_END'),
         start: normTime(rowGet(r,'START')),
         end: normTime(rowGet(r,'END')),
+        avail: rowGet(r,'AVAIL','AVAILABLE'),
         note: rowGet(r,'NOTE','OPTION'),
       };
     }).filter(r => (r.classId || r.class) && r.day && (r.start || r.end));
@@ -4579,9 +5193,10 @@ const DRIVE_EXPORT_SPECS = [
   },
   {
     key: 'classAvail', name: 'CLASS_CONST',
-    headers: ['CLASS','CLASS_ID','DAY','START','END','AVAIL','NOTE'],
+    headers: ['CLASS','CLASS_ID','DAY','L_STAR','L_END','START','END','AVAIL','NOTE'],
     rows: (db) => (db.classAvail || []).map(r => [
-      r.class, r.classId, r.day, exportTime(r.start), exportTime(r.end), 'RESERVED', r.note
+      r.class, r.classId, r.day, r.lStar || '', r.lEnd || '',
+      exportTime(r.start), exportTime(r.end), r.avail || 'RESERVED', r.note
     ])
   },
   {
@@ -4981,9 +5596,9 @@ function parseSmallGroupsTable(rows, students, ctx){
       rec.duration = parseInt(rowGet(r, 'DURATION_MIN', 'DURATION'), 10) || 90;
       rec.roomId = room.roomId || (fallbackRoom && fallbackRoom.id) || '';
       rec.room = room.room || (fallbackRoom && fallbackRoom.name) || rec.room;
-      rec.fixedDay = normDay(rowGet(r, 'FIXED_DAY'));
-      rec.fixedStart = normTime(rowGet(r, 'FIXED_START'));
-      rec.fixedEnd = normTime(rowGet(r, 'FIXED_END'));
+      rec.fixedDay = normDay(rowGet(r, 'FIXED_DAY', 'FIXEDDAY', 'PIN_DAY'));
+      rec.fixedStart = normTime(rowGet(r, 'FIXED_START', 'FIXEDSTART', 'PIN_START'));
+      rec.fixedEnd = normTime(rowGet(r, 'FIXED_END', 'FIXEDEND', 'PIN_END'));
       rec.scheduledDay = normDay(rowGet(r, 'SCHEDULED_DAY'));
       rec.scheduledStart = normTime(rowGet(r, 'SCHEDULED_START'));
       rec.scheduledEnd = normTime(rowGet(r, 'SCHEDULED_END'));
@@ -4998,9 +5613,9 @@ function parseSmallGroupsTable(rows, students, ctx){
         rec.roomId = room.roomId;
         rec.room = room.room;
       }
-      fillIfEmpty(rec, 'fixedDay', normDay(rowGet(r, 'FIXED_DAY')));
-      fillIfEmpty(rec, 'fixedStart', normTime(rowGet(r, 'FIXED_START')));
-      fillIfEmpty(rec, 'fixedEnd', normTime(rowGet(r, 'FIXED_END')));
+      fillIfEmpty(rec, 'fixedDay', normDay(rowGet(r, 'FIXED_DAY', 'FIXEDDAY', 'PIN_DAY')));
+      fillIfEmpty(rec, 'fixedStart', normTime(rowGet(r, 'FIXED_START', 'FIXEDSTART', 'PIN_START')));
+      fillIfEmpty(rec, 'fixedEnd', normTime(rowGet(r, 'FIXED_END', 'FIXEDEND', 'PIN_END')));
       fillIfEmpty(rec, 'scheduledDay', normDay(rowGet(r, 'SCHEDULED_DAY')));
       fillIfEmpty(rec, 'scheduledStart', normTime(rowGet(r, 'SCHEDULED_START')));
       fillIfEmpty(rec, 'scheduledEnd', normTime(rowGet(r, 'SCHEDULED_END')));
@@ -5024,6 +5639,130 @@ function parseSmallGroupsTable(rows, students, ctx){
   });
 }
 
+function smallGroupContainsStudent(sg, sid){
+  const id = String(sid);
+  return SMALL_GROUP_TYPES.some(t => (sg[t] || []).some(s => String(s.ID) === id));
+}
+function smallGroupRoleForStudent(s){
+  const type = studentType(s);
+  return SMALL_GROUP_TYPES.includes(type) ? type : 'sol';
+}
+function setSmallGroupStudentMembership(sg, student, on){
+  if(!sg || !student) return false;
+  const sid = String(student.ID);
+  const had = smallGroupContainsStudent(sg, sid);
+  if(on){
+    if(had) return false;
+    const role = smallGroupRoleForStudent(student);
+    sg[role] = sg[role] || [];
+    sg[role].push(student);
+    return true;
+  }
+  if(!had) return false;
+  SMALL_GROUP_TYPES.forEach(t => {
+    sg[t] = (sg[t] || []).filter(s => String(s.ID) !== sid);
+  });
+  return true;
+}
+
+let EDITING_SMALL_GROUP_INDEX = null;
+function hideSmallGroupStudentsEditor(){
+  EDITING_SMALL_GROUP_INDEX = null;
+  setModalOverlay('smallGroupStudentsOverlay', false);
+}
+function isSmallGroupStudentsEditorOpen(){
+  return overlayIsOpen(document.getElementById('smallGroupStudentsOverlay'));
+}
+function applySmallGroupStudentsFilter(){
+  const q = ((document.getElementById('smallGroupStudentsFilter') || {}).value || '').trim().toLowerCase();
+  const table = document.getElementById('smallGroupStudentsTable');
+  if(!table || !table.querySelectorAll) return;
+  table.querySelectorAll('tbody tr').forEach(tr => {
+    const hay = (tr.getAttribute && tr.getAttribute('data-search') || '').toLowerCase();
+    tr.style.display = !q || hay.includes(q) ? '' : 'none';
+  });
+}
+function showSmallGroupStudentsEditor(index){
+  if(SEARCH_UI_LOCK) return;
+  if(!LAST_SMALL_GROUPS || !LAST_SMALL_GROUPS.smallGroups || !LAST_SMALL_GROUPS.smallGroups[index]) return;
+  abortCalendarInteraction();
+  setModalOverlay('searchLogOverlay', false);
+  setModalOverlay('smallGroupQuotasOverlay', false);
+  hideGenerateConfirm();
+  EDITING_SMALL_GROUP_INDEX = index;
+  const filter = document.getElementById('smallGroupStudentsFilter');
+  if(filter) filter.value = '';
+  renderSmallGroupStudentsEditor();
+  setModalOverlay('smallGroupStudentsOverlay', true);
+}
+function renderSmallGroupStudentsEditor(){
+  const sg = LAST_SMALL_GROUPS && LAST_SMALL_GROUPS.smallGroups && LAST_SMALL_GROUPS.smallGroups[EDITING_SMALL_GROUP_INDEX];
+  const title = document.getElementById('smallGroupStudentsTitle');
+  const table = document.getElementById('smallGroupStudentsTable');
+  if(!sg || !table){
+    hideSmallGroupStudentsEditor();
+    return;
+  }
+  if(title) title.textContent = `Edit students — ${smallGroupShortLabel(sg)}`;
+  const members = new Set(SMALL_GROUP_TYPES.flatMap(t => (sg[t] || []).map(s => String(s.ID))));
+  const students = (DB.students || []).slice().sort((a,b) =>
+    studentDisplayName(a).localeCompare(studentDisplayName(b), undefined, {sensitivity:'base'})
+  );
+  let html = `<thead><tr>
+    <th style="width:36px"></th>
+    <th>Name</th>
+    <th>Instrument</th>
+    <th>Class</th>
+    <th>MUCLASS type</th>
+  </tr></thead><tbody>`;
+  students.forEach(s => {
+    const name = studentDisplayName(s);
+    const instr = instrName(s.INSTR_ID) || '—';
+    const cls = className(s.CLASS_ID) || '—';
+    const mu = studentMuclass(s) || '—';
+    const sid = String(s.ID);
+    const search = `${name} ${instr} ${cls} ${mu} ${sid}`;
+    const on = members.has(sid);
+    html += `<tr data-sid="${escapeAttr(sid)}" data-search="${escapeAttr(search)}" class="${on ? 'is-member' : ''}">
+      <td><input type="checkbox" class="small-group-student-check" data-sid="${escapeAttr(sid)}"${on ? ' checked' : ''}></td>
+      <td>${escapeAttr(name)}</td>
+      <td>${escapeAttr(instr)}</td>
+      <td>${escapeAttr(cls)}</td>
+      <td>${escapeAttr(mu)}</td>
+    </tr>`;
+  });
+  html += '</tbody>';
+  table.innerHTML = html;
+  function toggleSid(sid, on){
+    const live = LAST_SMALL_GROUPS && LAST_SMALL_GROUPS.smallGroups && LAST_SMALL_GROUPS.smallGroups[EDITING_SMALL_GROUP_INDEX];
+    const student = (DB.students || []).find(x => String(x.ID) === String(sid));
+    if(!live || !student) return;
+    if(!setSmallGroupStudentMembership(live, student, on)) return;
+    LAST_SMALL_GROUPS.appearances = computeSmallGroupAppearanceCounts(LAST_SMALL_GROUPS.smallGroups);
+    renderSmallGroupsResults(LAST_SMALL_GROUPS);
+    markWorkDirty();
+    const row = table.querySelector(`tr[data-sid="${String(sid).replace(/"/g, '')}"]`);
+    if(row && row.classList) row.classList.toggle('is-member', !!on);
+  }
+  if(table.querySelectorAll){
+    table.querySelectorAll('.small-group-student-check').forEach(cb => {
+      cb.addEventListener('change', e => {
+        toggleSid(e.currentTarget.dataset.sid, e.currentTarget.checked);
+      });
+    });
+    table.querySelectorAll('tbody tr').forEach(tr => {
+      tr.addEventListener('click', e => {
+        if(e.target && e.target.closest && e.target.closest('input')) return;
+        const cb = tr.querySelector && tr.querySelector('input[type="checkbox"]');
+        if(!cb) return;
+        cb.checked = !cb.checked;
+        toggleSid(cb.dataset.sid, cb.checked);
+      });
+    });
+  }
+  applySmallGroupStudentsFilter();
+}
+
 function renderSmallGroupCard(sg, index, appearanceCounts){
   const jc = {};
   SMALL_GROUP_TYPES.forEach(t => sg[t].forEach(s => { const j = studentMuclass(s); jc[j] = (jc[j]||0)+1; }));
@@ -5036,7 +5775,6 @@ function renderSmallGroupCard(sg, index, appearanceCounts){
       rows += `<div class="small-group-member${isDouble?' double-booked':''}">
         <span class="role">${t.toUpperCase()}</span>
         <span class="who">${studentDisplayName(s)}<br><span class="cls">${instrName(s.INSTR_ID)} · ${className(s.CLASS_ID)||'—'}</span></span>
-        <button class="small-group-member-remove" data-small-group="${index}" data-type="${t}" data-sid="${s.ID}" title="Remove from this small group">✕</button>
       </div>`;
     });
   });
@@ -5055,13 +5793,6 @@ function renderSmallGroupCard(sg, index, appearanceCounts){
     )
   ).join('');
 
-  const memberIds = new Set(SMALL_GROUP_TYPES.flatMap(t => sg[t].map(s => s.ID)));
-  const addOptions = ['<option value="">+ Add student…</option>'].concat(
-    DB.students
-      .filter(s => !memberIds.has(s.ID))
-      .map(s => `<option value="${escapeAttr(s.ID)}">${escapeAttr(studentDisplayName(s))} — ${escapeAttr(instrName(s.INSTR_ID))}${studentType(s)?'':' (no TYPE)'}</option>`)
-  ).join('');
-
   return `<div class="small-group-card">
     <h4><span>${escapeAttr(smallGroupShortLabel(sg))} <span class="small-group-jmix">${jmix}</span></span><button class="small-group-member-remove small-group-delete-btn" data-small-group="${index}" title="Delete this small group">✕</button></h4>
     <div class="small-group-teacher-row small-group-teacher-assign">
@@ -5078,7 +5809,7 @@ function renderSmallGroupCard(sg, index, appearanceCounts){
         </select>
       </label>
     </div>
-    <div class="small-group-teacher-row" title="Optional — pin this small group to an exact slot. Still fails if a member has a class reservation then, or no matching teacher is free.">
+    <div class="small-group-teacher-row" title="Optional — pin this small group to an exact slot. Overlapping a class reservation or an illegal teacher gap still places it (warning). Fails if no matching teacher is free.">
       <label>Fixed time</label>
       <select class="small-group-fixedday-select" data-small-group="${index}" style="width:64px;padding:6px 4px;font-size:11px;">
         <option value="">—</option>
@@ -5095,8 +5826,8 @@ function renderSmallGroupCard(sg, index, appearanceCounts){
         : '—'}</span>
     </div>
     ${rows}
-    <div class="small-group-add-row">
-      <select class="small-group-add-select" data-small-group="${index}">${addOptions}</select>
+    <div class="small-group-edit-row">
+      <button type="button" class="btn secondary small small-group-edit-students-btn" data-small-group="${index}">Edit students</button>
     </div>
   </div>`;
 }
@@ -5105,11 +5836,7 @@ document.getElementById('generateSmallGroupsBtn').addEventListener('click', requ
 
 function requestGenerateSmallGroups(){
   if(SEARCH_UI_LOCK) return;
-  if(hasAcceptedRecord()){
-    showGenerateConfirm('smallgroups');
-    return;
-  }
-  queueGenerateSmallGroups(false);
+  showGenerateConfirm('smallgroups');
 }
 function queueGenerateSmallGroups(clearAccepted){
   hideGenerateConfirm();
@@ -5216,6 +5943,7 @@ document.getElementById('smallGroupQuotasAddBtn').addEventListener('click', () =
   renderSmallGroupQuotasModal();
 });
 document.getElementById('smallGroupQuotasBtn').addEventListener('click', () => {
+  hideSmallGroupStudentsEditor();
   renderSmallGroupQuotasModal();
   setModalOverlay('smallGroupQuotasOverlay', true);
 });
@@ -5225,6 +5953,14 @@ document.getElementById('smallGroupQuotasCloseBtn').addEventListener('click', ()
 document.getElementById('smallGroupQuotasOverlay').addEventListener('click', (e) => {
   if(e.target.id === 'smallGroupQuotasOverlay') setModalOverlay('smallGroupQuotasOverlay', false);
 });
+const smallGroupStudentsCloseBtn = document.getElementById('smallGroupStudentsCloseBtn');
+if(smallGroupStudentsCloseBtn) smallGroupStudentsCloseBtn.addEventListener('click', hideSmallGroupStudentsEditor);
+const smallGroupStudentsOverlay = document.getElementById('smallGroupStudentsOverlay');
+if(smallGroupStudentsOverlay) smallGroupStudentsOverlay.addEventListener('click', (e) => {
+  if(e.target.id === 'smallGroupStudentsOverlay') hideSmallGroupStudentsEditor();
+});
+const smallGroupStudentsFilter = document.getElementById('smallGroupStudentsFilter');
+if(smallGroupStudentsFilter) smallGroupStudentsFilter.addEventListener('input', applySmallGroupStudentsFilter);
 
 function renderSmallGroupsResults(result){
   const {smallGroups, excluded, eligibleCount} = result;
@@ -5244,41 +5980,19 @@ function renderSmallGroupsResults(result){
 
   document.getElementById('smallGroupsGrid').innerHTML = smallGroups.map((b,i) => renderSmallGroupCard(b, i, appearanceCounts)).join('');
 
-  document.querySelectorAll('.small-group-member-remove:not(.small-group-delete-btn)').forEach(btn => {
-    btn.addEventListener('click', e => {
-      const bi = parseInt(e.currentTarget.dataset.smallGroup, 10);
-      const type = e.currentTarget.dataset.type;
-      const sid = e.currentTarget.dataset.sid;
-      LAST_SMALL_GROUPS.smallGroups[bi][type] = LAST_SMALL_GROUPS.smallGroups[bi][type].filter(s => s.ID !== sid);
-      renderSmallGroupsResults(LAST_SMALL_GROUPS);
-      markWorkDirty();
-    });
-  });
   document.querySelectorAll('.small-group-delete-btn').forEach(btn => {
     btn.addEventListener('click', e => {
       const bi = parseInt(e.currentTarget.dataset.smallGroup, 10);
       LAST_SMALL_GROUPS.smallGroups.splice(bi, 1);
+      if(EDITING_SMALL_GROUP_INDEX === bi) hideSmallGroupStudentsEditor();
+      else if(EDITING_SMALL_GROUP_INDEX > bi) EDITING_SMALL_GROUP_INDEX -= 1;
       renderSmallGroupsResults(LAST_SMALL_GROUPS);
       markWorkDirty();
     });
   });
-  document.querySelectorAll('.small-group-add-select').forEach(sel => {
-    sel.addEventListener('change', e => {
-      const bi = parseInt(e.currentTarget.dataset.smallGroup, 10);
-      const sid = e.currentTarget.value;
-      if(!sid) return;
-      const student = DB.students.find(s => s.ID === sid);
-      if(!student) return;
-      let type = studentType(student);
-      if(!SMALL_GROUP_TYPES.includes(type)){
-        alert(`${studentDisplayName(student)}'s instrument (${instrName(student.INSTR_ID)||'—'}) has no recognized TYPE (sol/acc/bass/drum) — set it in Reference tables → Instruments first. Adding as SOL for now.`);
-        type = 'sol';
-      }
-      if(!LAST_SMALL_GROUPS.smallGroups[bi][type].some(s => s.ID === sid)){
-        LAST_SMALL_GROUPS.smallGroups[bi][type].push(student);
-      }
-      renderSmallGroupsResults(LAST_SMALL_GROUPS);
-      markWorkDirty();
+  document.querySelectorAll('.small-group-edit-students-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      showSmallGroupStudentsEditor(parseInt(e.currentTarget.dataset.smallGroup, 10));
     });
   });
   document.querySelectorAll('.small-group-teacher-select').forEach(sel => {
@@ -5603,7 +6317,7 @@ function scheduleOneToOne(opts){
       start: toMin(r.start) ?? DEFAULT_START,
       end: toMin(r.end) ?? DEFAULT_END
     }));
-    let ivs = subtractBusyFromIntervals([[win.start, win.end]], reserved);
+    let ivs = subtractBusyFromIntervals(teacherWindowIntervals(win), reserved);
     const busy = (tBusy[day] || []).concat(((maps.studentBusy[student.ID] || {})[day]) || []);
     ivs = subtractBusyFromIntervals(ivs, busy);
     const slots = [];
@@ -6064,17 +6778,91 @@ function logGroupLookahead(variants){
     item.searchLog = stripLookaheadLogSection(item.searchLog).concat(lookaheadLogLines(item, i, 'group'));
   });
 }
-function individualSearchFingerprint(kind){
+function individualSearchFingerprint(kind, scopeTeacherId){
   const matrix = kind === 'rpiano' ? DB.rpiano : DB.oneToOne;
+  const prev = kind === 'rpiano' ? LAST_RPIANO : LAST_ONEONE;
+  const kept = scopeTeacherId
+    ? ((prev && prev.scheduled) || [])
+      .filter(s => s.teacherId !== scopeTeacherId)
+      .map(s => [s.lessonId, s.day, s.start, s.end, s.teacherId])
+    : [];
   return JSON.stringify({
     kind,
+    scopeTeacherId: scopeTeacherId || '',
+    kept,
     accepted: (DB.acceptedSchedule || []).map(r => [r.lessonId, r.day, r.start, r.end, r.teacherId]),
     oneone: kind === 'rpiano' ? ((LAST_ONEONE && LAST_ONEONE.scheduled) || []).map(s => [s.lessonId, s.day, s.start, s.end]) : null,
     hours: (matrix && matrix.hours) || {}
   });
 }
-function applyIndividualSearch(kind, fresh, viewTeacherId){
-  const fp = individualSearchFingerprint(kind);
+function assignmentsForGenerate(matrix, teacherId){
+  const all = collectOneOneAssignments(matrix);
+  if(!teacherId) return all;
+  return all.filter(a => a.teacherId === teacherId);
+}
+function cloneIndividualKeep(state, teacherId){
+  if(!teacherId) return {scheduled: [], unresolved: []};
+  return {
+    scheduled: JSON.parse(JSON.stringify((state && state.scheduled || []).filter(s => s.teacherId !== teacherId))),
+    unresolved: JSON.parse(JSON.stringify((state && state.unresolved || []).filter(u => u.teacherId !== teacherId)))
+  };
+}
+function mergeKeptIntoVariants(variants, keep){
+  const keptSched = (keep && keep.scheduled) || [];
+  const keptUn = (keep && keep.unresolved) || [];
+  if(!keptSched.length && !keptUn.length) return variants || [];
+  return (variants || []).map(v => {
+    const scheduled = keptSched.concat((v.scheduled || []).map(s => Object.assign({}, s)));
+    scheduled.sort((a,b) => String(a.teacher||'').localeCompare(String(b.teacher||'')) || DAYS.indexOf(a.day) - DAYS.indexOf(b.day) || a.start - b.start);
+    return Object.assign({}, v, {
+      scheduled,
+      unresolved: keptUn.concat(v.unresolved || [])
+    });
+  });
+}
+function generateIndividualScoped(kind, scopeTeacherId){
+  const matrix = kind === 'rpiano' ? ensureRpianoMatrix() : ensureOneToOneMatrix();
+  const assignments = assignmentsForGenerate(matrix, scopeTeacherId);
+  const keep = cloneIndividualKeep(kind === 'rpiano' ? LAST_RPIANO : LAST_ONEONE, scopeTeacherId);
+  const searchOpts = kind === 'rpiano'
+    ? {
+      assignments,
+      acceptedRows: (DB.acceptedSchedule || []).concat(busyRowsFromScheduled(LAST_ONEONE && LAST_ONEONE.scheduled)),
+      existingOneOne: keep.scheduled,
+      source: 'rpiano',
+      lessonLabel: 'piano',
+      idPrefix: 'RP'
+    }
+    : {
+      assignments,
+      acceptedRows: DB.acceptedSchedule || [],
+      existingOneOne: keep.scheduled
+    };
+  return {
+    assignments,
+    keep,
+    variants: mergeKeptIntoVariants(scheduleAllOneToOneSearch(searchOpts), keep)
+  };
+}
+function fillIndividualGenerateTeacherSelect(sel, matrix){
+  if(!sel) return;
+  const ids = [...new Set(collectOneOneAssignments(matrix).map(a => a.teacherId).filter(Boolean))]
+    .sort((a,b) => String(teacherName(a)||a).localeCompare(String(teacherName(b)||b)));
+  const current = sel.value;
+  const pick = ids.includes(current) ? current : '';
+  sel.innerHTML = `<option value="">All teachers</option>` + ids.map(id =>
+    `<option value="${escapeAttr(id)}"${id===pick?' selected':''}>${escapeAttr(teacherName(id)||id)}</option>`
+  ).join('');
+}
+function individualGenerateBtnLabel(kind){
+  const sel = document.getElementById(kind === 'rpiano' ? 'rpianoGenerateTeacher' : 'oneoneGenerateTeacher');
+  const tid = sel && sel.value;
+  const who = tid ? (teacherName(tid) || tid) : '';
+  if(kind === 'rpiano') return who ? `▶ Generate ${who}` : '▶ Generate Required Piano';
+  return who ? `▶ Generate 1/1 · ${who}` : '▶ Generate all 1/1';
+}
+function applyIndividualSearch(kind, fresh, viewTeacherId, scopeTeacherId){
+  const fp = individualSearchFingerprint(kind, scopeTeacherId);
   const prev = kind === 'rpiano' ? LAST_RPIANO : LAST_ONEONE;
   let variants = fresh || [];
   if(prev && prev.inputFingerprint === fp && prev.variants && prev.variants.length){
@@ -6145,6 +6933,9 @@ function isTimetableAccepted(){
 function canOpenOneOne(){
   return isTimetableAccepted();
 }
+function canOpenReports(){
+  return isTimetableAccepted() || hasAcceptedOneOne() || hasAcceptedRpiano();
+}
 function updateAllTabLocks(){
   document.querySelectorAll('.tab-btn').forEach(btn => {
     const tab = btn.dataset.tab;
@@ -6157,6 +6948,7 @@ function updateAllTabLocks(){
     if(reason) btn.title = reason;
     else if(tab === 'oneone') btn.title = '1/1 individual lessons';
     else if(tab === 'rpiano') btn.title = 'Required Piano';
+    else if(tab === 'reports') btn.title = 'Filter the week calendar';
     else btn.removeAttribute('title');
   });
 }
@@ -6358,6 +7150,9 @@ function renderOneOneTab(){
   updateOneOneTabLock();
   updateRpianoTabLock();
   ensureOneToOneMatrix();
+  fillIndividualGenerateTeacherSelect(document.getElementById('oneoneGenerateTeacher'), DB.oneToOne);
+  const genBtn = document.getElementById('oneoneGenerateBtn');
+  if(genBtn && genBtn.textContent !== 'Generating…') genBtn.textContent = individualGenerateBtnLabel('oneone');
   const summary = document.getElementById('oneoneSummary');
   const tag = document.getElementById('oneoneStatusTag');
   const scheduled = (LAST_ONEONE && LAST_ONEONE.scheduled) || [];
@@ -6440,7 +7235,7 @@ function setOneOneGenerateBusy(busy){
   const btn = document.getElementById('oneoneGenerateBtn');
   if(!btn) return;
   btn.disabled = !!busy;
-  btn.textContent = busy ? 'Generating…' : '▶ Generate all 1/1';
+  btn.textContent = busy ? 'Generating…' : individualGenerateBtnLabel('oneone');
 }
 function runOneOneGenerate(){
   if(SEARCH_UI_LOCK) return;
@@ -6449,23 +7244,20 @@ function runOneOneGenerate(){
     return;
   }
   ensureOneToOneMatrix();
-  const assignments = collectOneOneAssignments(DB.oneToOne);
+  const scopeTeacherId = (document.getElementById('oneoneGenerateTeacher') || {}).value || '';
+  const assignments = assignmentsForGenerate(DB.oneToOne, scopeTeacherId);
   if(!assignments.length){
-    alert('The 1/1 matrix is empty. Fill hours in the table (1 = 60 min).');
+    alert(scopeTeacherId
+      ? 'That teacher has no 1/1 hours in the matrix.'
+      : 'The 1/1 matrix is empty. Fill hours in the table (1 = 60 min).');
     return;
   }
   setOneOneGenerateBusy(true);
   setTimeout(() => {
     try {
-      const variants = scheduleAllOneToOneSearch({
-        matrix: DB.oneToOne,
-        acceptedRows: DB.acceptedSchedule || []
-      });
-      const state = applyIndividualSearch(
-        'oneone',
-        variants,
-        (document.getElementById('oneoneTeacherFilter') || {}).value
-      );
+      const scoped = generateIndividualScoped('oneone', scopeTeacherId);
+      const viewId = scopeTeacherId || (document.getElementById('oneoneTeacherFilter') || {}).value;
+      const state = applyIndividualSearch('oneone', scoped.variants, viewId, scopeTeacherId);
       if(state && state.variants){
         attachOneOneLookahead(state.variants);
         const starI = suggestedVariantIndex(state.variants);
@@ -6514,6 +7306,10 @@ document.getElementById('oneoneTeacherFilter').addEventListener('change', () => 
   LAST_ONEONE = LAST_ONEONE || {scheduled: [], unresolved: []};
   LAST_ONEONE.viewTeacherId = document.getElementById('oneoneTeacherFilter').value;
   renderOneOneGrid();
+});
+document.getElementById('oneoneGenerateTeacher').addEventListener('change', () => {
+  const btn = document.getElementById('oneoneGenerateBtn');
+  if(btn && btn.textContent !== 'Generating…') btn.textContent = individualGenerateBtnLabel('oneone');
 });
 document.getElementById('exportOneoneAcceptedBtn').addEventListener('click', () => {
   const rows = hasAcceptedOneOne()
@@ -6564,6 +7360,7 @@ function renderRpianoGrid(){
 function renderRpianoTab(){
   updateRpianoTabLock();
   ensureRpianoMatrix();
+  fillIndividualGenerateTeacherSelect(document.getElementById('rpianoGenerateTeacher'), DB.rpiano);
   const summary = document.getElementById('rpianoSummary');
   const tag = document.getElementById('rpianoStatusTag');
   const scheduled = (LAST_RPIANO && LAST_RPIANO.scheduled) || [];
@@ -6600,7 +7397,10 @@ function renderRpianoTab(){
     acceptBtn.textContent = (LAST_RPIANO && LAST_RPIANO.accepted) ? '✓ Required Piano accepted' : '✓ Accept Required Piano';
   }
   const genBtn = document.getElementById('rpianoGenerateBtn');
-  if(genBtn && genBtn.textContent !== 'Generating…') genBtn.disabled = !hasAcceptedOneOne();
+  if(genBtn && genBtn.textContent !== 'Generating…'){
+    genBtn.disabled = !hasAcceptedOneOne();
+    genBtn.textContent = individualGenerateBtnLabel('rpiano');
+  }
   renderRpianoGrid();
   renderRpianoMatrix();
   fillAcceptedSchedulePanel({
@@ -6613,7 +7413,7 @@ function setRpianoGenerateBusy(busy){
   setSearchUiLock(busy);
   const btn = document.getElementById('rpianoGenerateBtn');
   if(!btn) return;
-  btn.textContent = busy ? 'Generating…' : '▶ Generate Required Piano';
+  btn.textContent = busy ? 'Generating…' : individualGenerateBtnLabel('rpiano');
   btn.disabled = busy || !hasAcceptedOneOne();
 }
 function runRpianoGenerate(){
@@ -6623,26 +7423,20 @@ function runRpianoGenerate(){
     return;
   }
   ensureRpianoMatrix();
-  const assignments = collectOneOneAssignments(DB.rpiano);
+  const scopeTeacherId = (document.getElementById('rpianoGenerateTeacher') || {}).value || '';
+  const assignments = assignmentsForGenerate(DB.rpiano, scopeTeacherId);
   if(!assignments.length){
-    alert('The Required Piano matrix is empty. Fill hours in the table (1 = 60 min).');
+    alert(scopeTeacherId
+      ? 'That teacher has no Required Piano hours in the matrix.'
+      : 'The Required Piano matrix is empty. Fill hours in the table (1 = 60 min).');
     return;
   }
   setRpianoGenerateBusy(true);
   setTimeout(() => {
     try {
-      const variants = scheduleAllOneToOneSearch({
-        matrix: DB.rpiano,
-        acceptedRows: (DB.acceptedSchedule || []).concat(busyRowsFromScheduled(LAST_ONEONE && LAST_ONEONE.scheduled)),
-        source: 'rpiano',
-        lessonLabel: 'piano',
-        idPrefix: 'RP'
-      });
-      applyIndividualSearch(
-        'rpiano',
-        variants,
-        (document.getElementById('rpianoTeacherFilter') || {}).value
-      );
+      const scoped = generateIndividualScoped('rpiano', scopeTeacherId);
+      const viewId = scopeTeacherId || (document.getElementById('rpianoTeacherFilter') || {}).value;
+      applyIndividualSearch('rpiano', scoped.variants, viewId, scopeTeacherId);
       renderRpianoTab();
       renderOneOneTab();
       if(LAST_RESULT) renderGrid();
@@ -6685,6 +7479,10 @@ document.getElementById('rpianoTeacherFilter').addEventListener('change', () => 
   LAST_RPIANO = LAST_RPIANO || {scheduled: [], unresolved: []};
   LAST_RPIANO.viewTeacherId = document.getElementById('rpianoTeacherFilter').value;
   renderRpianoGrid();
+});
+document.getElementById('rpianoGenerateTeacher').addEventListener('change', () => {
+  const btn = document.getElementById('rpianoGenerateBtn');
+  if(btn && btn.textContent !== 'Generating…') btn.textContent = individualGenerateBtnLabel('rpiano');
 });
 document.getElementById('exportRpianoAcceptedBtn').addEventListener('click', () => {
   const rows = hasAcceptedRpiano()
@@ -6775,7 +7573,6 @@ function updateAutosaveStatus(){
   } catch(e){}
 }
 function restoreAutosaveIfAny(){
-  if(!autosaveEnabled()) return false;
   try {
     const raw = localStorage.getItem(AUTOSAVE_KEY);
     if(!raw) return false;
@@ -6868,9 +7665,26 @@ document.getElementById('clearFixedPinsBtn').addEventListener('click', clearAllF
 document.getElementById('clearFixedPinsBtnLessons').addEventListener('click', clearAllFixedPins);
 document.getElementById('clearFixedPinsBtnSmallGroups').addEventListener('click', clearAllFixedPins);
 document.getElementById('discardAutosaveBtn').addEventListener('click', discardAutosaveAndReloadSeed);
+['reportClassFilter','reportStudentFilter','reportMuclassFilter','reportRoomFilter','reportTeacherFilter','reportKindFilter','reportShowClassReservations'].forEach(id => {
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.addEventListener('change', () => {
+    readReportFiltersFromUi();
+    renderReportsTab();
+  });
+});
+document.getElementById('reportClearBtn').addEventListener('click', () => {
+  REPORT_FILTERS = emptyReportFilters();
+  renderReportsTab();
+});
+document.getElementById('reportCsvBtn').addEventListener('click', downloadReportCsv);
+document.getElementById('reportPrintBtn').addEventListener('click', printReports);
+window.addEventListener('pagehide', flushAutosave);
+window.addEventListener('beforeunload', flushAutosave);
 
 // ---------- Init ----------
 try {
+  restoreAutosaveIfAny();
   renderStudents();
   renderLessons();
   renderAvail();

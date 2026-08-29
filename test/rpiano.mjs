@@ -236,6 +236,41 @@ function main(){
   ok('piano tab locked again', api.hasAcceptedOneOne() === false);
   ok('piano accept cleared', api.hasAcceptedRpiano() === false);
 
+  console.log('\n== generate one piano teacher keeps the other ==');
+  api.DB = clone(seed);
+  api.DB.students = ['S1','S2'].map((id, i) => ({
+    ID: id, NAME1: 'Stu', NAME2: String(i+1), NAME3: '', INSTR_ID: 'INST6', CLASS_ID: ''
+  }));
+  api.DB.refTeachers = [
+    {id:'T1', name:'Piano One'},
+    {id:'T2', name:'Piano Two'}
+  ];
+  api.DB.teacherAvail = ['MON','TUE','WED','THU','FRI'].flatMap(day => [
+    {teacherId:'T1', day, start:'08:00', end:'20:00', type:'AVAILABLE'},
+    {teacherId:'T2', day, start:'08:00', end:'20:00', type:'AVAILABLE'}
+  ]);
+  api.DB.classAvail = [];
+  api.DB.acceptedSchedule = [];
+  api.LAST_ONEONE = {scheduled: [], unresolved: [], accepted: true};
+  api.DB.rpiano = {
+    columns: [{id:'T1', name:'Piano One'}, {id:'T2', name:'Piano Two'}],
+    hours: {S1: {T1: 0.5}, S2: {T2: 0.5}}
+  };
+  api.LAST_RPIANO = null;
+  const p1 = api.generateIndividualScoped('rpiano', 'T1');
+  api.applyIndividualSearch('rpiano', p1.variants, 'T1', 'T1');
+  ok('first piano generate places only T1',
+    (api.LAST_RPIANO.scheduled || []).length >= 1
+    && (api.LAST_RPIANO.scheduled || []).every(s => s.teacherId === 'T1'));
+  const pianoT1 = clone(api.LAST_RPIANO.scheduled[0]);
+  const p2 = api.generateIndividualScoped('rpiano', 'T2');
+  api.applyIndividualSearch('rpiano', p2.variants, 'T2', 'T2');
+  ok('second piano teacher keeps the first',
+    (api.LAST_RPIANO.scheduled || []).some(s =>
+      s.teacherId === 'T1' && s.day === pianoT1.day && s.start === pianoT1.start));
+  ok('second piano teacher is placed',
+    (api.LAST_RPIANO.scheduled || []).some(s => s.teacherId === 'T2'));
+
   console.log(`\n${passed} passed, ${failed} failed`);
   if(failures.length){
     failures.forEach(f => console.error('  · ' + f));

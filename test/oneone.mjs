@@ -54,7 +54,7 @@ function main(){
   console.log('Loading app into harness…');
   const {api, seed} = loadApp();
 
-  ['scheduleOneToOne','scheduleAllOneToOne','scheduleAllOneToOneSearch','classFreeGaps','parseOneOneHours','oneOneHoursToMinutes','parseOneToOneTable','collectOneOneAssignments','hasAcceptedRecord','isTimetableAccepted','canOpenOneOne','buildFullExportObject','scheduledIdleGapMinutes','oneOneResultScore','compareOneOneResults'
+  ['scheduleOneToOne','scheduleAllOneToOne','scheduleAllOneToOneSearch','classFreeGaps','parseOneOneHours','oneOneHoursToMinutes','parseOneToOneTable','collectOneOneAssignments','hasAcceptedRecord','isTimetableAccepted','canOpenOneOne','buildFullExportObject','scheduledIdleGapMinutes','oneOneResultScore','compareOneOneResults','generateIndividualScoped','assignmentsForGenerate'
   ].forEach(name => {
     if(typeof api[name] !== 'function'){
       failed++;
@@ -157,7 +157,7 @@ function main(){
     blocked.scheduled.length === 0 && blocked.unresolved.length === 1,
     `scheduled=${blocked.scheduled.length} unresolved=${blocked.unresolved.length}`);
 
-  console.log('\n== smaller leftover class hole is still usable (unlike group classWindow) ==');
+  console.log('\n== smaller leftover class hole is still usable ==');
   installToy(api, seed, {
     teacherAvail: [
       {teacherId: 'T1', day: 'MON', start: '08:00', end: '09:00', type: 'AVAILABLE'},
@@ -414,6 +414,51 @@ function main(){
   ok('current accepted grid opens 1/1', api.canOpenOneOne() === true);
   api.LAST_RESULT.accepted = false;
   ok('unaccepted grid locks 1/1 even if freeze exists', api.hasAcceptedRecord() && api.canOpenOneOne() === false);
+
+  console.log('\n== generate one teacher keeps the other ==');
+  installToy(api, seed, {
+    teacherAvail: [
+      {teacherId: 'T1', day: 'MON', start: '08:00', end: '16:00', type: 'AVAILABLE'},
+      {teacherId: 'T2', day: 'TUE', start: '08:00', end: '16:00', type: 'AVAILABLE'},
+    ],
+    classAvail: [],
+    accepted: [],
+  });
+  api.DB.refTeachers = (api.DB.refTeachers || []).concat([{id:'T2', name:'Two'}]);
+  api.DB.oneToOne = {
+    columns: [{id:'T1', name:'One'}, {id:'T2', name:'Two'}],
+    hours: {S1: {T1: 1}, S2: {T2: 1}}
+  };
+  api.LAST_ONEONE = null;
+  ok('scope T1 returns only T1 assignments',
+    api.assignmentsForGenerate(api.DB.oneToOne, 'T1').length === 1
+    && api.assignmentsForGenerate(api.DB.oneToOne, 'T1')[0].teacherId === 'T1');
+  const onlyT1 = api.generateIndividualScoped('oneone', 'T1');
+  api.applyIndividualSearch('oneone', onlyT1.variants, 'T1', 'T1');
+  ok('first generate places only T1',
+    (api.LAST_ONEONE.scheduled || []).length >= 1
+    && (api.LAST_ONEONE.scheduled || []).every(s => s.teacherId === 'T1'),
+    (api.LAST_ONEONE.scheduled || []).map(s => s.teacherId).join(','));
+  const t1Kept = clone(api.LAST_ONEONE.scheduled[0]);
+  const addT2 = api.generateIndividualScoped('oneone', 'T2');
+  api.applyIndividualSearch('oneone', addT2.variants, 'T2', 'T2');
+  ok('T2 generate keeps T1 slot',
+    (api.LAST_ONEONE.scheduled || []).some(s =>
+      s.teacherId === 'T1' && s.day === t1Kept.day && s.start === t1Kept.start && s.studentId === t1Kept.studentId),
+    (api.LAST_ONEONE.scheduled || []).map(s => `${s.teacherId} ${s.day} ${s.start}`).join('; '));
+  ok('T2 generate also places T2',
+    (api.LAST_ONEONE.scheduled || []).some(s => s.teacherId === 'T2'));
+  const t2Kept = clone((api.LAST_ONEONE.scheduled || []).find(s => s.teacherId === 'T2'));
+  const redoT1 = api.generateIndividualScoped('oneone', 'T1');
+  api.applyIndividualSearch('oneone', redoT1.variants, 'T1', 'T1');
+  ok('regenerating T1 keeps T2',
+    t2Kept && (api.LAST_ONEONE.scheduled || []).some(s =>
+      s.teacherId === 'T2' && s.day === t2Kept.day && s.start === t2Kept.start && s.studentId === t2Kept.studentId));
+  const allAgain = api.generateIndividualScoped('oneone', '');
+  api.applyIndividualSearch('oneone', allAgain.variants, '', '');
+  ok('All teachers still places both',
+    (api.LAST_ONEONE.scheduled || []).some(s => s.teacherId === 'T1')
+    && (api.LAST_ONEONE.scheduled || []).some(s => s.teacherId === 'T2'));
 
   console.log(`\n${passed} passed, ${failed} failed`);
   if(failures.length){
