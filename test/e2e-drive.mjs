@@ -19,7 +19,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_ID = '1VmcZq9AyYb-c3iYHSv0Q8Lh90UwnceAxaQvy6lfJyXU';
 const REQUIRED_TABS = ['students','lessons','teacherAvail','classAvail','refTeachers','refClasses','refGroups','refInstruments'];
 const HOURS_TABS = ['oneToOne','rpiano'];
-const IDENTITY_HOURS_COLS = new Set(['STUDENT_ID','ID','NAME1','NAME2','NAME3','PUBLIC_NAME','INSTR','INSTR_ID','NAME']);
+const IDENTITY_HOURS_COLS = new Set(['STUDENT_ID','ID','NAME1','NAME2','NAME3','PUBLIC_NAME','INSTR','INSTR_ID','NAME','ROOM','ROOM_LOCK','ROOMLOCK','ROOM_ID','ROOM_NAME']);
 const DYNAMIC_HTML_IDS = new Set(['hoverTooltip']);
 const GROUP_FIELDS = [
   {name:'IMPR', id:'IMPR_ID', type:'IMPR'},

@@ -63,8 +63,29 @@ function breakGapBetweenIntervals(intervals, prevEnd, curStart){
   }
   return 0;
 }
-function teacherWindows(db, teacherId){
-  const rows = (db.teacherAvail || []).filter(r => r.teacherId === teacherId && r.type !== 'AVOID' && r.day && DAYS.includes(r.day));
+function availScopeOf(row){
+  const s = String((row && row.scope) || 'ALL').trim().toUpperCase();
+  if(s === 'O2O' || s === '1/1' || s === 'ONEONE' || s === 'INDIVIDUAL' || s === 'PIANO') return 'O2O';
+  if(s === 'GROUP' || s === 'GROUPS' || s === 'SG') return 'GROUP';
+  return 'ALL';
+}
+function availMatchesKind(row, kind){
+  if(!kind || kind === 'any') return true;
+  const scope = availScopeOf(row);
+  if(scope === 'ALL') return true;
+  if(kind === 'group') return scope === 'GROUP';
+  if(kind === 'oneone') return scope === 'O2O';
+  return true;
+}
+function placementKind(p){
+  if(!p) return 'any';
+  if(p.source === 'oneone' || p.source === 'rpiano') return 'oneone';
+  const id = String(p.lessonId || '');
+  if(id.startsWith('O2O-') || id.startsWith('RP-')) return 'oneone';
+  return 'group';
+}
+function teacherWindows(db, teacherId, kind){
+  const rows = (db.teacherAvail || []).filter(r => r.teacherId === teacherId && r.type !== 'AVOID' && r.day && DAYS.includes(r.day) && availMatchesKind(r, kind));
   const byDay = {};
   rows.forEach(r => {
     const rank = TYPE_RANK[r.type] ?? 2;
@@ -80,7 +101,7 @@ function teacherWindows(db, teacherId){
   Object.keys(byDay).forEach(day => {
     const w = byDay[day];
     const avoided = (db.teacherAvail || [])
-      .filter(r => r.teacherId === teacherId && r.type === 'AVOID' && r.day === day)
+      .filter(r => r.teacherId === teacherId && r.type === 'AVOID' && r.day === day && availMatchesKind(r, kind))
       .map(r => ({start: toMin(r.start) ?? DEFAULT_START, end: toMin(r.end) ?? DEFAULT_END}))
       .filter(iv => iv.end > iv.start);
     const ivs = subtractBusy([[w.start, w.end]], avoided);
@@ -96,8 +117,11 @@ function teacherWindows(db, teacherId){
 }
 
 function breakSettings(db, teacherId){
+  if(!(db && db.forbidUnlistedGroupGaps)){
+    return { minutes: 0, count: 0, unconstrained: true };
+  }
   const b = (db.breaks || []).find(r => r.teacherId === teacherId);
-  if(!b) return { minutes: 0, count: 0, unconstrained: true };
+  if(!b) return { minutes: 0, count: 0, unconstrained: false };
   return {
     minutes: Math.max(0, parseInt(b.breakMinutes, 10) || 0),
     count: Math.max(0, parseInt(b.breakCount, 10) || 0),
@@ -204,7 +228,7 @@ export function checkSchedule(db, smallGroups, result){
     if(!p.teacherId){
       errors.push(`${label(p)}: scheduled without a teacher`);
     } else {
-      const win = teacherWindows(db, p.teacherId)[p.day];
+      const win = teacherWindows(db, p.teacherId, placementKind(p))[p.day];
       if(!win) errors.push(`${label(p)}: teacher ${p.teacherId} has no availability on ${p.day}`);
       else if(!slotFitsWin(win, p.start, p.end)){
         const ranges = windowIntervals(win).map(([s,e]) => `${toHHMM(s)}–${toHHMM(e)}`).join(', ');

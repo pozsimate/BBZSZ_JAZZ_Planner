@@ -94,6 +94,7 @@ function installFixture(api, extra){
       {classId:'C1', day:'TUE', start:'10:00', end:'12:00'},
     ],
     breaks: [{teacherId:'T1', breakMinutes:45, breakCount:1}],
+    forbidUnlistedGroupGaps: true,
   };
   Object.assign(base, extra || {});
   api.DB = base;

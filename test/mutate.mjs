@@ -202,7 +202,7 @@ function mutateTeacherAvail(db, rng, ops, intensity){
     const end = type === 'AVOID' ? '' : hhmm(snap15(rng.int(15*60, 20*60)));
     db.teacherAvail.push({
       teacher: t.name, teacherId: t.id,
-      day: rng.pick(DAYS), start, end, type, option: 'endurance-fuzz',
+      day: rng.pick(DAYS), start, end, type, scope: 'ALL', option: 'endurance-fuzz',
     });
   }
   ops.push(`add ${addN} teacher-avail row(s)`);

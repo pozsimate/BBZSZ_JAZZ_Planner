@@ -275,7 +275,12 @@ function checkScheduledValid(db, acceptedRows, scheduled){
     if(s.duration != null && s.end - s.start !== s.duration){
       errors.push(`scheduled[${i}] duration ${s.duration} != ${s.end-s.start}`);
     }
-    if(s.roomId) errors.push(`scheduled[${i}] 1/1 should not lock a room`);
+    const col = ((db.oneToOne && db.oneToOne.columns) || []).find(c => c && c.id === s.teacherId);
+    const stu = ((db.oneToOne && db.oneToOne.studentRooms) || {})[s.studentId];
+    const lock = (stu && stu.roomId) || (col && col.roomId) || '';
+    if((s.roomId || '') !== lock){
+      errors.push(`scheduled[${i}] room ${s.roomId || '(none)'} != teacher lock ${lock || '(none)'}`);
+    }
     const w = teacherWindows(db, s.teacherId)[s.day];
     if(!w) errors.push(`scheduled[${i}] ${teacherName(db,s.teacherId)} not free on ${s.day}`);
     else if(!slotFitsWin(w, s.start, s.end)){
@@ -290,6 +295,17 @@ function checkScheduledValid(db, acceptedRows, scheduled){
     if(student && hitsBusy(busyAccepted.student, student.ID, s.day, s.start, s.end)){
       errors.push(`scheduled[${i}] overlaps student’s accepted lesson`);
     }
+    if(s.roomId){
+      (acceptedRows || []).forEach(r => {
+        if((r.roomId || '') !== s.roomId || r.day !== s.day) return;
+        const rs = toMin(r.start);
+        const re = toMin(r.end);
+        if(rs == null || re == null) return;
+        if(overlap(s.start, s.end, rs, re)){
+          errors.push(`scheduled[${i}] overlaps accepted room ${s.roomId} ${s.day} ${toHHMM(s.start)}–${toHHMM(s.end)}`);
+        }
+      });
+    }
     if(s.source && s.source !== 'oneone') errors.push(`scheduled[${i}] source=${s.source}`);
   });
   for(let i=0;i<scheduled.length;i++){
@@ -302,6 +318,9 @@ function checkScheduledValid(db, acceptedRows, scheduled){
       }
       if(a.studentId && a.studentId === b.studentId){
         errors.push(`student overlap ${a.studentId} ${a.day} ${toHHMM(a.start)}–${toHHMM(a.end)} vs ${toHHMM(b.start)}–${toHHMM(b.end)}`);
+      }
+      if(a.roomId && a.roomId === b.roomId){
+        errors.push(`room overlap ${a.roomId} ${a.day} ${toHHMM(a.start)}–${toHHMM(a.end)} vs ${toHHMM(b.start)}–${toHHMM(b.end)} (${a.studentId}/${b.studentId})`);
       }
     }
   }
@@ -350,7 +369,7 @@ function main(){
   const filledCsv = [];
   csvRows.forEach(r => {
     Object.keys(r).forEach(h => {
-      if(['STUDENT_ID','NAME1','NAME2','NAME3','PUBLIC_NAME','INSTR','INSTR_ID'].includes(h)) return;
+      if(['STUDENT_ID','NAME1','NAME2','NAME3','PUBLIC_NAME','INSTR','INSTR_ID','ROOM','ROOM_LOCK','ROOM_ID','ROOM_NAME'].includes(h)) return;
       const n = api.parseOneOneHours(r[h]);
       if(n) filledCsv.push({sid: r.STUDENT_ID, teacher: h, hours: n});
     });
@@ -382,6 +401,12 @@ function main(){
   ok('export has header + every student', aoa.aoa.length === 1 + seed.students.length,
     'rows=' + aoa.aoa.length);
   const expHeaders = aoa.aoa[0];
+  ok('export has ROOM after INSTR_ID',
+    (expHeaders || [])[6] === 'INSTR_ID' && (expHeaders || [])[7] === 'ROOM',
+    (expHeaders || []).slice(0, 10).join(','));
+  ok('export does not add teacher _ROOM columns',
+    !(expHeaders || []).some(h => String(h).endsWith('_ROOM')),
+    (expHeaders || []).filter(h => String(h).endsWith('_ROOM')).slice(0, 4).join(','));
   const expRows = aoa.aoa.slice(1).map(line => {
     const o = {};
     expHeaders.forEach((h,i) => { o[h] = line[i]; });
@@ -508,14 +533,43 @@ function main(){
   console.log(`  group ${gen.scheduled.length} placed / ${gen.unresolved.length} unresolved`);
   console.log(`  1/1 ${result.scheduled.length} placed / ${result.unresolved.length} unresolved of ${assignments.length} cells (${oneMs}ms)`);
 
-  ok('every matrix cell is placed or listed unresolved',
-    result.scheduled.length + result.unresolved.length === assignments.length,
-    `sched=${result.scheduled.length} un=${result.unresolved.length} jobs=${assignments.length}`);
-
   const scheduledKeys = result.scheduled.map(s => pairKey(s.teacherId, s.studentId));
-  ok('no duplicate student×teacher 1/1',
-    new Set(scheduledKeys).size === scheduledKeys.length,
-    'dupes=' + (scheduledKeys.length - new Set(scheduledKeys).size));
+  const pairSet = new Set(scheduledKeys);
+  ok('every matrix cell is placed or listed unresolved (coverage)',
+    pairSet.size + result.unresolved.length === assignments.length,
+    `pairs=${pairSet.size} un=${result.unresolved.length} jobs=${assignments.length} rows=${result.scheduled.length}`);
+  const pairOverlap = [];
+  for(let i=0;i<result.scheduled.length;i++){
+    for(let j=i+1;j<result.scheduled.length;j++){
+      const a = result.scheduled[i], b = result.scheduled[j];
+      if(pairKey(a.teacherId, a.studentId) !== pairKey(b.teacherId, b.studentId)) continue;
+      if(a.day === b.day && overlap(a.start, a.end, b.start, b.end)){
+        pairOverlap.push(`${a.studentId}×${a.teacherId} ${a.day}`);
+      }
+    }
+  }
+  ok('split sessions for the same cell do not overlap',
+    pairOverlap.length === 0, pairOverlap.slice(0, 6).join(' | '));
+  const splitSameDay = [];
+  const byPair = {};
+  result.scheduled.forEach(s => {
+    const k = pairKey(s.teacherId, s.studentId);
+    (byPair[k] = byPair[k] || []).push(s);
+  });
+  Object.keys(byPair).forEach(k => {
+    const list = byPair[k];
+    if(list.length < 2) return;
+    for(let i = 0; i < list.length; i++){
+      for(let j = i + 1; j < list.length; j++){
+        const a = list[i], b = list[j];
+        if(a.day !== b.day) continue;
+        const flush = a.end === b.start || b.end === a.start;
+        if(!flush) splitSameDay.push(`${a.studentId}×${teacherName(api.DB, a.teacherId)} ${a.day}`);
+      }
+    }
+  });
+  ok('split sessions for the same cell are on different days (or flush as one lesson)',
+    splitSameDay.length === 0, splitSameDay.slice(0, 6).join(' | '));
 
   const validErr = checkScheduledValid(api.DB, accepted, result.scheduled);
   ok('independent invariants: scheduled 1/1 are legal', validErr.length === 0,
@@ -523,12 +577,18 @@ function main(){
 
   const hoursByPair = {};
   assignments.forEach(a => { hoursByPair[pairKey(a.teacherId, a.studentId)] = a; });
-  const durationMismatches = result.scheduled.filter(s => {
-    const a = hoursByPair[pairKey(s.teacherId, s.studentId)];
-    return !a || s.duration !== a.duration || (s.end - s.start) !== a.duration;
+  const gotMins = {};
+  result.scheduled.forEach(s => {
+    const k = pairKey(s.teacherId, s.studentId);
+    gotMins[k] = (gotMins[k] || 0) + (s.end - s.start);
   });
-  ok('every placed 1/1 lasts hours×60', durationMismatches.length === 0,
-    durationMismatches.slice(0, 5).map(s => `${s.studentId}/${s.teacherId} ${s.duration}`).join(','));
+  const durationMismatches = Object.keys(gotMins).filter(k => {
+    const a = hoursByPair[k];
+    return !a || gotMins[k] !== a.duration;
+  });
+  ok('every placed 1/1 sums to hours×60 (one block or split sessions)',
+    durationMismatches.length === 0,
+    durationMismatches.slice(0, 5).map(k => `${k} ${gotMins[k]}`).join(','));
 
   const noAvailTeachers = new Set(
     (api.DB.oneToOne.columns || []).map(c => c.id).filter(id => DAYS.every(d => !teacherWindows(api.DB, id)[d]))
@@ -557,10 +617,10 @@ function main(){
     leftover.slice(0, 8).join(' | '));
 
   const oracle = greedyOracle(api.DB, assignments, accepted);
-  ok('5-min greedy oracle does not place more than the scheduler',
-    oracle.placed.length <= result.scheduled.length,
-    `oracle=${oracle.placed.length} scheduler=${result.scheduled.length} (scheduler missed ${oracle.placed.length - result.scheduled.length})`);
-  if(oracle.placed.length > result.scheduled.length){
+  ok('5-min greedy oracle does not place more pairs than the scheduler',
+    oracle.placed.length <= pairSet.size,
+    `oracle=${oracle.placed.length} scheduler=${pairSet.size} rows=${result.scheduled.length} (scheduler missed ${oracle.placed.length - pairSet.size})`);
+  if(oracle.placed.length > pairSet.size){
     const schedSet = new Set(result.scheduled.map(s => pairKey(s.teacherId, s.studentId)));
     const extra = oracle.placed.filter(p => !schedSet.has(pairKey(p.teacherId, p.studentId)));
     console.error('  oracle-only placements:', extra.slice(0, 10).map(p =>

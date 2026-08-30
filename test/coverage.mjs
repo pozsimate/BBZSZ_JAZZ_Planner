@@ -159,6 +159,7 @@ function checkAssignments(api, matrix, scheduled, kind){
   const byKey = {};
   jobs.forEach(j => { byKey[j.studentId + '|' + j.teacherId] = j; });
   const seen = new Set();
+  const got = {};
   (scheduled || []).forEach(s => {
     const sid = s.studentId || s.studentIds;
     const key = sid + '|' + s.teacherId;
@@ -168,14 +169,17 @@ function checkAssignments(api, matrix, scheduled, kind){
       errors.push(`${kind}: placed ${s.lessonId} for ${key} which is not in the hours matrix`);
       return;
     }
-    const dur = s.end - s.start;
-    if(dur !== job.duration){
-      errors.push(`${kind}: ${key} booked ${dur} min, matrix wants ${job.duration}`);
-    }
+    got[key] = (got[key] || 0) + (s.end - s.start);
     const st = (api.DB.students || []).find(x => x.ID === sid);
     if(!st) errors.push(`${kind}: placed unknown student ${sid}`);
     const t = (api.DB.refTeachers || []).find(x => x.id === s.teacherId);
     if(!t) errors.push(`${kind}: placed unknown teacher ${s.teacherId}`);
+  });
+  Object.keys(got).forEach(key => {
+    const job = byKey[key];
+    if(job && got[key] !== job.duration){
+      errors.push(`${kind}: ${key} booked ${got[key]} min, matrix wants ${job.duration}`);
+    }
   });
   return {errors, jobs, seen};
 }

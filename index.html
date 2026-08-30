@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BartokKonzi — Timetable Builder</title>
-<link rel="stylesheet" href="./src/styles.css?v=rooms-46">
+<link rel="stylesheet" href="./src/styles.css?v=split-rounds">
 
 </head>
 <body>
@@ -12,7 +12,32 @@
 <div class="page-frame">
 
 <header>
-  <h1>Bartók <span class="smear">planner 2026</span></h1>
+  <h1 class="brand">
+    <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
+      <defs>
+        <linearGradient id="brandLav" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#8b5cf6"/>
+        </linearGradient>
+        <linearGradient id="brandGold" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#fde047"/><stop offset="1" stop-color="#eab308"/>
+        </linearGradient>
+        <linearGradient id="brandGreen" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#4ade80"/><stop offset="1" stop-color="#15803d"/>
+        </linearGradient>
+        <linearGradient id="brandTeal" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#5eead4"/><stop offset="1" stop-color="#0f766e"/>
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0" width="19" height="19" rx="5" fill="url(#brandLav)"/>
+      <rect x="21" y="0" width="19" height="19" rx="5" fill="url(#brandGold)"/>
+      <rect x="0" y="21" width="19" height="19" rx="5" fill="url(#brandGreen)"/>
+      <rect x="21" y="21" width="19" height="19" rx="5" fill="url(#brandTeal)"/>
+    </svg>
+    <span class="brand-word">
+      <span class="brand-name">Bartók</span>
+      <span class="brand-sub">planner 2026</span>
+    </span>
+  </h1>
 </header>
 
 <nav class="tabs">
@@ -71,7 +96,7 @@
   <section id="tab-tavail" class="tab-panel" style="display:none">
     <div class="panel">
       <h2>Teacher availability</h2>
-      <button type="button" class="hint-toggle"><span class="hint-toggle-icon">ⓘ</span> About this section <span class="hint-toggle-arrow">▸</span></button><p class="hint hint-collapsed">One row per teacher/day (TEACHER availability sheet). Blank START/END defaults to 08:00–20:00. TYPE ranks priority: AVAILABLE / PREFERRED beat FALLBACK, which beats CANDIDATE. AVOID blocks only the START–END interval (blank START/END = the whole 08:00–20:00 school day), even if another row lists that day as available.</p>
+      <button type="button" class="hint-toggle"><span class="hint-toggle-icon">ⓘ</span> About this section <span class="hint-toggle-arrow">▸</span></button><p class="hint hint-collapsed">One row per teacher/day (TEACHER availability sheet). Blank START/END defaults to 08:00–20:00. TYPE ranks priority: AVAILABLE / PREFERRED beat FALLBACK, which beats CANDIDATE. AVOID blocks only the START–END interval (blank START/END = the whole 08:00–20:00 school day), even if another row lists that day as available. <b style="color:var(--lavender-deep)">SCOPE</b> says what may use that row: <b style="color:var(--lavender-deep)">ALL</b> (default — group lessons and 1/1 / piano), <b style="color:var(--lavender-deep)">GROUP</b> (subject lessons and small groups only), or <b style="color:var(--lavender-deep)">O2O</b> (1/1 and Required Piano only). AVOID follows the same SCOPE.</p>
       <div class="row">
         <button class="btn small" id="addAvailBtn">+ Add availability row</button>
       </div>
@@ -111,7 +136,7 @@
   <section id="tab-ref" class="tab-panel" style="display:none">
     <div class="panel">
       <h2>Reference tables</h2>
-      <button type="button" class="hint-toggle"><span class="hint-toggle-icon">ⓘ</span> About this section <span class="hint-toggle-arrow">▸</span></button><p class="hint hint-collapsed">The lookup sheets (TEACHERS, CLASS, GROUPS, INSTR, ROOMS) feeding every dropdown in the app — edit an ID here and it updates everywhere. <b style="color:var(--lavender-deep)">Classes</b>: MUCLASS_TYPE marks interchangeable grades (9a/9b/9c → "9"), used to cluster same-grade lessons together. <b style="color:var(--lavender-deep)">Groups</b>: TYPE controls which Students column it can be picked in. <b style="color:var(--lavender-deep)">Instruments</b>: TYPE (sol/acc/bass/drum) drives the Small Groups tab. <b style="color:var(--lavender-deep)">Rooms</b> matches the Drive ROOMS sheet (ROOM_ID / ROOM) and feeds the room dropdown on Lesson groups and Small Groups. Break settings live on <b style="color:var(--lavender-deep)">Break Management</b>; small group quotas live on the <b style="color:var(--lavender-deep)">Small Groups</b> tab.</p>
+      <button type="button" class="hint-toggle"><span class="hint-toggle-icon">ⓘ</span> About this section <span class="hint-toggle-arrow">▸</span></button><p class="hint hint-collapsed">The lookup sheets (TEACHERS, CLASS, GROUPS, INSTR, ROOMS) feeding every dropdown in the app — edit an ID here and it updates everywhere. <b style="color:var(--lavender-deep)">Classes</b>: MUCLASS_TYPE marks interchangeable grades (9a/9b/9c → "9") for Small Groups packing and Reports filters. <b style="color:var(--lavender-deep)">Groups</b>: TYPE controls which Students column it can be picked in. <b style="color:var(--lavender-deep)">Instruments</b>: TYPE (sol/acc/bass/drum) drives the Small Groups tab. <b style="color:var(--lavender-deep)">Rooms</b> matches the Drive ROOMS sheet (ROOM_ID / ROOM) and feeds the room dropdown on Lesson groups and Small Groups. Break settings live on <b style="color:var(--lavender-deep)">Break Management</b>; small group quotas live on the <b style="color:var(--lavender-deep)">Small Groups</b> tab.</p>
       <div class="ref-grid">
         <div>
           <h3>Teachers <span class="tag ok" id="refTeacherCount"></span></h3>
@@ -199,20 +224,45 @@
   <section id="tab-timetable" class="tab-panel" style="display:none">
     <div class="panel">
       <h2>Generate</h2>
-      <button type="button" class="hint-toggle"><span class="hint-toggle-icon">ⓘ</span> About this section <span class="hint-toggle-arrow">▸</span></button><p class="hint hint-collapsed">Builds the week from every tab above, teacher by teacher. Available days are grouped by rank (PREFERRED/AVAILABLE → FALLBACK → CANDIDATE); lessons split evenly across a rank's days before spilling into the next, and pack back-to-back within a day. Every leftover class hole that still fits the teacher that day is usable (a morning leftover is not dropped just because the class's biggest hole is afternoon; a leftover flush against a pin is preferred over a larger hole that would open an illegal gap). <b style="color:var(--lavender-deep)">Hard rules:</b> a teacher listed on <b style="color:var(--lavender-deep)">Break Management</b> may only gap by BREAK MIN (or a multiple), totaling at most BREAK COUNT units in that teacher's week; unlisted teachers may gap like 1/1, and Generate prefers the least total idle time; lessons that share a room never overlap; a lesson may softly snap next to another sharing its <b style="color:var(--lavender-deep)">MUCLASS_TYPE</b>. <b style="color:var(--lavender-deep)">Small Groups</b> get their own pass: a free slot is found from members' availability, then a teacher is matched from <b style="color:var(--lavender-deep)">⚙ Small Group Quotas</b> (Small Groups tab) — unless you set a manual override, which schedules it the normal teacher-first way instead. Each click tries the number of layouts in <b style="color:var(--lavender-deep)">Attempts</b> (default 100) and keeps the best 10 — browse them in the <b style="color:var(--lavender-deep)">Solution</b> dropdown, which opens on <b style="color:var(--lavender-deep)">★</b>. After that search, every layout is previewed with a 1/1 pack and then Required Piano; among those with the fewest leftover items here, the easiest next step is marked ★. <b style="color:var(--lavender-deep)">Search log</b> is the ★ layout's walkthrough (packing, reds, quota, 1/1 / piano preview) — switch the list to see another layout. <b style="color:var(--lavender-deep)">✓ Accept this schedule</b> freezes the layout into the Accepted schedule table (times, teachers, student lists) and copies those slots into SCHEDULED columns on Lesson groups and Small Groups. Generate still only reads FIXED times and small group Teacher override. If an accepted roster is on file, Generate asks whether to keep it or clear it before searching. After Generate or a drag, every other tab stays locked until you <b style="color:var(--lavender-deep)">✓ Accept this schedule</b>. Work is autosaved in this browser so a refresh does not drop drags or tables.</p>
+      <button type="button" class="hint-toggle"><span class="hint-toggle-icon">ⓘ</span> About this section <span class="hint-toggle-arrow">▸</span></button><p class="hint hint-collapsed">Builds the week from every tab above, teacher by teacher. Available days are grouped by rank (PREFERRED/AVAILABLE → FALLBACK → CANDIDATE); lessons split evenly across a rank's days before spilling into the next, and pack back-to-back within a day. Every leftover class hole that still fits the teacher that day is usable (a morning leftover is not dropped just because the class's biggest hole is afternoon; a leftover flush against a pin is preferred over a larger hole that would open an illegal gap). If a leftover cannot sit flush against another lesson that day, it sits at the hole end when the only neighbor lesson is later, or at the hole start when the only neighbor is earlier (both sides: either). <b style="color:var(--lavender-deep)">Hard rules:</b> a teacher listed on <b style="color:var(--lavender-deep)">Break Management</b> may only gap by BREAK MIN (or a multiple), totaling at most BREAK COUNT units in that teacher's week; with the switch on <b style="color:var(--lavender-deep)">Idle</b>, Break Management is ignored and any teacher may gap (Generate prefers the least idle time); flip it to <b style="color:var(--lavender-deep)">Breaks</b> for the old rule — listed teachers stay on BREAK MIN × COUNT, everyone else flush only (1/1 is unchanged); lessons that share a room never overlap. <b style="color:var(--lavender-deep)">Small Groups</b> get their own pass: a free slot is found from members' availability, then a teacher is matched from <b style="color:var(--lavender-deep)">⚙ Small Group Quotas</b> (Small Groups tab) — unless you set a manual override, which schedules it the normal teacher-first way instead. Each click tries the number of layouts in <b style="color:var(--lavender-deep)">Attempts</b> (default 100, up to 50,000) and keeps the best 10 — browse them in the <b style="color:var(--lavender-deep)">Solution</b> dropdown, which opens on <b style="color:var(--lavender-deep)">★</b>. Above 1,000 attempts, Generate switches to a deep search: only those 10 full layouts stay in memory (the rest are signatures), per-attempt walkthroughs are skipped, the page yields every 25 tries, and <b style="color:var(--lavender-deep)">Stop search</b> keeps the best so far. The first attempt packs teachers from fewest available days — or from your <b style="color:var(--lavender-deep)">Teacher order</b> list if you set one; shuffled attempts still permute that list so any teacher may go first. After that search, layouts are previewed with a 1/1 pack and then Required Piano — <b style="color:var(--lavender-deep)">All</b> probes every distinct layout, <b style="color:var(--lavender-deep)">10</b> probes only the 10 kept ones. ★ is the week with the fewest leftover items of any kind (subject lessons and small groups together), and among those the easiest 1/1 then Required Piano preview. Best ranks leftover count, then idle. 1/1 and piano quality is the later preview (10 or All) — the search loop itself does not pack those. Flip <b style="color:var(--lavender-deep)">Swaps</b> on after Generate to re-run the group search with same-duration teacher swaps (Jazz Theory 60 ↔ Jazz Solfege 60): shuffled packs plus a 1/1 preview, then log the better leftover week that search would have found — Off skips that pass. The Lesson groups table and the grid never change. Shuffled attempts pick a small-group slot among the 3 tightest legal gaps (not always the single tightest). If bands stay stuck after Phase 2, Generate may evict 1–2 blocking subject lessons and retry the bands. Same inputs on a later click merge into the pool, so leftover count cannot get worse. While Generate runs, a live window narrates the current attempt (pack, shuffle, 1/1 preview) — or a progress pulse in deep search — with a Stop search button. <b style="color:var(--lavender-deep)">Search log</b> is the ★ layout's walkthrough after it finishes (packing, reds, quota, 1/1 / piano preview) — switch the list to see another layout. <b style="color:var(--lavender-deep)">✓ Accept this schedule</b> freezes the layout into the Accepted schedule table (times, teachers, student lists) and copies those slots into SCHEDULED columns on Lesson groups and Small Groups. Generate still only reads FIXED times and small group Teacher override. If an accepted roster is on file, Generate asks whether to keep it or clear it before searching. After Generate or a drag, every other tab stays locked until you <b style="color:var(--lavender-deep)">✓ Accept this schedule</b>. Work is autosaved in this browser so a refresh does not drop drags or tables.</p>
       <div class="row">
         <button class="btn" id="generateBtn">▶ Generate group lessons</button>
         <label class="attempts-field">Attempts
-          <input type="number" id="scheduleSearchAttempts" value="100" min="1" max="1000" step="1">
+          <input type="number" id="scheduleSearchAttempts" value="100" min="1" max="50000" step="1">
+        </label>
+        <button type="button" class="btn secondary" id="phase1TeacherOrderBtn" title="Set a Phase 1 teacher order for the first attempt, or leave automatic (fewest available days).">Teacher order</button>
+        <label class="synth-switch" title="Left = optimize idle and ignore Break Management (any teacher may gap). Right = old rule: no group/band gap unless Break Management allows it. 1/1 is unchanged.">
+          <input type="checkbox" id="forbidUnlistedGroupGaps" class="synth-switch-input">
+          <span class="synth-switch-face" aria-hidden="true">
+            <span class="synth-switch-end is-off">Idle</span>
+            <span class="synth-switch-well">
+              <span class="synth-switch-knob"></span>
+            </span>
+            <span class="synth-switch-end is-on">Breaks</span>
+          </span>
+        </label>
+        <label class="synth-switch" title="1/1 + Required Piano preview after the group search. Left = only the 10 kept layouts. Right = every distinct layout this search (slower; ★ can come from any of them).">
+          <input type="checkbox" id="lookaheadEveryLayout" class="synth-switch-input">
+          <span class="synth-switch-face" aria-hidden="true">
+            <span class="synth-switch-end is-off">10</span>
+            <span class="synth-switch-well">
+              <span class="synth-switch-knob"></span>
+            </span>
+            <span class="synth-switch-end is-on">All</span>
+          </span>
+        </label>
+        <label class="synth-switch" title="Left = skip hypothetical teacher swaps. Right = after packing, re-run the group search with each same-duration teacher swap (shuffled packs + 1/1 preview) and log the better leftover week. The grid and Lesson groups table do not change.">
+          <input type="checkbox" id="teacherSwapProbe" class="synth-switch-input">
+          <span class="synth-switch-face" aria-hidden="true">
+            <span class="synth-switch-end is-off">Off</span>
+            <span class="synth-switch-well">
+              <span class="synth-switch-knob"></span>
+            </span>
+            <span class="synth-switch-end is-on">Swaps</span>
+          </span>
         </label>
         <button class="btn btn-accept" id="acceptScheduleBtn">✓ Accept this schedule</button>
         <button class="btn btn-log" id="searchLogBtn" disabled>Search log</button>
-      </div>
-      <div id="generateProgressWrap" class="generate-progress" hidden>
-        <div class="generate-progress-track">
-          <div id="generateProgressFill" class="generate-progress-fill"></div>
-        </div>
-        <span id="generateProgressLabel" class="generate-progress-label"></span>
       </div>
       <div class="notice-banner" id="fixedPinsBanner" style="display:none">
         <p class="fixed-pins-count"></p>
@@ -223,8 +273,22 @@
         <select id="variantSelect"></select>
       </div>
       <div id="variantLookaheadSummary" class="variant-preview" style="display:none"></div>
+      <div id="teacherSwapSuggestions" class="teacher-swap-suggest" style="display:none"></div>
       <p class="dataio-hint" id="acceptedStatus" style="margin:0 0 4px 0;"></p>
       <div id="statsRow" class="stat-row" style="display:none"></div>
+    </div>
+
+    <div class="modal-overlay" id="phase1TeacherOrderOverlay" style="display:none" aria-hidden="true">
+      <div class="modal-box teacher-order-box">
+        <h3 style="margin-top:0">Phase 1 teacher order</h3>
+        <p class="dataio-hint" style="margin:0 0 12px 0;">Drag names to set who packs first on the opening attempt. Subjects and override small groups follow this list. Shuffled attempts still permute the names — only that first layout stays in your order.</p>
+        <ol id="phase1TeacherOrderList" class="teacher-order-list"></ol>
+        <p id="phase1TeacherOrderHint" class="dataio-hint" style="margin:10px 0 0 0;"></p>
+        <div class="row" style="margin-top:16px;justify-content:space-between;">
+          <button type="button" class="btn secondary" id="phase1TeacherOrderResetBtn">Reset to automatic</button>
+          <button type="button" class="btn" id="phase1TeacherOrderCloseBtn">Done</button>
+        </div>
+      </div>
     </div>
 
     <div class="modal-overlay" id="searchLogOverlay" style="display:none">
@@ -353,10 +417,13 @@
   <section id="tab-oneone" class="tab-panel" style="display:none">
     <div class="panel">
       <h2>1/1 lessons</h2>
-      <button type="button" class="hint-toggle"><span class="hint-toggle-icon">ⓘ</span> About this section <span class="hint-toggle-arrow">▸</span></button>      <p class="hint hint-collapsed">Opens only while group lessons are accepted. Generate or a drag on this tab locks <b>every</b> other tab until <b style="color:var(--lavender-deep)">✓ Accept 1/1</b> — including going back up to Group Lessons. Grey blocks are the accepted group freeze; teal is accepted Required Piano only. The table is the Drive <b>1_1</b> matrix: students down the side, teachers across. A number is weekly hours with that teacher — <b>1 = 60 min</b>, <b>1.5 = 90</b>, <b>2 = 120</b>. Generate packs 1/1 into the holes of the accepted week. Pick <b style="color:var(--lavender-deep)">Teacher</b> to regenerate only that teacher — everyone else’s 1/1 stays. <b>All teachers</b> replaces the whole 1/1 layout and Required Piano.</p>
+      <button type="button" class="hint-toggle"><span class="hint-toggle-icon">ⓘ</span> About this section <span class="hint-toggle-arrow">▸</span></button>      <p class="hint hint-collapsed">Opens only while group lessons are accepted. Generate or a drag on this tab locks <b>every</b> other tab until <b style="color:var(--lavender-deep)">✓ Accept 1/1</b> — including going back up to Group Lessons. Grey blocks are the accepted group freeze; teal is accepted Required Piano only. The table is the Drive <b>1_1</b> matrix: students down the side, teachers across. A number is weekly hours with that teacher — <b>1 = 60 min</b>, <b>1.5 = 90</b>, <b>2 = 120</b>. After the student, a <b>Room</b> column locks that student's 1/1 into a studio (blank = none) — every teacher they have hours with. On Drive, put a <b>room</b> column after <b>INSTR_ID</b> on the <b>1_1</b> sheet (room name or ID from the ROOMS tab). Generate will not double-book that studio against group lessons or another 1/1. Generate packs 1/1 into the holes of the accepted week. If the teacher already has a lesson that day, 1/1 sits flush against it; if the day is empty, it starts as early as the leftover allows and the chain grows forward. Generate first tries every cell as one block. If that teacher still has students left out, only those leftover cells may split (<b>60 → 2×30</b>, <b>90 → 2×45 or 60+30</b>, <b>120 → 2×60</b>); a 30-min lesson stays 30. If that still leaves someone out, every cell of that teacher is split and packed from one pool. Two pieces of the same student never share a day unless they sit flush as one long lesson. Pick <b style="color:var(--lavender-deep)">Teacher</b> to regenerate only that teacher — everyone else’s 1/1 stays. <b>All teachers</b> replaces the whole 1/1 layout and Required Piano. <b style="color:var(--lavender-deep)">Attempts</b> (default 15) is how many distinct weeks Generate looks for — up to four tries per attempt, max 5,000. While it runs, the same live window as Group Lessons narrates each try and shows remaining time; <b style="color:var(--lavender-deep)">Stop search</b> keeps the layouts found so far.</p>
       <div class="row">
         <label class="attempts-field">Teacher
           <select id="oneoneGenerateTeacher" class="cloud-input" title="Regenerate one teacher and keep the others"></select>
+        </label>
+        <label class="attempts-field">Attempts
+          <input type="number" id="oneoneSearchAttempts" value="15" min="1" max="5000" step="1">
         </label>
         <button type="button" class="btn" id="oneoneGenerateBtn">▶ Generate all 1/1</button>
         <button type="button" class="btn btn-accept" id="oneoneAcceptBtn">✓ Accept 1/1</button>
@@ -369,11 +436,14 @@
       <div id="oneoneLookaheadSummary" class="variant-preview" style="display:none"></div>
       <p class="dataio-hint" id="oneoneSummary" style="margin:8px 0 0 0;"></p>
       <div id="oneoneStatsRow" class="stat-row" style="display:none"></div>
-      <div class="row" style="margin:14px 0 8px 0">
-        <input type="search" id="oneoneMatrixFilter" class="cloud-input" placeholder="Filter students…" style="max-width:280px">
-        <span class="dataio-hint" id="oneoneMatrixCount" style="margin:0"></span>
-      </div>
-      <div class="table-wrap oneone-matrix-wrap" id="oneoneMatrixWrap"></div>
+      <details class="matrix-fold" id="oneoneMatrixFold">
+        <summary class="matrix-fold-toggle">Assignment matrix</summary>
+        <div class="row" style="margin:10px 0 8px 0">
+          <input type="search" id="oneoneMatrixFilter" class="cloud-input" placeholder="Filter students…" style="max-width:280px">
+          <span class="dataio-hint" id="oneoneMatrixCount" style="margin:0"></span>
+        </div>
+        <div class="table-wrap oneone-matrix-wrap" id="oneoneMatrixWrap"></div>
+      </details>
     </div>
 
     <div class="panel">
@@ -417,10 +487,13 @@
   <section id="tab-rpiano" class="tab-panel" style="display:none">
     <div class="panel">
       <h2>Required Piano</h2>
-      <button type="button" class="hint-toggle"><span class="hint-toggle-icon">ⓘ</span> About this section <span class="hint-toggle-arrow">▸</span></button>      <p class="hint hint-collapsed">Opens only while 1/1 is accepted. Generate or a drag here locks every other tab until <b style="color:var(--lavender-deep)">✓ Accept Required Piano</b>. Grey and gold blocks are the accepted group + 1/1 freeze. The table is the Drive <b>rpiano</b> matrix (<b>1 = 60 min</b>, <b>0.5 = 30</b>). Generate packs piano into leftover holes around the accepted week and 1/1. Pick <b style="color:var(--lavender-deep)">Teacher</b> to regenerate only that piano teacher — the others stay.</p>
+      <button type="button" class="hint-toggle"><span class="hint-toggle-icon">ⓘ</span> About this section <span class="hint-toggle-arrow">▸</span></button>      <p class="hint hint-collapsed">Opens only while 1/1 is accepted. Generate or a drag here locks every other tab until <b style="color:var(--lavender-deep)">✓ Accept Required Piano</b>. Grey and gold blocks are the accepted group + 1/1 freeze. The table is the Drive <b>rpiano</b> matrix (<b>1 = 60 min</b>, <b>0.5 = 30</b>). After the student, a <b>Room</b> column locks that student's piano into a studio, same as 1/1 — Drive uses a <b>room</b> column after <b>INSTR_ID</b> on the <b>rpiano</b> sheet. Generate packs piano into leftover holes around the accepted week and 1/1. Split rules are the same as 1/1: whole blocks first, then leftover cells only, then every cell of that teacher from one pool if still incomplete. Pick <b style="color:var(--lavender-deep)">Teacher</b> to regenerate only that piano teacher — the others stay. <b style="color:var(--lavender-deep)">Attempts</b> (default 15) is how many distinct weeks Generate looks for — up to four tries per attempt, max 5,000. This number is only for Required Piano; 1/1 has its own. The live search window and Stop search work here too.</p>
       <div class="row">
         <label class="attempts-field">Teacher
           <select id="rpianoGenerateTeacher" class="cloud-input" title="Regenerate one piano teacher and keep the others"></select>
+        </label>
+        <label class="attempts-field">Attempts
+          <input type="number" id="rpianoSearchAttempts" value="15" min="1" max="5000" step="1">
         </label>
         <button type="button" class="btn" id="rpianoGenerateBtn">▶ Generate Required Piano</button>
         <button type="button" class="btn btn-accept" id="rpianoAcceptBtn">✓ Accept Required Piano</button>
@@ -432,11 +505,14 @@
       </div>
       <p class="dataio-hint" id="rpianoSummary" style="margin:8px 0 0 0;"></p>
       <div id="rpianoStatsRow" class="stat-row" style="display:none"></div>
-      <div class="row" style="margin:14px 0 8px 0">
-        <input type="search" id="rpianoMatrixFilter" class="cloud-input" placeholder="Filter students…" style="max-width:280px">
-        <span class="dataio-hint" id="rpianoMatrixCount" style="margin:0"></span>
-      </div>
-      <div class="table-wrap oneone-matrix-wrap" id="rpianoMatrixWrap"></div>
+      <details class="matrix-fold" id="rpianoMatrixFold">
+        <summary class="matrix-fold-toggle">Assignment matrix</summary>
+        <div class="row" style="margin:10px 0 8px 0">
+          <input type="search" id="rpianoMatrixFilter" class="cloud-input" placeholder="Filter students…" style="max-width:280px">
+          <span class="dataio-hint" id="rpianoMatrixCount" style="margin:0"></span>
+        </div>
+        <div class="table-wrap oneone-matrix-wrap" id="rpianoMatrixWrap"></div>
+      </details>
     </div>
 
     <div class="panel">
@@ -540,6 +616,24 @@
 
 </div>
 
+<div class="modal-overlay search-live-overlay" id="searchLiveOverlay" style="display:none" aria-hidden="true" aria-live="polite">
+  <div class="modal-box search-live-box" role="status" aria-labelledby="searchLiveTitle">
+    <h3 id="searchLiveTitle" style="margin-top:0">Search</h3>
+    <p id="searchLiveHeadline" class="search-live-headline">Starting…</p>
+    <div class="generate-progress search-live-progress">
+      <div class="generate-progress-track">
+        <div id="searchLiveFill" class="generate-progress-fill"></div>
+      </div>
+      <span id="searchLiveCount" class="generate-progress-label"></span>
+    </div>
+    <p id="searchLiveEta" class="search-live-eta">estimating…</p>
+    <div id="searchLiveBody" class="search-live-body"></div>
+    <div class="row" style="margin-top:14px;justify-content:flex-end;">
+      <button type="button" class="btn secondary" id="searchLiveCancelBtn">Stop search</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="generateConfirmOverlay" style="display:none">
   <div class="modal-box">
     <h3 id="generateConfirmTitle" style="margin-top:0">Accepted schedule is on file</h3>
@@ -561,7 +655,7 @@
 <script>
 (function(){
   var app = document.createElement('script');
-  app.src = './src/app.js?v=rooms-46';
+  app.src = './src/app.js?v=split-rounds';
   app.onerror = function(){
     var msg = document.createElement('p');
     msg.style.cssText = 'margin:24px;padding:16px;background:#3a1020;color:#ffd0d8;border-radius:8px';

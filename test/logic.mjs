@@ -129,6 +129,13 @@ function main(){
   ok('seed JSON loads', Array.isArray(seed.students) && seed.students.length > 0);
   ok('styles.css is present and non-empty', css.length > 1000);
   ok('app.js has the scheduler', /function runScheduler/.test(appSrc));
+  ok('small groups try every 5-minute start', /t \+= 5\) opts\.push\(\{day, start:t/.test(appSrc));
+  ok('small group reshuffle depth is the small group count', /const SWAP_DEPTH = smallGroupItems\.length/.test(appSrc));
+  ok('shuffled small-group slot pick uses the 3 tightest gaps', /promoteTopKRandom\(directChoices, 3, randomize\)/.test(appSrc));
+  ok('stuck Phase 2 can evict a blocking subject lesson', /Phase 2 leftover — evicting/.test(appSrc));
+  ok('shuffled attempts permute teacher pack order',
+    /resolvePhase1TeacherOrder/.test(appSrc) && /shuffleArray\(base\)/.test(appSrc));
+  ok('teacher availability has a SCOPE dropdown', /scopeSelect/.test(appSrc) && /SCOPE_OPTIONS/.test(appSrc));
   const tabBtns = [...html.matchAll(/data-tab="([^"]+)"/g)].map(m => m[1]);
   const tabPanels = [...html.matchAll(/id="tab-([^"]+)"/g)].map(m => m[1]);
   ok('every nav tab has a panel', tabBtns.every(t => tabPanels.includes(t)),
@@ -142,7 +149,38 @@ function main(){
   ok('default Drive URL is in the cloud input', html.includes('1VmcZq9AyYb-c3iYHSv0Q8Lh90UwnceAxaQvy6lfJyXU'));
   const htmlIds = new Set([...html.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]));
   ok('group search attempts field exists', htmlIds.has('scheduleSearchAttempts'));
-  ok('group search progress bar exists', htmlIds.has('generateProgressWrap') && htmlIds.has('generateProgressFill'));
+  ok('1/1 search attempts field exists', htmlIds.has('oneoneSearchAttempts'));
+  ok('1/1 assignment matrix is collapsible', htmlIds.has('oneoneMatrixFold') && htmlIds.has('oneoneMatrixWrap'));
+  ok('piano assignment matrix is collapsible', htmlIds.has('rpianoMatrixFold') && htmlIds.has('rpianoMatrixWrap'));
+  ok('piano search attempts field exists', htmlIds.has('rpianoSearchAttempts'));
+  ok('Teacher order modal exists',
+    htmlIds.has('phase1TeacherOrderBtn') && htmlIds.has('phase1TeacherOrderList')
+    && htmlIds.has('phase1TeacherOrderOverlay'));
+  ok('live search window has the progress bar', htmlIds.has('searchLiveFill') && htmlIds.has('searchLiveCount'));
+  ok('live search window has a remaining-time line', htmlIds.has('searchLiveEta'));
+  ok('No gaps without Break Management checkbox exists', htmlIds.has('forbidUnlistedGroupGaps'));
+  ok('1/1 preview All/10 switch exists', htmlIds.has('lookaheadEveryLayout'));
+  ok('hypothetical teacher-swap switch exists', htmlIds.has('teacherSwapProbe'));
+  ok('hypothetical teacher-swap suggestions panel exists', htmlIds.has('teacherSwapSuggestions'));
+  ok('live search commentary window exists',
+    htmlIds.has('searchLiveOverlay') && htmlIds.has('searchLiveHeadline') && htmlIds.has('searchLiveBody'));
+  ok('live search has a Stop button', htmlIds.has('searchLiveCancelBtn'));
+  ok('attempts field allows 50000', /id="scheduleSearchAttempts"[^>]*max="50000"/.test(html));
+  ok('async search talks to the live window',
+    /openSearchLive/.test(appSrc) && /searchLiveSay/.test(appSrc) && /searchLiveAttemptHeadline/.test(appSrc));
+  ok('1/1 generate opens the live search window',
+    /openSearchLive\(who \? `Generate 1\/1/.test(appSrc) && /generateIndividualScopedAsync/.test(appSrc));
+  ok('Required Piano generate opens the live search window',
+    /openSearchLive\(who \? `Generate Required Piano/.test(appSrc));
+  api.openSearchLive('Search');
+  ok('live search window opens', api.isSearchLiveOpen() === true);
+  api.searchLiveSay('Packing Ajtai…', 'info');
+  api.closeSearchLive();
+  ok('live search window closes', api.isSearchLiveOpen() === false);
+  ok('ETA formats a few seconds', api.formatSearchLiveEta(3000) === 'a few seconds left');
+  ok('ETA formats seconds', api.formatSearchLiveEta(20000) === 'about 20s left');
+  ok('ETA formats one minute', api.formatSearchLiveEta(60000) === 'about 1 min left');
+  ok('ETA formats minutes', api.formatSearchLiveEta(180000) === 'about 3 min left');
   const jsIds = [...appSrc.matchAll(/getElementById\(\s*['"]([^'"]+)['"]\s*\)/g)].map(m => m[1]);
   const missing = [...new Set(jsIds)].filter(id => !htmlIds.has(id) && id !== 'hoverTooltip');
   ok('every getElementById target exists in index.html', missing.length === 0, missing.join(', '));
@@ -168,7 +206,7 @@ function main(){
   const needed = [
     'toMin','toHHMM','cleanCellText','parseGvizTable','inferHeaders','sheetsTablesToDb',
     'sheetLooksLike','matchSheetKey','parseSpreadsheetId','classWindow','classFreeGaps',
-    'teacherDayWindows','teacherWindowClash','overlappingClassReservation','studentsInGroup',
+    'teacherDayWindows','teacherWindowClash','normalizeAvailScope','overlappingClassReservation','studentsInGroup',
     'studentsFreeIntervals','breakUnitsForGap','teacherBreakSettings','muclassDistance','auditTimetable','generateSmallGroups','runScheduler',
     'scheduleOneToOne','scheduleAllOneToOne','parseOneToOneTable','collectOneOneAssignments',
     'acceptTimetableSchedule','acceptOneOneSchedule','acceptRpianoSchedule',
@@ -178,11 +216,28 @@ function main(){
     'attachGroupLookahead','attachOneOneLookahead','markSuggestedByLookahead',
     'SCHEDULE_SEARCH_ATTEMPTS','SCHEDULE_VARIANT_KEEP',
     'clampScheduleSearchAttempts','readScheduleSearchAttempts',
+    'clampOneOneSearchAttempts','readOneOneSearchAttempts','oneOneSearchMaxTries',
+    'ONEONE_SEARCH_ATTEMPTS','ONEONE_SEARCH_ATTEMPTS_MAX','RPIANO_SEARCH_ATTEMPTS',
+    'collectUiState','applyUiState',
+    'isDeepScheduleSearch','beginScheduleSearch','recordScheduleAttempt','finishScheduleSearch',
+    'requestCancelSearch','resetSearchCancel','isSearchCancelled',
+    'DEEP_SEARCH_AFTER','SCHEDULE_SEARCH_ATTEMPTS_MAX',
     'buildTimetableIcs','icsEscape','collectFixedPins','clampBookedWindowToDuration',
     'snapMinutes','clampLessonStart','parseIdList','formatOneOneHours','driveTablesToAoa',
     'smallGroupsCsvAoa','parseSmallGroupsTable','restoreAutosaveIfAny',
     'reportWeekItems','reportItemKind','reportItemMatches','filterReportItems','reportCsvAoa',
-    'classReservationItems','reportClassReservationItems'
+    'classReservationItems','reportClassReservationItems',
+    'collectPhase1TeacherIds','automaticPhase1TeacherOrder','resolvePhase1TeacherOrder',
+    'hasManualPhase1TeacherOrder','normalizePhase1TeacherOrder',
+    'setManualPhase1TeacherOrder','clearManualPhase1TeacherOrder',
+    'openSearchLive','closeSearchLive','searchLiveSay','isSearchLiveOpen','formatSearchLiveEta',
+    'scheduleAllOneToOneSearchAsync','generateIndividualScopedAsync','oneOneResultLogLine',
+    'oneOneAvgDayStartMinutes',
+    'forbidUnlistedGroupGapsEnabled','lookaheadEveryLayoutEnabled','teacherSwapProbeEnabled',
+    'keepLookaheadBestVariants',
+    'collectTeacherSwapCandidates','collectTeacherSwapSuggestionsForLayouts','withLessonTeacherSwaps',
+    'evaluateHypotheticalTeacherSwap','teacherSwapSearchAttempts',
+    'dayLessonNeighbors','holePullsTowardEnd'
   ];
   needed.forEach(name => ok('export '+name, typeof api[name] === 'function' || api[name] != null, typeof api[name]));
   ok('harness still injects public seed', (api.DB.students || []).length > 0 && api.dbLooksEmpty() === false);
@@ -485,6 +540,22 @@ function main(){
   ok('two leftover islands are not an independent-checker gap',
     checkSchedule(api.DB, api.LAST_SMALL_GROUPS, twoHoleSched).filter(e => /illegal .*gap/.test(e)).length === 0,
     checkSchedule(api.DB, api.LAST_SMALL_GROUPS, twoHoleSched).join(' | '));
+  const afterSgDb = toyAuditDb();
+  afterSgDb.teacherAvail = [{teacherId:'T1', teacher:'Tea', day:'MON', start:'08:00', end:'20:00', type:'AVAILABLE'}];
+  afterSgDb.breaks = [{teacherId:'T1', breakMinutes:0, breakCount:0}];
+  afterSgDb.lessons = [
+    {id:'Lsg', name:'Small Group 15 rehearsal', groupId:'G2', teacherId:'T1', duration:90, roomId:'', room:'',
+      fixedDay:'MON', fixedStart:'13:00', fixedEnd:'14:30'},
+    {id:'L1', name:'Improv A', groupId:'G1', teacherId:'T1', duration:90, roomId:'', room:''}
+  ];
+  install(api, afterSgDb);
+  api.LAST_SMALL_GROUPS = {smallGroups:[]};
+  const afterSgSched = api.runScheduler(false);
+  const afterSgLive = (afterSgSched.scheduled || []).find(s => s.lessonId === 'L1');
+  ok('group lesson after a small-group rehearsal sits flush, not at 18:30 with a hole',
+    afterSgLive && afterSgLive.day === 'MON' && afterSgLive.start === 14*60+30 && afterSgLive.end === 16*60,
+    afterSgLive ? `${afterSgLive.day} ${api.toHHMM(afterSgLive.start)}–${api.toHHMM(afterSgLive.end)}`
+      : ((afterSgSched.unresolved||[]).map(u => u.lesson && u.lesson.id).join(',') || 'unplaced'));
 
   const freeGapDb = toyAuditDb();
   freeGapDb.teacherAvail = [{teacherId:'T1', teacher:'Tea', day:'MON', start:'08:00', end:'20:00', type:'AVAILABLE'}];
@@ -527,12 +598,118 @@ function main(){
   listedZeroDb.breaks = [{teacherId:'T1', breakMinutes:0, breakCount:0}];
   install(api, listedZeroDb);
   api.LAST_SMALL_GROUPS = {smallGroups:[]};
-  ok('explicit 0×0 row is not unconstrained', api.teacherBreakSettings('T1').unconstrained === false);
+  ok('optimize mode ignores Break Management rows', api.teacherBreakSettings('T1').unconstrained === true);
+  const listedZeroOpt = api.runScheduler(false);
+  ok('optimize mode can split leftovers even with a 0×0 row',
+    (listedZeroOpt.scheduled || []).length === 2,
+    (listedZeroOpt.scheduled || []).map(s => `${s.lessonId} ${api.toHHMM(s.start)}–${api.toHHMM(s.end)}`).join(', ')
+      + ' unresolved=' + ((listedZeroOpt.unresolved||[]).map(u => u.lesson && u.lesson.id).join(',') || 'none'));
+  api.DB.forbidUnlistedGroupGaps = true;
+  ok('old-rule mode honors the 0×0 row', api.teacherBreakSettings('T1').unconstrained === false);
   const listedZeroSched = api.runScheduler(false);
-  ok('explicit 0×0 row still forbids splitting leftovers',
+  ok('old-rule 0×0 still forbids splitting leftovers',
     (listedZeroSched.scheduled || []).length === 1,
     (listedZeroSched.scheduled || []).map(s => `${s.lessonId} ${api.toHHMM(s.start)}–${api.toHHMM(s.end)}`).join(', ')
       + ' unresolved=' + ((listedZeroSched.unresolved||[]).map(u => u.lesson && u.lesson.id).join(',') || 'none'));
+  api.DB.forbidUnlistedGroupGaps = false;
+
+  install(api, freeGapDb);
+  api.LAST_SMALL_GROUPS = {smallGroups:[]};
+  api.DB.forbidUnlistedGroupGaps = true;
+  ok('forbid toggle treats unlisted as no-gap', api.teacherBreakSettings('T1').unconstrained === false
+    && api.forbidUnlistedGroupGapsEnabled() === true);
+  const forbidGapSched = api.runScheduler(false);
+  ok('forbid toggle does not split leftovers without Break Management',
+    (forbidGapSched.scheduled || []).length === 1,
+    (forbidGapSched.scheduled || []).map(s => `${s.lessonId} ${api.toHHMM(s.start)}–${api.toHHMM(s.end)}`).join(', ')
+      + ' unresolved=' + ((forbidGapSched.unresolved||[]).map(u => u.lesson && u.lesson.id).join(',') || 'none'));
+  const fpGapOff = (() => { api.DB.forbidUnlistedGroupGaps = false; return api.computeScheduleFingerprint(); })();
+  api.DB.forbidUnlistedGroupGaps = true;
+  ok('fingerprint changes when the gap toggle changes', fpGapOff !== api.computeScheduleFingerprint());
+  api.DB.forbidUnlistedGroupGaps = false;
+  ok('1/1 preview defaults to the 10 kept layouts', api.lookaheadEveryLayoutEnabled() === false);
+  const fpLookOff = api.computeScheduleFingerprint();
+  api.DB.lookaheadEveryLayout = true;
+  ok('1/1 preview All turns the all-layout probe on', api.lookaheadEveryLayoutEnabled() === true);
+  ok('fingerprint changes when the 1/1 preview toggle changes', fpLookOff !== api.computeScheduleFingerprint());
+  api.DB.lookaheadEveryLayout = false;
+  ok('teacher-swap probe defaults off', api.teacherSwapProbeEnabled() === false);
+  api.DB.teacherSwapProbe = true;
+  ok('teacher-swap probe can turn on', api.teacherSwapProbeEnabled() === true);
+  api.DB.teacherSwapProbe = false;
+
+  console.log('\n== Hypothetical same-duration teacher swaps ==');
+  const swapDb = {
+    students: [
+      {ID:'ST1', NAME1:'Thy', NAME2:'One', CLASS_ID:'CLA', JTH_ID:'GTH'},
+      {ID:'ST2', NAME1:'Thy', NAME2:'Two', CLASS_ID:'CLA', JTH_ID:'GTH'},
+      {ID:'SS1', NAME1:'Sol', NAME2:'One', CLASS_ID:'CLB', SOLF_ID:'GSO'},
+      {ID:'SS2', NAME1:'Sol', NAME2:'Two', CLASS_ID:'CLB', SOLF_ID:'GSO'},
+      {ID:'P1', NAME1:'Priv', NAME2:'One', CLASS_ID:'CLC'},
+      {ID:'P2', NAME1:'Priv', NAME2:'Two', CLASS_ID:'CLC'},
+      {ID:'P3', NAME1:'Priv', NAME2:'Three', CLASS_ID:'CLC'},
+      {ID:'P4', NAME1:'Priv', NAME2:'Four', CLASS_ID:'CLC'},
+      {ID:'P5', NAME1:'Priv', NAME2:'Five', CLASS_ID:'CLC'}
+    ],
+    lessons: [
+      {id:'LTH', name:'Jazz Theory', groupId:'GTH', teacher:'Ajtai', teacherId:'T1', duration:60, roomId:'', room:''},
+      {id:'LSO', name:'Jazz Solfege', groupId:'GSO', teacher:'Pal', teacherId:'T2', duration:60, roomId:'', room:''}
+    ],
+    teacherAvail: [
+      {teacherId:'T1', teacher:'Ajtai', day:'MON', start:'08:00', end:'20:00', type:'AVAILABLE'},
+      {teacherId:'T2', teacher:'Pal', day:'MON', start:'08:00', end:'20:00', type:'AVAILABLE'}
+    ],
+    classAvail: [
+      {classId:'CLA', day:'MON', start:'13:00', end:'20:00'},
+      {classId:'CLB', day:'MON', start:'08:00', end:'13:00'},
+      {classId:'CLC', day:'MON', start:'13:00', end:'20:00'}
+    ],
+    refTeachers: [{id:'T1', name:'Ajtai'}, {id:'T2', name:'Pal'}],
+    refClasses: [{id:'CLA', name:'9a'}, {id:'CLB', name:'9b'}, {id:'CLC', name:'9c'}],
+    refGroups: [{id:'GTH', name:'jth9', type:'JTH'}, {id:'GSO', name:'solf9', type:'SOLF'}],
+    refInstruments: [],
+    refRooms: [],
+    smallGroupQuotas: [],
+    breaks: [],
+    oneToOne: {columns:[{id:'T1', name:'Ajtai'}], hours:{P1:{T1:1}, P2:{T1:1}, P3:{T1:1}, P4:{T1:1}, P5:{T1:1}}},
+    rpiano: {columns:[], hours:{}},
+    acceptedSchedule: [],
+    teacherSwapProbe: false
+  };
+  install(api, swapDb);
+  api.LAST_SMALL_GROUPS = null;
+  const swapCands = api.collectTeacherSwapCandidates();
+  ok('finds the 60-min Theory ↔ Solfege pair',
+    swapCands.some(c => (c.pairs || []).some(([a,b]) =>
+      (a.id === 'LTH' && b.id === 'LSO') || (a.id === 'LSO' && b.id === 'LTH'))),
+    swapCands.map(c => c.label).join(' | '));
+  const beforeIds = api.DB.lessons.map(l => l.teacherId).join(',');
+  const swappedInside = api.withLessonTeacherSwaps([[api.DB.lessons[0], api.DB.lessons[1]]], () =>
+    api.DB.lessons.map(l => l.teacherId).join(','));
+  ok('swap temporarily exchanges teachers', swappedInside === 'T2,T1', swappedInside);
+  ok('swap restores Lesson groups teachers',
+    api.DB.lessons.map(l => l.teacherId).join(',') === beforeIds);
+  const packedA = api.runScheduler(false);
+  api.attachGroupLookahead([packedA]);
+  api.DB.teacherSwapProbe = false;
+  ok('off probe does not attach swaps',
+    (api.collectTeacherSwapSuggestionsForLayouts([packedA]) || []).length === 0
+    && (packedA.teacherSwaps || []).length === 0);
+  api.DB.teacherSwapProbe = true;
+  const packedB = Object.assign({}, packedA, {unresolved: packedA.unresolved.slice(), lookahead: packedA.lookahead});
+  api.collectTeacherSwapSuggestionsForLayouts([packedA, packedB]);
+  ok('on probe logs swaps on every layout',
+    Array.isArray(packedA.teacherSwaps) && Array.isArray(packedB.teacherSwaps));
+  ok('Theory ↔ Solfege swap improves leftover 1/1 on this school',
+    (packedA.teacherSwaps || []).some(s => /Jazz Theory/.test(s.label) && /Jazz Solfege/.test(s.label)),
+    (packedA.teacherSwaps || []).map(s => s.label).join(' | ') || 'none');
+  ok('swap probe re-searches with shuffled packs, not only the current layout',
+    api.teacherSwapSearchAttempts(1) > 1
+    && (packedA.teacherSwaps || []).some(s => (s.swapSearchAttempts || 0) > 1),
+    JSON.stringify((packedA.teacherSwaps || [])[0]));
+  const afterSwapIds = api.DB.lessons.map(l => l.teacherId).join(',');
+  ok('swap search restores Lesson groups teachers', afterSwapIds === beforeIds);
+  api.DB.teacherSwapProbe = false;
 
   const pinHoleDb = toyAuditDb();
   pinHoleDb.teacherAvail = [{teacherId:'T1', teacher:'Tea', day:'MON', start:'08:00', end:'20:00', type:'AVAILABLE'}];
@@ -550,6 +727,7 @@ function main(){
       fixedDay:'MON', fixedStart:'14:15', fixedEnd:'15:45'},
     {id:'L1', name:'Morning leftover', groupId:'G1', teacherId:'T1', duration:45, roomId:'', room:''}
   ];
+  pinHoleDb.forbidUnlistedGroupGaps = true;
   install(api, pinHoleDb);
   api.LAST_SMALL_GROUPS = {smallGroups:[]};
   const pinHoleSched = api.runScheduler(false);
@@ -577,6 +755,7 @@ function main(){
     {id:'G2', name:'imprB', type:'IMPR'},
     {id:'G3', name:'solf', type:'SOLF'}
   ];
+  pinFlushDb.forbidUnlistedGroupGaps = true;
   pinFlushDb.lessons = [
     {id:'Lpin', name:'Pinned', groupId:'G3', teacherId:'T1', duration:240, roomId:'', room:'',
       fixedDay:'MON', fixedStart:'09:00', fixedEnd:'13:00'},
@@ -593,6 +772,59 @@ function main(){
   ok('pin-flush packing has no independent-checker gap',
     checkSchedule(api.DB, api.LAST_SMALL_GROUPS, pinFlushSched).filter(e => /illegal .*gap/.test(e)).length === 0,
     checkSchedule(api.DB, api.LAST_SMALL_GROUPS, pinFlushSched).join(' | '));
+
+  const emptyBusy = {};
+  const pinAfter = {T1:{MON:[{start:18*60+30, end:19*60+30}]}};
+  const pinBefore = {T1:{MON:[{start:8*60, end:9*60}]}};
+  const pinBoth = {T1:{MON:[{start:8*60, end:9*60},{start:18*60+30, end:19*60+30}]}};
+  ok('hole pulls to the end when the only neighbor is later',
+    api.holePullsTowardEnd('MON', 15*60, 17*60, 'T1', pinAfter, emptyBusy, []) === true);
+  ok('hole stays at the start when the only neighbor is earlier',
+    api.holePullsTowardEnd('MON', 15*60, 17*60, 'T1', pinBefore, emptyBusy, []) === false);
+  ok('hole does not care which edge when both neighbors exist',
+    api.holePullsTowardEnd('MON', 15*60, 17*60, 'T1', pinBoth, emptyBusy, []) === false);
+  ok('empty day does not pull to the leftover end',
+    api.holePullsTowardEnd('MON', 15*60, 17*60, 'T1', {}, emptyBusy, []) === false);
+  ok('a later student lesson also pulls to the hole end',
+    api.holePullsTowardEnd('MON', 15*60, 17*60, 'T1', {}, {S1:{MON:[{start:18*60, end:19*60}]}}, [{ID:'S1'}]) === true);
+  ok('class-reservation-shaped empty busy is not a neighbor',
+    api.dayLessonNeighbors('MON', 15*60, 17*60, 'T1', {}, {}, []).after === false);
+
+  const pullEndDb = toyAuditDb();
+  pullEndDb.teacherAvail = [{teacherId:'T1', teacher:'Tea', day:'MON', start:'08:00', end:'20:00', type:'AVAILABLE'}];
+  pullEndDb.breaks = [];
+  pullEndDb.classAvail = [
+    {classId:'C1', class:'9a', day:'MON', start:'08:00', end:'15:00'},
+    {classId:'C1', class:'9a', day:'MON', start:'17:00', end:'20:00'}
+  ];
+  pullEndDb.lessons = [
+    {id:'Lpin', name:'Evening pin', groupId:'G2', teacherId:'T1', duration:60, roomId:'', room:'',
+      fixedDay:'MON', fixedStart:'18:30', fixedEnd:'19:30'},
+    {id:'L1', name:'Afternoon leftover', groupId:'G1', teacherId:'T1', duration:90, roomId:'', room:''}
+  ];
+  install(api, pullEndDb);
+  api.LAST_SMALL_GROUPS = {smallGroups:[]};
+  const pullEndSched = api.runScheduler(false);
+  const pullEndLive = (pullEndSched.scheduled || []).find(s => s.lessonId === 'L1');
+  ok('unsnappable leftover sits at the hole end toward a later lesson',
+    pullEndLive && pullEndLive.day === 'MON' && pullEndLive.start === 15*60+30 && pullEndLive.end === 17*60,
+    pullEndLive ? `${pullEndLive.day} ${api.toHHMM(pullEndLive.start)}–${api.toHHMM(pullEndLive.end)}`
+      : ((pullEndSched.unresolved||[]).map(u => u.lesson && u.lesson.id).join(',') || 'unplaced'));
+
+  const pullStartDb = JSON.parse(JSON.stringify(pullEndDb));
+  pullStartDb.lessons = [
+    {id:'Lpin', name:'Morning pin', groupId:'G2', teacherId:'T1', duration:60, roomId:'', room:'',
+      fixedDay:'MON', fixedStart:'08:00', fixedEnd:'09:00'},
+    {id:'L1', name:'Afternoon leftover', groupId:'G1', teacherId:'T1', duration:90, roomId:'', room:''}
+  ];
+  install(api, pullStartDb);
+  api.LAST_SMALL_GROUPS = {smallGroups:[]};
+  const pullStartSched = api.runScheduler(false);
+  const pullStartLive = (pullStartSched.scheduled || []).find(s => s.lessonId === 'L1');
+  ok('unsnappable leftover sits at the hole start toward an earlier lesson',
+    pullStartLive && pullStartLive.day === 'MON' && pullStartLive.start === 15*60 && pullStartLive.end === 16*60+30,
+    pullStartLive ? `${pullStartLive.day} ${api.toHHMM(pullStartLive.start)}–${api.toHHMM(pullStartLive.end)}`
+      : ((pullStartSched.unresolved||[]).map(u => u.lesson && u.lesson.id).join(',') || 'unplaced'));
 
   install(api, toyAuditDb());
   ok('teacherWindowClash outside window',
@@ -621,6 +853,58 @@ function main(){
   ok('timed AVOID blocks only 12–14',
     /12:00/.test(api.teacherWindowClash('T1', 'Tea', 'MON', 12*60, 13*60) || ''),
     api.teacherWindowClash('T1', 'Tea', 'MON', 12*60, 13*60));
+
+  ok('missing SCOPE normalizes to ALL', api.normalizeAvailScope('') === 'ALL' && api.normalizeAvailScope('group') === 'GROUP');
+  api.DB.teacherAvail = [
+    {teacherId:'T1', teacher:'Tea', day:'MON', start:'13:00', end:'16:00', type:'AVAILABLE', scope:'GROUP'}
+  ];
+  ok('GROUP scope is a group window', !!api.teacherDayWindows('T1', 'group').MON);
+  ok('GROUP scope is not a 1/1 window', !api.teacherDayWindows('T1', 'oneone').MON);
+  ok('GROUP window rejects 1/1',
+    /1\/1/.test(api.teacherWindowClash('T1', 'Tea', 'MON', 13*60, 14*60, 'oneone') || ''),
+    api.teacherWindowClash('T1', 'Tea', 'MON', 13*60, 14*60, 'oneone'));
+  ok('GROUP window accepts a group lesson',
+    api.teacherWindowClash('T1', 'Tea', 'MON', 13*60, 14*60, 'group') == null);
+  api.DB.teacherAvail = [
+    {teacherId:'T1', teacher:'Tea', day:'MON', start:'13:00', end:'16:00', type:'AVAILABLE', scope:'O2O'}
+  ];
+  ok('O2O scope is a 1/1 window', !!api.teacherDayWindows('T1', 'oneone').MON);
+  ok('O2O scope is not a group window', !api.teacherDayWindows('T1', 'group').MON);
+  ok('O2O window rejects a group lesson',
+    /group/.test(api.teacherWindowClash('T1', 'Tea', 'MON', 13*60, 14*60, 'group') || ''));
+  api.DB.teacherAvail = [
+    {teacherId:'T1', teacher:'Tea', day:'MON', start:'08:00', end:'20:00', type:'AVAILABLE', scope:'ALL'},
+    {teacherId:'T1', teacher:'Tea', day:'MON', start:'12:00', end:'14:00', type:'AVOID', scope:'O2O'}
+  ];
+  ok('AVOID O2O does not split the group window',
+    api.teacherDayWindows('T1', 'group').MON
+    && api.teacherDayWindows('T1', 'group').MON.intervals.length === 1
+    && api.teacherWindowClash('T1', 'Tea', 'MON', 12*60, 13*60, 'group') == null);
+  ok('AVOID O2O still blocks 1/1 at 12–14',
+    /12:00/.test(api.teacherWindowClash('T1', 'Tea', 'MON', 12*60, 13*60, 'oneone') || ''));
+
+  const availHeaders = api.inferHeaders(
+    ['TEACHER','TEACHER_ID','DAY','START','END','TYPE','','NOTE'],
+    null,
+    'teacherAvail'
+  );
+  ok('TEACHER_CONST unlabeled column after TYPE infers SCOPE',
+    availHeaders[5] === 'TYPE' && availHeaders[6] === 'SCOPE',
+    availHeaders.join(','));
+
+  const o2oOnly = toyAuditDb();
+  o2oOnly.teacherAvail = [
+    {teacherId:'T1', teacher:'Tea', day:'MON', start:'13:00', end:'20:00', type:'AVAILABLE', scope:'O2O'}
+  ];
+  o2oOnly.breaks = [];
+  install(api, o2oOnly);
+  api.LAST_SMALL_GROUPS = {smallGroups:[], excluded:[], appearances:{}, eligibleCount:0};
+  const o2oSched = api.runScheduler(false);
+  ok('O2O-only window leaves group lessons unresolved',
+    (o2oSched.unresolved || []).some(u => u.lesson && u.lesson.id === 'L1')
+      && !(o2oSched.scheduled || []).some(s => s.lessonId === 'L1'),
+    (o2oSched.scheduled || []).map(s => s.lessonId).join(',')
+      + ' leftover=' + (o2oSched.unresolved || []).map(u => u.lesson && u.lesson.id).join(','));
 
   const splitDb = toyAuditDb();
   splitDb.teacherAvail = [
@@ -657,6 +941,7 @@ function main(){
 
   console.log('\n== 5. auditTimetable: every red kind + GAP warning ==');
   install(api, toyAuditDb());
+  api.DB.forbidUnlistedGroupGaps = true;
   const school = api.auditTimetable([item({start: 7*60, end: 8*60})]);
   ok('group outside 08:00–20:00 is a red error',
     school.entries.some(e => e.level !== 'warning' && /08:00/.test(e.html)));
@@ -743,6 +1028,20 @@ function main(){
   ok('small group id is SG1', smallGroups.smallGroups[0].id === 'SG1');
   ok('getSmallGroupLessons uses the small group id',
     api.getSmallGroupLessons().some(l => l.id === 'SG1'));
+  ok('fresh small group starts with a default room lock',
+    !!(smallGroups.smallGroups[0].roomId), smallGroups.smallGroups[0].roomId || 'none');
+  smallGroups.smallGroups[0].roomId = '';
+  smallGroups.smallGroups[0].room = '';
+  ok('cleared room lock stays off when Generate reads the band',
+    api.getSmallGroupLessons().every(l => !l.roomId));
+  api.ensureSmallGroupIdentities(smallGroups);
+  ok('ensure identities does not put a cleared room lock back',
+    !smallGroups.smallGroups[0].roomId);
+  const unlockedWeek = api.runScheduler(false);
+  const unlockedSg = unlockedWeek.scheduled.find(s => s.lessonId === 'SG1');
+  ok('Generate does not lock a room after the band room was cleared',
+    !unlockedSg || !unlockedSg.roomId,
+    unlockedSg ? (unlockedSg.roomId + ' ' + (unlockedSg.room || '')) : 'SG1 not placed');
 
   console.log('\n== 6b. Small groups CSV carries override, fixed, scheduled ==');
   const expectedSgCsvHeaders = [
@@ -825,6 +1124,26 @@ function main(){
     && parsedDriveSg.smallGroups[0].fixedStart === '18:00'
     && parsedDriveSg.smallGroups[0].bass.some(s => s.ID === 'S1')
     && parsedDriveSg.smallGroups[0].drum.some(s => s.ID === 'S2'));
+  const unlockedDriveSg = api.parseSmallGroupsTable([
+    {SMALL_GROUP_ID:'SG8', SMALL_GROUP:'Small Group 8', DURATION_MIN:'90', ROLE:'BASS', STUDENT_ID:'S1'},
+    {SMALL_GROUP_ID:'SG8', SMALL_GROUP:'Small Group 8', DURATION_MIN:'90', ROLE:'DRUM', STUDENT_ID:'S2'}
+  ], api.DB.students, {
+    refTeachers: api.DB.refTeachers, refClasses: api.DB.refClasses, refRooms: api.DB.refRooms
+  });
+  ok('Sheets row without ROOM_LOCK stays unlocked',
+    unlockedDriveSg.smallGroups.length === 1 && !unlockedDriveSg.smallGroups[0].roomId,
+    unlockedDriveSg.smallGroups[0] && (unlockedDriveSg.smallGroups[0].roomId || 'none'));
+  const liveShaped = api.parseSmallGroupsTable([
+    {SMALL_GROUP_ID:'SG16', SMALL_GROUP:'Small Group 16', DURATION_MIN:'90', ROOM_ID:'ROOM1', ROOM:'321jazz', ROLE:'BASS', STUDENT_ID:'S1'},
+    {SMALL_GROUP_ID:'SG17', SMALL_GROUP:'Small Group 17', TEACHER:'Kovats', TEACHER_ID:'T1', DURATION_MIN:'90', ROOM_ID:'', ROOM:'', FIXED_DAY:'TUE', ROLE:'ACC', STUDENT_ID:'S1'},
+    {SMALL_GROUP_ID:'SG17', SMALL_GROUP:'Small Group 17', TEACHER:'Kovats', TEACHER_ID:'T1', DURATION_MIN:'90', ROOM_ID:'', ROOM:'', FIXED_DAY:'TUE', ROLE:'SOL', STUDENT_ID:'S2'}
+  ], api.DB.students, {
+    refTeachers: api.DB.refTeachers, refClasses: api.DB.refClasses, refRooms: api.DB.refRooms
+  });
+  const live16 = liveShaped.smallGroups.find(b => b.id === 'SG16');
+  const live17 = liveShaped.smallGroups.find(b => b.id === 'SG17');
+  ok('Sheets SG16 keeps an explicit ROOM_LOCK', !!(live16 && live16.roomId === 'ROOM1'));
+  ok('Sheets SG17 with blank ROOM_ID/ROOM stays unlocked', !!(live17 && !live17.roomId), live17 && live17.roomId);
   const roundTrip = api.parseSmallGroupsTable(
     api.smallGroupsCsvAoa(parsedDriveSg).slice(1).map(vals => {
       const row = {};
@@ -957,8 +1276,10 @@ function main(){
 
   const ics = api.buildTimetableIcs(api.LAST_RESULT.scheduled);
   ok('ICS is a calendar', /BEGIN:VCALENDAR/.test(ics) && /BEGIN:VEVENT/.test(ics));
+  const named = (api.LAST_RESULT.scheduled || []).find(s => /Improv|Theory|Small Group/i.test(s.name || ''));
   ok('calendar title uses the lesson name',
-    /Improv/.test(api.calendarEventTitle(api.LAST_RESULT.scheduled[0])));
+    named && /Improv|Theory|Small Group/i.test(api.calendarEventTitle(named)),
+    named ? api.calendarEventTitle(named) : 'no named lesson');
   const bundle = api.buildFullExportObject();
   ok('JSON export has oneToOneState.accepted and rpianoState.accepted',
     bundle.oneToOneState && bundle.oneToOneState.accepted
@@ -1048,6 +1369,7 @@ function main(){
     invPin.join(' | '));
 
   install(api, tiny);
+  api.DB.forbidUnlistedGroupGaps = true;
   api.DB.breaks = [{id:'B1', teacherId:'T1', teacher:'Ajtai', breakMinutes:0, breakCount:0}];
   api.DB.lessons.push({
     id:'LES2', name:'Theory 9', group:'impr9', groupId:'G1', teacher:'Ajtai', teacherId:'T1',
@@ -1084,6 +1406,72 @@ function main(){
   api.DB.lessons[0].duration = 90;
   const fp2 = api.computeScheduleFingerprint();
   ok('fingerprint changes when duration changes', fp1 !== fp2);
+
+  console.log('\n== Phase 1 teacher order ==');
+  const orderDb = toyAuditDb();
+  orderDb.refTeachers = [
+    {id:'T1', name:'Pusztai'},
+    {id:'T2', name:'Ajtai'},
+    {id:'T3', name:'Pozsar'}
+  ];
+  orderDb.lessons = [
+    {id:'L1', name:'A', groupId:'G1', teacherId:'T1', duration:45, roomId:'', room:''},
+    {id:'L2', name:'B', groupId:'G2', teacherId:'T2', duration:90, roomId:'', room:''},
+    {id:'L3', name:'C', groupId:'G1', teacherId:'T3', duration:45, roomId:'', room:''}
+  ];
+  orderDb.teacherAvail = [
+    {teacherId:'T1', teacher:'Pusztai', day:'MON', start:'13:00', end:'18:00', type:'AVAILABLE'},
+    {teacherId:'T2', teacher:'Ajtai', day:'MON', start:'13:00', end:'18:00', type:'AVAILABLE'},
+    {teacherId:'T2', teacher:'Ajtai', day:'TUE', start:'13:00', end:'18:00', type:'AVAILABLE'},
+    {teacherId:'T2', teacher:'Ajtai', day:'WED', start:'13:00', end:'18:00', type:'AVAILABLE'},
+    {teacherId:'T3', teacher:'Pozsar', day:'MON', start:'13:00', end:'18:00', type:'AVAILABLE'},
+    {teacherId:'T3', teacher:'Pozsar', day:'TUE', start:'13:00', end:'18:00', type:'AVAILABLE'}
+  ];
+  orderDb.phase1TeacherOrder = null;
+  install(api, orderDb);
+  api.LAST_SMALL_GROUPS = {smallGroups:[]};
+  const autoIds = api.collectPhase1TeacherIds();
+  ok('Phase 1 teachers are unfixed subject teachers',
+    autoIds.length === 3 && autoIds.includes('T1') && autoIds.includes('T2') && autoIds.includes('T3'));
+  ok('automatic order is fewest days first (T1 → T3 → T2)',
+    api.automaticPhase1TeacherOrder(autoIds).join(',') === 'T1,T3,T2',
+    api.automaticPhase1TeacherOrder(autoIds).join(','));
+  ok('no manual order yet', api.hasManualPhase1TeacherOrder() === false);
+  ok('deterministic resolve matches automatic',
+    api.resolvePhase1TeacherOrder(autoIds, false).join(',') === 'T1,T3,T2');
+  api.setManualPhase1TeacherOrder(['T2','T1','T3']);
+  ok('manual order is stored', api.hasManualPhase1TeacherOrder() === true
+    && api.DB.phase1TeacherOrder.join(',') === 'T2,T1,T3');
+  ok('deterministic attempt keeps the dragged order',
+    api.resolvePhase1TeacherOrder(autoIds, false).join(',') === 'T2,T1,T3');
+  const shuffledManual = api.resolvePhase1TeacherOrder(autoIds, true);
+  ok('shuffled attempt still permutes the manual list',
+    shuffledManual.slice().sort().join(',') === 'T1,T2,T3',
+    shuffledManual.join(','));
+  ok('unknown ids are dropped and new teachers append',
+    api.resolvePhase1TeacherOrder(['T3','T4','T2'], false).join(',') === 'T2,T3,T4',
+    api.resolvePhase1TeacherOrder(['T3','T4','T2'], false).join(','));
+  const orderSched = api.runScheduler(false);
+  const orderLog = (orderSched.searchLog || []).map(l => l.text).join('\n');
+  ok('search log names the manual teacher order',
+    /Manual teacher order: Ajtai → Pusztai → Pozsar/.test(orderLog),
+    orderLog.slice(0, 400));
+  const shuffledSched = api.runScheduler(true);
+  const shuffledLog = (shuffledSched.searchLog || []).map(l => l.text).join('\n');
+  ok('shuffled attempt still logs a shuffled teacher order',
+    /Shuffled teacher order this attempt:/.test(shuffledLog)
+    && !/Manual teacher order:/.test(shuffledLog),
+    shuffledLog.slice(0, 400));
+  const fpOrder1 = api.computeScheduleFingerprint();
+  api.DB.phase1TeacherOrder = ['T1','T2','T3'];
+  const fpOrder2 = api.computeScheduleFingerprint();
+  ok('fingerprint changes when teacher order changes', fpOrder1 !== fpOrder2);
+  const exported = api.buildFullExportObject();
+  ok('export keeps the manual teacher order',
+    Array.isArray(exported.phase1TeacherOrder) && exported.phase1TeacherOrder.join(',') === 'T1,T2,T3');
+  api.clearManualPhase1TeacherOrder();
+  ok('reset clears the manual order', api.hasManualPhase1TeacherOrder() === false);
+  install(api, seed);
 
   install(api, seed);
   const oneTeachers = api.individualTeacherIds('oneone');
@@ -1123,8 +1511,59 @@ function main(){
   ok('group search tries at least 100 layouts', api.SCHEDULE_SEARCH_ATTEMPTS >= 100);
   ok('group Solution list keeps the best 10', api.SCHEDULE_VARIANT_KEEP === 10);
   ok('attempts clamp floors at 1', api.clampScheduleSearchAttempts(0) === 1);
-  ok('attempts clamp caps at 1000', api.clampScheduleSearchAttempts(5000) === 1000);
+  ok('attempts clamp allows 5000', api.clampScheduleSearchAttempts(5000) === 5000);
+  ok('attempts clamp caps at 50000', api.clampScheduleSearchAttempts(80000) === 50000);
+  ok('1000 attempts is not deep search', api.isDeepScheduleSearch(1000) === false);
+  ok('1001 attempts is deep search', api.isDeepScheduleSearch(1001) === true);
+  ok('deep search starts after 1000', api.DEEP_SEARCH_AFTER === 1000);
+  ok('search max is 50000', api.SCHEDULE_SEARCH_ATTEMPTS_MAX === 50000);
   ok('blank attempts value is 100', api.clampScheduleSearchAttempts('x') === 100);
+  ok('1/1 attempts default is 15', api.ONEONE_SEARCH_ATTEMPTS === 15);
+  ok('piano attempts default is 15', api.RPIANO_SEARCH_ATTEMPTS === 15);
+  ok('1/1 attempts clamp floors at 1', api.clampOneOneSearchAttempts(0) === 1);
+  ok('1/1 attempts clamp caps at 5000', api.clampOneOneSearchAttempts(8000) === 5000);
+  ok('1/1 max tries is 4× attempts', api.oneOneSearchMaxTries(15) === 60 && api.oneOneSearchMaxTries(20) === 80);
+  api.applyUiState({oneOneSearchAttempts: '1000', rpianoSearchAttempts: '12'});
+  ok('piano generate does not inherit 1/1 attempts', api.readOneOneSearchAttempts('rpiano') === 12);
+  ok('1/1 generate still uses its own attempts', api.readOneOneSearchAttempts('oneone') === 1000);
+  ok('reading piano does not rewrite 1/1 attempts', api.readOneOneSearchAttempts('oneone') === 1000);
+  ok('reading 1/1 does not rewrite piano attempts', api.readOneOneSearchAttempts('rpiano') === 12);
+  const uiAttempts = api.collectUiState();
+  ok('autosave stores piano attempts separately',
+    uiAttempts.rpianoSearchAttempts === '12' && uiAttempts.oneOneSearchAttempts === '1000');
+  api.applyUiState({oneOneSearchAttempts: '1000'});
+  ok('old save without piano attempts does not force piano to 1000', api.readOneOneSearchAttempts('rpiano') === 12);
+  api.applyUiState({oneOneSearchAttempts: '15', rpianoSearchAttempts: '15'});
+  function fakeLayout(id, unresolvedN, idle){
+    return {
+      scheduled: [{lessonId:id, day:'MON', start:8*60, teacherId:'T1'}],
+      unresolved: Array.from({length: unresolvedN}, (_, i) => ({lesson:{id:'U'+id+i, name:'x'}})),
+      idleGapMinutes: idle || 0,
+      oneOneHoleMinutes: 0
+    };
+  }
+  const deepState = api.beginScheduleSearch(2000);
+  ok('2000 attempts starts a deep search', deepState.deep === true && deepState.keep === 10);
+  for(let i = 1; i <= 12; i++){
+    api.recordScheduleAttempt(deepState, fakeLayout('L'+i, 12 - i, i), i);
+  }
+  ok('deep beam keeps at most 10 full layouts', deepState.beam.length === 10);
+  ok('deep beam best has the fewest unresolved', deepState.beam[0].unresolved.length === 0);
+  ok('deep search remembers every distinct signature', deepState.distinct === 12 && deepState.seen.size === 12);
+  ok('finishScheduleSearch returns the beam sorted', api.finishScheduleSearch(deepState).length === 10);
+  const skipKind = api.recordScheduleAttempt(deepState, fakeLayout('WORSE', 40, 0), 13);
+  ok('worse-than-beam layout is signature-only', skipKind === 'skip' && deepState.beam.length === 10);
+  api.resetSearchCancel();
+  ok('search cancel starts clear', api.isSearchCancelled() === false);
+  api.requestCancelSearch();
+  ok('requestCancelSearch sets the flag', api.isSearchCancelled() === true);
+  api.resetSearchCancel();
+  ok('resetSearchCancel clears the flag', api.isSearchCancelled() === false);
+  install(api, tiny);
+  const quietRes = api.runScheduler(false, {quiet:true});
+  ok('quiet scheduler keeps no walkthrough', (quietRes.searchLog || []).length === 0);
+  const loudRes = api.runScheduler(false);
+  ok('normal scheduler writes a walkthrough', (loudRes.searchLog || []).length > 0);
   api.SCHEDULE_SEARCH_ATTEMPTS = 3;
   ok('empty Attempts field does not overwrite a test count', api.readScheduleSearchAttempts() === 3);
   api.SCHEDULE_SEARCH_ATTEMPTS = 100;
@@ -1136,6 +1575,32 @@ function main(){
   const minLeft = {unresolved:[{}], lookahead:{oneUnresolved:4, pianoUnresolved:4, onePlaced:8, pianoPlaced:1}};
   api.markSuggestedByLookahead([moreLeft, minLeft], api.groupLookaheadScore);
   ok('group SUGGESTED cannot have more left-out than the minimum', minLeft.suggested === true && moreLeft.suggested === false);
+  const fewerLeft = {unresolved:[{lesson:{id:'LES1'}}], lookahead:{oneUnresolved:8, pianoUnresolved:8, onePlaced:1, pianoPlaced:0}};
+  const moreLeftBetterLook = {unresolved:[{lesson:{id:'SG1'}},{lesson:{id:'SG2'}}], lookahead:{oneUnresolved:0, pianoUnresolved:0, onePlaced:20, pianoPlaced:10}};
+  api.markSuggestedByLookahead([moreLeftBetterLook, fewerLeft], api.groupLookaheadScore);
+  ok('group SUGGESTED is fewest leftover items of any kind, not small groups first',
+    fewerLeft.suggested === true && moreLeftBetterLook.suggested === false);
+  const sameLeftWorseLook = {unresolved:[{lesson:{id:'LES1'}}], idleGapMinutes:10, lookahead:{oneUnresolved:8, pianoUnresolved:8, onePlaced:1, pianoPlaced:0}};
+  const sameLeftBetterLook = {unresolved:[{lesson:{id:'SG1'}}], idleGapMinutes:400, lookahead:{oneUnresolved:0, pianoUnresolved:0, onePlaced:20, pianoPlaced:10}};
+  api.markSuggestedByLookahead([sameLeftWorseLook, sameLeftBetterLook], api.groupLookaheadScore);
+  ok('among the same leftover count, group SUGGESTED is the best 1/1 then piano preview',
+    sameLeftBetterLook.suggested === true && sameLeftWorseLook.suggested === false);
+  const keptAccepted = {
+    accepted: true,
+    unresolved: [],
+    idleGapMinutes: 40,
+    scheduled: [{lessonId:'L1', day:'MON', start:'08:00', teacherId:'T1'}]
+  };
+  const worseFresh = {
+    unresolved: [{lesson:{id:'SG1'}}],
+    idleGapMinutes: 0,
+    scheduled: [{lessonId:'L2', day:'TUE', start:'09:00', teacherId:'T2'}]
+  };
+  api.LAST_VARIANTS = [keptAccepted];
+  api.mergeGenerateVariants([worseFresh]);
+  ok('merge keeps an accepted layout so Generate cannot drop a better week',
+    api.LAST_VARIANTS.some(v => v.scheduled && v.scheduled[0] && v.scheduled[0].lessonId === 'L1')
+    && api.LAST_VARIANTS[0].accepted === false);
   const pianoWorse = {unresolved:[], lookahead:{pianoUnresolved:3, pianoPlaced:1}};
   const pianoBetter = {unresolved:[], lookahead:{pianoUnresolved:0, pianoPlaced:4}};
   api.markSuggestedByLookahead([pianoWorse, pianoBetter], api.oneOneLookaheadScore);
@@ -1210,6 +1675,73 @@ function main(){
   ok('1/1 preview treats group members as busy even without studentIds on the block',
     memberBlock.lookahead && memberBlock.lookahead.oneUnresolved > 0,
     memberBlock.lookahead && JSON.stringify(memberBlock.lookahead));
+
+  console.log('\n== 13. Search core: 1/1 holes, top-3 gaps, Phase 2 ruin ==');
+  ok('promoteTopKRandom leaves a deterministic list alone',
+    api.promoteTopKRandom(['a','b','c'], 3, false).join(',') === 'a,b,c');
+  const wideHoles = {unresolved:[], scheduled:[], idleGapMinutes:50, oneOneHoleMinutes:400};
+  const tightHoles = {unresolved:[], scheduled:[], idleGapMinutes:10, oneOneHoleMinutes:40};
+  ok('Best prefers more leftover 1/1 class-hole minutes before idle',
+    api.compareScoreTuple(api.resultScore(wideHoles), api.resultScore(tightHoles)) < 0);
+  const noHoleA = {unresolved:[], scheduled:[], idleGapMinutes:10};
+  const noHoleB = {unresolved:[], scheduled:[], idleGapMinutes:40};
+  ok('search ranking without a hole score uses leftover count then idle',
+    api.compareScoreTuple(api.resultScore(noHoleA), api.resultScore(noHoleB)) < 0);
+  install(api, tiny);
+  const fastSched = api.runScheduler(false);
+  ok('a search attempt does not walk leftover 1/1 holes',
+    fastSched.oneOneHoleMinutes == null);
+  const ruinDb = {
+    students: [
+      {ID:'S1', NAME1:'Ann', NAME2:'A', CLASS_ID:'C1', CLASS:'9a', IMPR_ID:'G1', INSTR_ID:'I1'},
+      {ID:'S2', NAME1:'Bob', NAME2:'B', CLASS_ID:'C1', CLASS:'9a', INSTR_ID:'I2'},
+      {ID:'S3', NAME1:'Cat', NAME2:'C', CLASS_ID:'C1', CLASS:'9a', INSTR_ID:'I3'},
+      {ID:'S4', NAME1:'Dan', NAME2:'D', CLASS_ID:'C1', CLASS:'9a', INSTR_ID:'I4'}
+    ],
+    lessons: [
+      {id:'L1', name:'Improv A', groupId:'G1', group:'imprA', teacherId:'T1', teacher:'Tea', duration:60, roomId:'', room:''}
+    ],
+    teacherAvail: [
+      {teacherId:'T1', teacher:'Tea', day:'MON', start:'14:00', end:'16:00', type:'AVAILABLE'}
+    ],
+    classAvail: [
+      {classId:'C1', class:'9a', day:'MON', start:'08:00', end:'14:00'}
+    ],
+    refTeachers: [{id:'T1', name:'Tea'}],
+    refClasses: [{id:'C1', name:'9a', muclass:'9'}],
+    refGroups: [{id:'G1', name:'imprA', type:'IMPR'}],
+    refInstruments: [
+      {id:'I1', name:'bassg', type:'bass'},
+      {id:'I2', name:'drum', type:'drum'},
+      {id:'I3', name:'piano', type:'acc'},
+      {id:'I4', name:'sax', type:'sol'}
+    ],
+    refRooms: [{id:'ROOM1', name:'321'}],
+    smallGroupQuotas: [{teacherId:'T1', amount:1}],
+    breaks: [],
+    oneToOne: {columns:[], hours:{}},
+    rpiano: {columns:[], hours:{}},
+    acceptedSchedule: []
+  };
+  install(api, ruinDb);
+  api.LAST_SMALL_GROUPS = {
+    smallGroups: [{
+      id:'SG1',
+      bass:[{ID:'S1', NAME1:'Ann', NAME2:'A', CLASS_ID:'C1', INSTR_ID:'I1'}],
+      drum:[{ID:'S2', NAME1:'Bob', NAME2:'B', CLASS_ID:'C1', INSTR_ID:'I2'}],
+      acc:[{ID:'S3', NAME1:'Cat', NAME2:'C', CLASS_ID:'C1', INSTR_ID:'I3'}],
+      sol:[{ID:'S4', NAME1:'Dan', NAME2:'D', CLASS_ID:'C1', INSTR_ID:'I4'}],
+      teacherId:'', roomId:'', room:'', duration:90,
+      fixedDay:'', fixedStart:'', fixedEnd:''
+    }],
+    excluded: [],
+    nextSmallGroupSeq: 2
+  };
+  const ruined = api.runScheduler(false);
+  ok('Phase 2 ruin places the small group that Phase 1 would have blocked',
+    ruined.scheduled.some(s => s.lessonId === 'SG1'),
+    (ruined.unresolved || []).map(u => u.lesson && u.lesson.id).join(',')
+      || ruined.scheduled.map(s => s.lessonId).join(','));
 
   console.log('\n== 12. Timetable reports filters ==');
   install(api, {

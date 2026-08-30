@@ -237,7 +237,7 @@ function main(){
     (v.scheduled || []).some(s => s.lessonId === home.lessonId && s.day === dragDay && s.start === dragStart));
   ok('the solution pool dropped the dragged layout', !poolHasDrag);
 
-  console.log('\n== Generate after Accept of a drag still shows this search ==');
+  console.log('\n== Generate after Accept of a drag cannot get worse ==');
   api.DB = JSON.parse(JSON.stringify(seed));
   api.LAST_SMALL_GROUPS = api.generateSmallGroups(16);
   api.runGenerateTimetable(false);
@@ -260,15 +260,17 @@ function main(){
     (api.DB.acceptedSchedule || []).some(r =>
       r.lessonId === accHome.lessonId && r.day === accDay && api.toMin(r.start) === accStart));
   ok('Accept cleared unaccepted-drag flag', !api.hasUnacceptedDrags());
+  const acceptedLeft = ((acceptedDrag.unresolved) || []).length;
+  const acceptedSig = api.resultSignature(acceptedDrag);
   api.runGenerateTimetable(false);
   ok('keep-generate still has the accepted table',
     (api.DB.acceptedSchedule || []).some(r => r.lessonId === accHome.lessonId && r.day === accDay));
-  ok('keep-generate shows a new grid object, not the accepted drag',
-    api.LAST_RESULT && api.LAST_RESULT !== acceptedDrag);
-  const afterAccept = api.LAST_RESULT.scheduled.find(s => s.lessonId === accHome.lessonId);
-  ok('the accepted dragged slot is not what Generate paints',
-    !afterAccept || afterAccept.day !== accDay || afterAccept.start !== accStart,
-    afterAccept ? `${afterAccept.day} ${afterAccept.start}` : 'lesson missing');
+  ok('keep-generate still has a painted layout', !!(api.LAST_RESULT && api.LAST_RESULT.scheduled.length));
+  ok('keep-generate does not paint more leftover items than the accepted week',
+    ((api.LAST_RESULT.unresolved) || []).length <= acceptedLeft);
+  ok('the accepted week stays in the pool unless a better leftover count replaced it',
+    (api.LAST_VARIANTS || []).some(v => api.resultSignature(v) === acceptedSig)
+    || ((api.LAST_VARIANTS[0].unresolved) || []).length < acceptedLeft);
 
   console.log('\n== Generate confirm stays reachable after teacher-view redraws ==');
   api.DB = JSON.parse(JSON.stringify(seed));

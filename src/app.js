@@ -19,7 +19,11 @@ function emptyPlannerDb(){
     refTeachers:[], refClasses:[], refGroups:[], refInstruments:[], refRooms:[],
     breaks:[], smallGroupQuotas:[],
     oneToOne:{columns:[], hours:{}}, rpiano:{columns:[], hours:{}},
-    acceptedSchedule:[]
+    acceptedSchedule:[],
+    phase1TeacherOrder:null,
+    forbidUnlistedGroupGaps:false,
+    lookaheadEveryLayout:false,
+    teacherSwapProbe:false
   };
 }
 function dbLooksEmpty(db){
@@ -54,6 +58,26 @@ const DAYS = ["MON","TUE","WED","THU","FRI"];
 const DAY_LABEL = {MON:"Monday",TUE:"Tuesday",WED:"Wednesday",THU:"Thursday",FRI:"Friday"};
 const DEFAULT_START = 8*60, DEFAULT_END = 20*60;
 const TYPE_OPTIONS = ["AVAILABLE","PREFERRED","FALLBACK","CANDIDATE","AVOID"];
+const SCOPE_OPTIONS = ["ALL","O2O","GROUP"];
+function normalizeAvailScope(raw){
+  const s = String(raw == null ? '' : raw).trim().toUpperCase();
+  if(s === 'O2O' || s === '1/1' || s === 'ONEONE' || s === 'INDIVIDUAL' || s === 'PIANO') return 'O2O';
+  if(s === 'GROUP' || s === 'GROUPS' || s === 'SG') return 'GROUP';
+  return 'ALL';
+}
+function availScopeMatches(row, kind){
+  if(!kind || kind === 'any') return true;
+  const scope = normalizeAvailScope(row && row.scope);
+  if(scope === 'ALL') return true;
+  if(kind === 'group') return scope === 'GROUP';
+  if(kind === 'oneone') return scope === 'O2O';
+  return true;
+}
+function availKindForItem(item){
+  if(!item) return 'any';
+  if(item.source === 'oneone' || item.source === 'rpiano') return 'oneone';
+  return 'group';
+}
 
 // ---------- Time helpers ----------
 function toMin(t){
@@ -132,6 +156,12 @@ function occupyRoom(roomBusy, roomId, day, start, end){
   roomBusy[roomId][day] = roomBusy[roomId][day] || [];
   roomBusy[roomId][day].push({start, end});
 }
+function vacateRoom(roomBusy, roomId, day, start, end){
+  if(!roomId || !roomBusy[roomId] || !roomBusy[roomId][day]) return;
+  const list = roomBusy[roomId][day];
+  const i = list.findIndex(iv => iv.start === start && iv.end === end);
+  if(i >= 0) list.splice(i, 1);
+}
 function roomSlotTaken(roomBusy, roomId, day, start, end){
   if(!roomId) return false;
   const list = (roomBusy[roomId] && roomBusy[roomId][day]) || [];
@@ -141,7 +171,14 @@ function migrateRoomLock(obj, opts){
   if(!obj) return obj;
   if(String(obj.roomId || '').trim()){
     obj.room = obj.room || roomName(obj.roomId);
-  } else if(opts && opts.defaultOn){
+    return obj;
+  }
+  if(Object.prototype.hasOwnProperty.call(obj, 'roomId')){
+    obj.roomId = '';
+    obj.room = '';
+    return obj;
+  }
+  if(opts && opts.defaultOn){
     obj.roomId = defaultRoomId();
     obj.room = roomName(obj.roomId);
   } else {
@@ -155,11 +192,16 @@ function normalizeDbRooms(db){
   db.refRooms = db.refRooms || [];
   (db.lessons || []).forEach(l => migrateRoomLock(l, {defaultOn:false}));
   const sgs = (db.smallGroupsState && db.smallGroupsState.smallGroups) || [];
-  sgs.forEach(sg => migrateRoomLock(sg, {defaultOn:true}));
+  sgs.forEach(sg => migrateRoomLock(sg, {defaultOn:false}));
   (db.acceptedSchedule || []).forEach(r => migrateRoomLock(r, {defaultOn:false}));
+  ((db.oneToOne && db.oneToOne.columns) || []).forEach(c => migrateRoomLock(c, {defaultOn:false}));
+  ((db.rpiano && db.rpiano.columns) || []).forEach(c => migrateRoomLock(c, {defaultOn:false}));
+  migrateStudentRooms(db.oneToOne);
+  migrateStudentRooms(db.rpiano);
   (db.refClasses || []).forEach(c => {
     if((c.muclass == null || c.muclass === '') && c.jclass) c.muclass = c.jclass;
   });
+  (db.teacherAvail || []).forEach(r => { r.scope = normalizeAvailScope(r.scope); });
   return db;
 }
 normalizeDbRooms(DB);
@@ -192,6 +234,11 @@ function renderTable(tableEl, rows, colDefs, onChange){
       } else if(c.type === 'typeSelect'){
         let optHtml='';
         TYPE_OPTIONS.forEach(t => { optHtml += `<option value="${t}" ${t===val?'selected':''}>${t}</option>`; });
+        html += `<td style="${widthStyle}"><select data-field="${c.key}" data-idx="${i}">${optHtml}</select></td>`;
+      } else if(c.type === 'scopeSelect'){
+        const scopeVal = normalizeAvailScope(val);
+        let optHtml='';
+        SCOPE_OPTIONS.forEach(t => { optHtml += `<option value="${t}" ${t===scopeVal?'selected':''}>${t}</option>`; });
         html += `<td style="${widthStyle}"><select data-field="${c.key}" data-idx="${i}">${optHtml}</select></td>`;
       } else if(c.type === 'readonly'){
         const shown = typeof c.value === 'function' ? c.value(row) : val;
@@ -320,6 +367,7 @@ const AVAIL_COLDEFS = [
   {key:'start', label:'START', type:'text'},
   {key:'end', label:'END', type:'text'},
   {key:'type', label:'TYPE', type:'typeSelect'},
+  {key:'scope', label:'SCOPE', type:'scopeSelect', width:'90px'},
   {key:'option', label:'OPTION', type:'text'},
 ];
 
@@ -490,7 +538,7 @@ document.getElementById('addLessonBtn').addEventListener('click', () => {
   renderLessons();
 });
 document.getElementById('addAvailBtn').addEventListener('click', () => {
-  DB.teacherAvail.push({teacher:'',teacherId:'',day:'MON',start:'',end:'',type:'AVAILABLE',option:''});
+  DB.teacherAvail.push({teacher:'',teacherId:'',day:'MON',start:'',end:'',type:'AVAILABLE',scope:'ALL',option:''});
   renderAvail();
 });
 document.getElementById('addCAvailBtn').addEventListener('click', () => {
@@ -580,9 +628,9 @@ function tabLockReason(to){
 function showTab(tab){
   const btn = document.querySelector('.tab-btn[data-tab="'+tab+'"]');
   if(!btn) return false;
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  document.querySelectorAll('.tab-panel').forEach(p=>p.style.display='none');
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.tab-panel').forEach(p=>p.style.display='none');
   const panel = document.getElementById('tab-'+tab);
   if(panel) panel.style.display='block';
   if(tab === 'timetable' && LAST_RESULT) renderGrid();
@@ -643,7 +691,7 @@ function emptySmallGroupRecord(id){
   return {
     id: id || '',
     bass:[], drum:[], acc:[], sol:[],
-    teacherId:'', roomId: defaultRoomId(), room: roomName(defaultRoomId()), duration:90,
+    teacherId:'', roomId:'', room:'', duration:90,
     fixedDay:'', fixedStart:'', fixedEnd:'',
     scheduledDay:'', scheduledStart:'', scheduledEnd:'',
     scheduledTeacherId:'', scheduledTeacher:''
@@ -661,7 +709,7 @@ function ensureSmallGroupIdentities(state){
   let maxN = 0;
   state.smallGroups.forEach((b, i) => {
     if(!b.id) b.id = 'SG' + (i + 1);
-    migrateRoomLock(b, {defaultOn:true});
+    migrateRoomLock(b, {defaultOn:false});
     maxN = Math.max(maxN, smallGroupIdSeq(b.id));
   });
   const stored = parseInt(state.nextSmallGroupSeq, 10) || 0;
@@ -700,9 +748,9 @@ function getSmallGroupLessons(){
   return out;
 }
 
-function teacherAvoidBusy(teacherId, day){
+function teacherAvoidBusy(teacherId, day, kind){
   return (DB.teacherAvail || [])
-    .filter(r => r.teacherId === teacherId && r.type === 'AVOID' && r.day === day)
+    .filter(r => r.teacherId === teacherId && r.type === 'AVOID' && r.day === day && availScopeMatches(r, kind))
     .map(r => ({
       start: toMin(r.start) ?? DEFAULT_START,
       end: toMin(r.end) ?? DEFAULT_END
@@ -736,8 +784,8 @@ function breakGapBetweenIntervals(intervals, prevEnd, curStart){
   }
   return 0;
 }
-function teacherDayWindows(teacherId){
-  const rows = DB.teacherAvail.filter(r => r.teacherId === teacherId && r.type !== 'AVOID' && r.day && DAYS.includes(r.day));
+function teacherDayWindows(teacherId, kind){
+  const rows = (DB.teacherAvail || []).filter(r => r.teacherId === teacherId && r.type !== 'AVOID' && r.day && DAYS.includes(r.day) && availScopeMatches(r, kind));
   const byDay = {};
   rows.forEach(r => {
     const rank = TYPE_RANK[r.type] ?? 2;
@@ -752,7 +800,7 @@ function teacherDayWindows(teacherId){
   });
   Object.keys(byDay).forEach(day => {
     const w = byDay[day];
-    const ivs = subtractBusyFromIntervals([[w.start, w.end]], teacherAvoidBusy(teacherId, day));
+    const ivs = subtractBusyFromIntervals([[w.start, w.end]], teacherAvoidBusy(teacherId, day, kind));
     if(!ivs.length){
       delete byDay[day];
       return;
@@ -882,12 +930,25 @@ function subtractBusyFromIntervals(intervals, busy){
   return cur;
 }
 
-// A listed Break Management row is a hard budget: only BREAK MIN units, up to
-// BREAK COUNT, across the week. No row means unconstrained — any gap is legal,
-// same as 1/1 packing, and Generate ranks by least total idle time.
+// Gap-optimize mode (checkbox off) ignores Break Management entirely: any teacher
+// may gap, like 1/1, and Generate ranks by least total idle time.
+// "No gaps without Break Management" (checkbox on) restores the old hard budget:
+// listed row = BREAK MIN units up to BREAK COUNT; no row = no gap.
+function forbidUnlistedGroupGapsEnabled(){
+  return !!DB.forbidUnlistedGroupGaps;
+}
+function lookaheadEveryLayoutEnabled(){
+  return !!DB.lookaheadEveryLayout;
+}
+function teacherSwapProbeEnabled(){
+  return !!DB.teacherSwapProbe;
+}
 function teacherBreakSettings(teacherId){
+  if(!forbidUnlistedGroupGapsEnabled()){
+    return { minutes: 0, count: 0, unconstrained: true };
+  }
   const b = (DB.breaks || []).find(r => r.teacherId === teacherId);
-  if(!b) return { minutes: 0, count: 0, unconstrained: true };
+  if(!b) return { minutes: 0, count: 0, unconstrained: false };
   return {
     minutes: Math.max(0, parseInt(b.breakMinutes, 10) || 0),
     count: Math.max(0, parseInt(b.breakCount, 10) || 0),
@@ -911,18 +972,19 @@ function overlappingClassReservation(classId, day, start, end){
   }) || null;
 }
 
-function teacherWindowClash(teacherId, teacherLabel, day, start, end){
+function teacherWindowClash(teacherId, teacherLabel, day, start, end, kind){
   if(!teacherId) return null;
-  const w = teacherDayWindows(teacherId)[day];
+  const w = teacherDayWindows(teacherId, kind)[day];
   const label = teacherLabel || teacherName(teacherId) || teacherId;
-  if(!w) return `teacher ${label} is not available on ${DAY_LABEL[day]}`;
+  const forWhat = kind === 'group' ? ' for group lessons' : kind === 'oneone' ? ' for 1/1 / piano' : '';
+  if(!w) return `teacher ${label} is not available on ${DAY_LABEL[day]}${forWhat}`;
   if(slotFitsTeacherWindow(w, start, end)) return null;
-  const hit = teacherAvoidBusy(teacherId, day).find(iv => intervalsOverlap(start, end, iv.start, iv.end));
+  const hit = teacherAvoidBusy(teacherId, day, kind).find(iv => intervalsOverlap(start, end, iv.start, iv.end));
   if(hit){
-    return `teacher ${label} is not available on ${DAY_LABEL[day]} ${toHHMM(hit.start)}–${toHHMM(hit.end)}`;
+    return `teacher ${label} is not available on ${DAY_LABEL[day]} ${toHHMM(hit.start)}–${toHHMM(hit.end)}${forWhat}`;
   }
   const ranges = teacherWindowIntervals(w).map(([s,e]) => `${toHHMM(s)}–${toHHMM(e)}`).join(', ');
-  return `teacher ${label} is only available ${DAY_LABEL[day]} ${ranges}`;
+  return `teacher ${label} is only available ${DAY_LABEL[day]} ${ranges}${forWhat}`;
 }
 
 function studentReservationClash(students, day, start, end){
@@ -965,36 +1027,6 @@ function permutations(arr){
   return result;
 }
 
-// Finds the earliest start >= windowStart, within [windowStart, windowEnd - duration],
-// that sits with ZERO gap right after (or right before) an existing booking sharing at
-// least one of this lesson's muclass types that day — and that doesn't clash with the
-// busy list given. Returns null if no such snap point exists (caller then falls back
-// to windowStart as usual). This is a soft "try to cluster same-grade lessons" nudge,
-// not a hard rule — if nothing snaps, normal placement proceeds unchanged.
-function findMuclassSnapStart(item, day, windowStart, windowEnd, muclassBusy, busy){
-  if(!item.muclassTypes || item.muclassTypes.size === 0) return null;
-  let neighborIntervals = [];
-  item.muclassTypes.forEach(t => {
-    const list = (muclassBusy[t] && muclassBusy[t][day]) || [];
-    neighborIntervals = neighborIntervals.concat(list);
-  });
-  if(neighborIntervals.length === 0) return null;
-
-  const candidates = [];
-  neighborIntervals.forEach(iv => {
-    candidates.push(iv.end);          // snap right after this neighbor
-    candidates.push(iv.start - item.duration); // snap right before this neighbor
-  });
-  candidates.sort((a,b) => a-b);
-
-  for(const t of candidates){
-    if(t < windowStart || t + item.duration > windowEnd) continue;
-    const clash = busy.some(iv => intervalsOverlap(t, t+item.duration, iv.start, iv.end));
-    if(!clash) return t;
-  }
-  return null;
-}
-
 // BREAK MIN is the unit, BREAK COUNT is how many units a listed teacher may spend in
 // their whole timetable (Mon–Fri combined). A gap may be 0, or any positive multiple of
 // BREAK MIN (45×2 → one 90-minute hole, or two 45-minute holes on the same or
@@ -1022,9 +1054,9 @@ function breakUnitsInIntervals(intervals, minutes, availableIvs){
   }
   return units;
 }
-function breakUnitsAcrossDays(byDay, minutes, teacherId){
+function breakUnitsAcrossDays(byDay, minutes, teacherId, kind){
   if(teacherId && teacherBreakSettings(teacherId).unconstrained) return 0;
-  const wins = teacherId ? teacherDayWindows(teacherId) : {};
+  const wins = teacherId ? teacherDayWindows(teacherId, kind) : {};
   let units = 0;
   DAYS.forEach(day => {
     const av = teacherId ? teacherWindowIntervals(wins[day]) : null;
@@ -1032,8 +1064,8 @@ function breakUnitsAcrossDays(byDay, minutes, teacherId){
   });
   return units;
 }
-function breakUnitsUsedOutsideSegment(teacherBusy, teacherId, day, seg, minutes){
-  const wins = teacherDayWindows(teacherId);
+function breakUnitsUsedOutsideSegment(teacherBusy, teacherId, day, seg, minutes, kind){
+  const wins = teacherDayWindows(teacherId, kind);
   let units = 0;
   DAYS.forEach(d => {
     const av = teacherWindowIntervals(wins[d]);
@@ -1066,16 +1098,9 @@ function itemClashesAt(item, day, start, studentBusy, roomBusy){
 }
 
 // First item of a chain: attach flush to a preceding fixed booking when one exists
-// (hard no-gap rule). Muclass snap is only a soft preference and must not open an
-// illegal hole after that booking.
-function pickFirstItemStart(item, day, studentBusy, roomBusy, breakSettings, muclassBusy, existingTeacherBusy, breaksUsed){
+// (hard no-gap rule).
+function pickFirstItemStart(item, day, studentBusy, roomBusy, breakSettings, existingTeacherBusy, breaksUsed){
   breaksUsed = breaksUsed || 0;
-  const studentBusyForItem = [];
-  item.students.forEach(s => {
-    const list = (studentBusy[s.ID] && studentBusy[s.ID][day]) || [];
-    studentBusyForItem.push(...list);
-  });
-  const snap = findMuclassSnapStart(item, day, item.winStart, item.winEnd, muclassBusy, studentBusyForItem);
   const before = (existingTeacherBusy || []).filter(iv => iv.end <= item.winEnd).sort((a,b)=>b.end-a.end)[0];
   const gapBase = before ? before.end : null;
 
@@ -1087,7 +1112,6 @@ function pickFirstItemStart(item, day, studentBusy, roomBusy, breakSettings, muc
       for(let n=1;n<=remaining;n++) tryStarts.push(gapBase + n * breakSettings.minutes);
     }
   }
-  if(snap !== null) tryStarts.push(snap);
   tryStarts.push(item.winStart);
 
   const seen = new Set();
@@ -1109,7 +1133,7 @@ function pickFirstItemStart(item, day, studentBusy, roomBusy, breakSettings, muc
   return null;
 }
 
-function simulateOrder(order, day, studentBusy, roomBusy, breakSettings, muclassBusy, existingTeacherBusy, initialBreaksUsed){
+function simulateOrder(order, day, studentBusy, roomBusy, breakSettings, existingTeacherBusy, initialBreaksUsed){
   existingTeacherBusy = existingTeacherBusy || [];
   let currentEnd = null;
   let breaksUsed = initialBreaksUsed || 0;
@@ -1118,7 +1142,7 @@ function simulateOrder(order, day, studentBusy, roomBusy, breakSettings, muclass
     let candidateStart;
     let gapBase;
     if(currentEnd === null){
-      const first = pickFirstItemStart(item, day, studentBusy, roomBusy, breakSettings, muclassBusy, existingTeacherBusy, breaksUsed);
+      const first = pickFirstItemStart(item, day, studentBusy, roomBusy, breakSettings, existingTeacherBusy, breaksUsed);
       if(!first) break;
       candidateStart = first.start;
       gapBase = first.gapBase;
@@ -1172,7 +1196,7 @@ function placementsIdleMinutes(placements){
 // to pack as many of this teacher's remaining lessons as possible into this day
 // (flush when a Break Management row requires it; otherwise like 1/1, any gap is
 // legal and the tightest pack wins) — but never more than maxCount.
-function bestPermutationPlacements(items, day, studentBusy, roomBusy, breakSettings, muclassBusy, maxCount, existingTeacherBusy, initialBreaksUsed){
+function bestPermutationPlacements(items, day, studentBusy, roomBusy, breakSettings, maxCount, existingTeacherBusy, initialBreaksUsed){
   const cap = maxCount == null ? items.length : Math.min(maxCount, items.length);
   let orders;
   if(items.length <= 7){
@@ -1186,7 +1210,7 @@ function bestPermutationPlacements(items, day, studentBusy, roomBusy, breakSetti
   }
   let best = [];
   for(const order of orders){
-    const placements = simulateOrder(order, day, studentBusy, roomBusy, breakSettings, muclassBusy, existingTeacherBusy, initialBreaksUsed).slice(0, cap);
+    const placements = simulateOrder(order, day, studentBusy, roomBusy, breakSettings, existingTeacherBusy, initialBreaksUsed).slice(0, cap);
     const idle = placementsIdleMinutes(placements);
     const bestIdle = placementsIdleMinutes(best);
     if(placements.length > best.length || (placements.length === best.length && idle < bestIdle)){
@@ -1210,6 +1234,64 @@ function shuffleArray(arr){
   for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
   return a;
 }
+function lessonHasFixedSlot(l){
+  return !!(l && l.fixedDay && l.fixedStart);
+}
+function collectPhase1TeacherIds(){
+  const ids = new Set();
+  (DB.lessons || []).forEach(l => {
+    if(l && l.teacherId && !lessonHasFixedSlot(l)) ids.add(l.teacherId);
+  });
+  getSmallGroupLessons().forEach(l => {
+    if(l && l.teacherId && !lessonHasFixedSlot(l)) ids.add(l.teacherId);
+  });
+  return [...ids];
+}
+function phase1MinutesForTeacher(teacherId){
+  let n = 0;
+  (DB.lessons || []).forEach(l => {
+    if(l && l.teacherId === teacherId && !lessonHasFixedSlot(l)) n += parseInt(l.duration, 10) || 45;
+  });
+  getSmallGroupLessons().forEach(l => {
+    if(l && l.teacherId === teacherId && !lessonHasFixedSlot(l)) n += parseInt(l.duration, 10) || 90;
+  });
+  return n;
+}
+function automaticPhase1TeacherOrder(teacherIds, byTeacher){
+  return (teacherIds || []).slice().sort((a, b) => {
+    const da = Object.keys(teacherDayWindows(a, 'group')).length;
+    const db = Object.keys(teacherDayWindows(b, 'group')).length;
+    if(da !== db) return da - db;
+    const minutes = id => {
+      if(byTeacher && byTeacher[id]) return byTeacher[id].reduce((s, i) => s + (i.duration || 0), 0);
+      return phase1MinutesForTeacher(id);
+    };
+    return minutes(b) - minutes(a) || String(teacherName(a)).localeCompare(String(teacherName(b)));
+  });
+}
+function normalizePhase1TeacherOrder(raw){
+  if(!Array.isArray(raw)) return null;
+  const ids = raw.map(id => String(id || '').trim()).filter(Boolean);
+  return ids.length ? ids : null;
+}
+function hasManualPhase1TeacherOrder(){
+  return !!(normalizePhase1TeacherOrder(DB.phase1TeacherOrder));
+}
+function resolvePhase1TeacherOrder(teacherIds, randomize, byTeacher){
+  const ids = (teacherIds || []).slice();
+  const saved = hasManualPhase1TeacherOrder()
+    ? (DB.phase1TeacherOrder || []).filter(id => ids.includes(id))
+    : [];
+  const base = saved.length
+    ? saved.concat(automaticPhase1TeacherOrder(ids.filter(id => !saved.includes(id)), byTeacher))
+    : automaticPhase1TeacherOrder(ids, byTeacher);
+  return randomize ? shuffleArray(base) : base;
+}
+function promoteTopKRandom(sorted, k, randomize){
+  if(!randomize || !sorted || sorted.length < 2) return sorted || [];
+  const n = Math.min(k, sorted.length);
+  return shuffleArray(sorted.slice(0, n)).concat(sorted.slice(n));
+}
 
 function tryShiftChainTo(placements, targetEnd, day, studentBusy, roomBusy){
   if(!placements.length) return null;
@@ -1222,6 +1304,36 @@ function tryShiftChainTo(placements, targetEnd, day, studentBusy, roomBusy){
     !itemClashesAt(p, day, p.start, studentBusy, roomBusy)
   );
   return stillValid ? shifted : null;
+}
+
+// When a leftover cannot sit flush against another jazz lesson that day, sit at the
+// hole end if the only neighbor is later, or at the hole start if the only neighbor
+// is earlier. Class reservations are not neighbors — they already cut the leftover.
+// Both sides (or none): either edge is fine, so we keep the packed start.
+function dayLessonNeighbors(day, holeStart, holeEnd, teacherId, teacherBusy, studentBusy, students){
+  let before = false, after = false;
+  const see = iv => {
+    if(!iv || !Number.isFinite(iv.start) || !Number.isFinite(iv.end)) return;
+    if(iv.end <= holeStart) before = true;
+    else if(iv.start >= holeEnd) after = true;
+  };
+  ((teacherBusy && teacherBusy[teacherId] && teacherBusy[teacherId][day]) || []).forEach(see);
+  (students || []).forEach(s => {
+    if(!s || !s.ID) return;
+    ((studentBusy && studentBusy[s.ID] && studentBusy[s.ID][day]) || []).forEach(see);
+  });
+  return {before, after};
+}
+function holePullsTowardEnd(day, holeStart, holeEnd, teacherId, teacherBusy, studentBusy, students){
+  const n = dayLessonNeighbors(day, holeStart, holeEnd, teacherId, teacherBusy, studentBusy, students);
+  return !!(n.after && !n.before);
+}
+function tryShiftChainMax(placements, day, studentBusy, roomBusy){
+  if(!placements.length) return null;
+  let shift = Infinity;
+  placements.forEach(p => { shift = Math.min(shift, p.winEnd - p.end); });
+  if(!(shift > 0)) return null;
+  return tryShiftChainTo(placements, placements[placements.length-1].end + shift, day, studentBusy, roomBusy);
 }
 
 function segmentBoundaryOk(placements, seg, breakSettings, alreadyUsed){
@@ -1245,8 +1357,8 @@ function segmentBoundaryOk(placements, seg, breakSettings, alreadyUsed){
   return true;
 }
 
-function scheduleTeacherAcrossDays(teacherId, items, teacherBusy, studentBusy, roomBusy, muclassBusy, randomize){
-  const dayWin = teacherDayWindows(teacherId);
+function scheduleTeacherAcrossDays(teacherId, items, teacherBusy, studentBusy, roomBusy, randomize){
+  const dayWin = teacherDayWindows(teacherId, 'group');
   const dayEntries = Object.entries(dayWin).sort((a,b)=> (a[1].rank-b[1].rank) || (DAYS.indexOf(a[0])-DAYS.indexOf(b[0])));
   const breakSettings = teacherBreakSettings(teacherId);
   let remaining = randomize ? shuffleArray(items) : items.slice();
@@ -1290,14 +1402,14 @@ function scheduleTeacherAcrossDays(teacherId, items, teacherBusy, studentBusy, r
           if(cutStart > cursor) segments.push({
             start:cursor, end:cutStart,
             precededByObstacle: busyIn.some(e => e.end === cursor),
-            followedByObstacle: true
-          });
+          followedByObstacle: true
+        });
           cursor = Math.max(cursor, cutEnd);
         });
         if(cursor < segEnd) segments.push({
           start:cursor, end:segEnd,
           precededByObstacle: busyIn.some(e => e.end === cursor),
-          followedByObstacle: false
+        followedByObstacle: false
         });
       });
 
@@ -1309,7 +1421,7 @@ function scheduleTeacherAcrossDays(teacherId, items, teacherBusy, studentBusy, r
         // earliest leftover, and not classWindow() clipped from outside the segment
         // (that dropped a morning hole when the class's biggest leftover was afternoon
         // and the teacher was only free in the morning).
-        const alreadyUsed = breakUnitsUsedOutsideSegment(teacherBusy, teacherId, day, seg, breakSettings.minutes);
+        const alreadyUsed = breakUnitsUsedOutsideSegment(teacherBusy, teacherId, day, seg, breakSettings.minutes, 'group');
         const withWindow = remaining.map(it => {
           const win = pickItemWindowInSegment(it, day, seg, breakSettings, alreadyUsed);
           if(!win) return {...it, feasible:false, winStart:seg.start, winEnd:seg.end};
@@ -1322,13 +1434,20 @@ function scheduleTeacherAcrossDays(teacherId, items, teacherBusy, studentBusy, r
 
         let best = [];
         for(let cap = Math.min(dayTarget, withWindow.length); cap >= 1; cap--){
-          const packed = bestPermutationPlacements(withWindow, day, studentBusy, roomBusy, breakSettings, muclassBusy, cap, existingForSim, alreadyUsed);
+          const packed = bestPermutationPlacements(withWindow, day, studentBusy, roomBusy, breakSettings, cap, existingForSim, alreadyUsed);
           if(packed.length === 0) break;
 
           const options = [];
           if(seg.followedByObstacle){
             const shifted = tryShiftChainTo(packed, seg.end, day, studentBusy, roomBusy);
             if(shifted) options.push(shifted);
+          }
+          const holeStart = Math.min(...packed.map(p => p.winStart));
+          const holeEnd = Math.max(...packed.map(p => p.winEnd));
+          const packedStudents = packed.flatMap(p => p.students || []);
+          if(holePullsTowardEnd(day, holeStart, holeEnd, teacherId, teacherBusy, studentBusy, packedStudents)){
+            const pulled = tryShiftChainMax(packed, day, studentBusy, roomBusy);
+            if(pulled) options.push(pulled);
           }
           options.push(packed);
           const valid = options.find(p => segmentBoundaryOk(p, seg, breakSettings, alreadyUsed));
@@ -1344,11 +1463,6 @@ function scheduleTeacherAcrossDays(teacherId, items, teacherBusy, studentBusy, r
               studentBusy[s.ID][day].push({start:p.start, end:p.end});
             });
             occupyRoom(roomBusy, itemRoomId(p.lesson), day, p.start, p.end);
-            (p.muclassTypes || []).forEach(t => {
-              muclassBusy[t] = muclassBusy[t] || {};
-              muclassBusy[t][day] = muclassBusy[t][day] || [];
-              muclassBusy[t][day].push({start:p.start, end:p.end});
-            });
           });
           teacherBusy[teacherId] = teacherBusy[teacherId] || {};
           teacherBusy[teacherId][day] = (teacherBusy[teacherId][day] || []).concat(best.map(p => ({start:p.start, end:p.end})));
@@ -1375,6 +1489,7 @@ const SearchLog = {
 };
 let LAST_SEARCH_LOG = [];
 let LAST_SEARCH_OVERVIEW = [];
+let LAST_TEACHER_SWAP_SUGGESTIONS = [];
 
 function variantLogHeader(result){
   const n = result && result.attemptNo;
@@ -1445,17 +1560,16 @@ function logQuotaLedger(scheduled, heading){
   SearchLog.info(`Total: ${totalUsed} small groups assigned against ${totalCap} quota slots`);
 }
 
-function runScheduler(randomize){
+function runScheduler(randomize, opts){
   // Isolate this attempt's walkthrough so each kept variant can show its own log.
   const parentLines = SearchLog.lines;
   const parentQuiet = SearchLog.quiet;
   SearchLog.lines = [];
-  SearchLog.quiet = false;
+  SearchLog.quiet = !!(opts && opts.quiet);
 
   const teacherBusy = {};
   const studentBusy = {};
   const roomBusy = {}; // roomId -> day -> [{start,end}] — any two lessons sharing a room may not overlap
-  const muclassBusy = {}; // muclassType -> day -> [{start,end}] — shared across every teacher, soft "keep same-grade lessons together" nudge
 
   // SMALL GROUP QUOTA pool — shared by manual "Teacher override" assignments (phase 1) and
   // automatic matching (phase 3), so a manually-picked teacher counts against their
@@ -1479,9 +1593,11 @@ function runScheduler(randomize){
     const qParts = (DB.smallGroupQuotas || []).map(quota => `${quota.teacher || teacherName(quota.teacherId)} ${quotaRemaining[quota.teacherId]}/${quota.amount}`);
     SearchLog.info(qParts.length ? `Small group quotas at start: ${qParts.join(', ')}` : 'Small group quotas: none listed — auto-match cannot assign any teacher');
     const br = (DB.breaks || []).filter(b => (parseInt(b.breakMinutes,10)||0) > 0);
-    SearchLog.info(br.length
-      ? `Week break budget: ${br.map(b => `${b.teacher || teacherName(b.teacherId)} ${b.breakMinutes} min × ${b.breakCount}`).join(', ')} — unlisted teachers may gap; Generate prefers the least total idle time`
-      : 'Week break budget: none listed — any gap is allowed (like 1/1); Generate prefers the least total idle time');
+    SearchLog.info(forbidUnlistedGroupGapsEnabled()
+      ? (br.length
+        ? `Week break budget: ${br.map(b => `${b.teacher || teacherName(b.teacherId)} ${b.breakMinutes} min × ${b.breakCount}`).join(', ')} — unlisted teachers cannot gap`
+        : 'Week break budget: none listed — no gaps (No gaps without Break Management)')
+      : 'Break Management ignored this search — any gap is allowed; Generate prefers the least total idle time');
     SearchLog.info('Hard checks: teacher availability, room overlap, no student/teacher double-book. Pinned slots that overlap a class reservation or open an illegal teacher gap are placed with a warning.');
   }
 
@@ -1531,7 +1647,7 @@ function runScheduler(randomize){
     const byDay = {};
     DAYS.forEach(d => { byDay[d] = ((teacherBusy[teacherId] && teacherBusy[teacherId][d]) || []).slice(); });
     byDay[day] = (byDay[day] || []).concat([{start, end}]);
-    if(breakUnitsAcrossDays(byDay, bs.minutes, teacherId) <= bs.count) return null;
+    if(breakUnitsAcrossDays(byDay, bs.minutes, teacherId, 'group') <= bs.count) return null;
     const label = teacherLabel || teacherName(teacherId) || teacherId;
     const sameDay = scheduled.filter(s => s.teacherId === teacherId && s.day === day);
     const prev = sameDay.filter(s => s.end <= start).sort((a,b) => b.end - a.end)[0];
@@ -1563,7 +1679,7 @@ function runScheduler(randomize){
     }
     const {day, start, end} = win;
     const reservationClash = studentReservationClash(students, day, start, end);
-    let clash = teacherWindowClash(l.teacherId, l.teacher, day, start, end);
+    let clash = teacherWindowClash(l.teacherId, l.teacher, day, start, end, 'group');
     if(!clash && l.id && isSmallGroupId(l.id)){
       if((quotaRemaining[l.teacherId] || 0) <= 0){
         clash = `teacher ${l.teacher || teacherName(l.teacherId) || l.teacherId} has no remaining SMALL GROUP QUOTA — add them in ⚙ Small Group Quotas (Small Groups tab) or raise their amount`;
@@ -1632,7 +1748,7 @@ function runScheduler(randomize){
     const eligible = DB.refTeachers
       .filter(t => (quotaRemaining[t.id] || 0) > 0)
       .filter(t => {
-        const w = teacherDayWindows(t.id)[day];
+        const w = teacherDayWindows(t.id, 'group')[day];
         if(!w || !slotFitsTeacherWindow(w, start, end)) return false;
         const tBusy = (teacherBusy[t.id] && teacherBusy[t.id][day]) || [];
         return !tBusy.some(iv => intervalsOverlap(start, end, iv.start, iv.end));
@@ -1668,33 +1784,36 @@ function runScheduler(randomize){
     if(l.id && isSmallGroupId(l.id)){
       if((quotaRemaining[l.teacherId] || 0) <= 0){
         SearchLog.warn(`${l.name}: ${l.teacher || teacherName(l.teacherId)} has no remaining small group quota — not scheduled`);
-        unresolved.push({lesson:l, students, dayWin: teacherDayWindows(l.teacherId), customReason:`teacher ${l.teacher || teacherName(l.teacherId) || l.teacherId} has no remaining SMALL GROUP QUOTA — add them in ⚙ Small Group Quotas (Small Groups tab) or raise their amount.`});
+        unresolved.push({lesson:l, students, dayWin: teacherDayWindows(l.teacherId, 'group'), customReason:`teacher ${l.teacher || teacherName(l.teacherId) || l.teacherId} has no remaining SMALL GROUP QUOTA — add them in ⚙ Small Group Quotas (Small Groups tab) or raise their amount.`});
         return;
       }
       SearchLog.info(`Quota ${l.teacher || teacherName(l.teacherId)}: ${quotaRemaining[l.teacherId]} → ${quotaRemaining[l.teacherId]-1} (reserve for ${l.name})`);
       quotaRemaining[l.teacherId]--; // reserve; refunded below if this small group cannot be placed
     }
     const duration = parseInt(l.duration,10) || 45;
-    const muclassTypes = new Set(students.map(s => classMuclass(s.CLASS_ID)).filter(Boolean));
     byTeacher[l.teacherId] = byTeacher[l.teacherId] || [];
-    byTeacher[l.teacherId].push({lesson:l, students, duration, muclassTypes});
+    byTeacher[l.teacherId].push({lesson:l, students, duration});
   });
 
-  const teacherIds = Object.keys(byTeacher).sort((a,b) => {
-    const da = Object.keys(teacherDayWindows(a)).length;
-    const db = Object.keys(teacherDayWindows(b)).length;
-    if(da !== db) return da - db;
-    const totalA = byTeacher[a].reduce((s,i)=>s+i.duration,0);
-    const totalB = byTeacher[b].reduce((s,i)=>s+i.duration,0);
-    return totalB - totalA;
-  });
+  const teacherIds = Object.keys(byTeacher);
+  const packOrder = resolvePhase1TeacherOrder(teacherIds, randomize, byTeacher);
 
   if(!SearchLog.quiet){
     SearchLog.section('Phase 1 — teacher-first (subjects + override small groups)');
-    SearchLog.info(`Teachers in order of fewest available days, then most minutes. Days used by rank (PREFERRED/AVAILABLE → FALLBACK → CANDIDATE); listed Break Management teachers stay on BREAK MIN × COUNT, unlisted teachers may gap like 1/1.`);
+    const names = packOrder.map(id => teacherName(id) || id).join(' → ');
+    const tail = forbidUnlistedGroupGapsEnabled()
+      ? 'Days used by rank (PREFERRED/AVAILABLE → FALLBACK → CANDIDATE); listed Break Management teachers stay on BREAK MIN × COUNT, unlisted teachers cannot gap.'
+      : 'Days used by rank (PREFERRED/AVAILABLE → FALLBACK → CANDIDATE); Break Management is off — any teacher may gap like 1/1.';
+    if(randomize){
+      SearchLog.info(`Shuffled teacher order this attempt: ${names}. ${tail}`);
+    } else if(hasManualPhase1TeacherOrder()){
+      SearchLog.info(`Manual teacher order: ${names}. ${tail}`);
+    } else {
+      SearchLog.info(`Teachers in order of fewest available days, then most minutes: ${names}. ${tail}`);
+    }
   }
-  teacherIds.forEach(teacherId => {
-    const {placed, unresolved: leftover} = scheduleTeacherAcrossDays(teacherId, byTeacher[teacherId], teacherBusy, studentBusy, roomBusy, muclassBusy, randomize);
+  packOrder.forEach(teacherId => {
+    const {placed, unresolved: leftover} = scheduleTeacherAcrossDays(teacherId, byTeacher[teacherId], teacherBusy, studentBusy, roomBusy, randomize);
     if(!SearchLog.quiet){
       const days = [...new Set(placed.map(p => p.day))].sort((a,b)=>DAYS.indexOf(a)-DAYS.indexOf(b));
       const total = byTeacher[teacherId].length;
@@ -1719,7 +1838,7 @@ function runScheduler(randomize){
         quotaRemaining[it.lesson.teacherId] = (quotaRemaining[it.lesson.teacherId] || 0) + 1;
         SearchLog.info(`Quota ${it.lesson.teacher || teacherName(it.lesson.teacherId)}: refund +1 — ${it.lesson.name} did not get a slot`);
       }
-      unresolved.push({lesson: it.lesson, students: it.students, dayWin: teacherDayWindows(teacherId)});
+      unresolved.push({lesson: it.lesson, students: it.students, dayWin: teacherDayWindows(teacherId, 'group')});
     });
   });
 
@@ -1740,7 +1859,7 @@ function runScheduler(randomize){
       const ivs = studentsFreeIntervals(students, day);
       for(const [start, end] of ivs){
         if(start + duration > end) continue;
-        for(let t = start; t + duration <= end; t += 15) opts.push({day, start:t, end:t+duration});
+        for(let t = start; t + duration <= end; t += 5) opts.push({day, start:t, end:t+duration});
       }
     }
     return opts;
@@ -1776,7 +1895,7 @@ function runScheduler(randomize){
     return n;
   }
   function teacherWindowOk(teacherId, day, start, end){
-    const win = teacherDayWindows(teacherId)[day];
+    const win = teacherDayWindows(teacherId, 'group')[day];
     return !!win && slotFitsTeacherWindow(win, start, end);
   }
   // Checks against the teacher's existing commitments from Phase 1 (regular subject
@@ -1829,6 +1948,15 @@ function runScheduler(randomize){
     });
     return minGap;
   }
+  function compareSmallGroupChoice(a, b){
+    const af = Number.isFinite(a.gap), bf = Number.isFinite(b.gap);
+    if(af !== bf) return af ? -1 : 1;
+    if(af && a.gap !== b.gap) return a.gap - b.gap;
+    const day = DAYS.indexOf(a.opt.day) - DAYS.indexOf(b.opt.day);
+    if(day) return day;
+    // Empty teacher-day: sit at the leftover's end, not its start.
+    return af ? a.opt.start - b.opt.start : b.opt.start - a.opt.start;
+  }
 
   function teacherWeekByDay(teacherId, excludeIdx){
     const byDay = {};
@@ -1847,12 +1975,12 @@ function runScheduler(randomize){
     const bs = teacherBreakSettings(teacherId);
     const byDay = teacherWeekByDay(teacherId, excludeIdx);
     byDay[day] = (byDay[day] || []).concat([{start, end}]);
-    return breakUnitsAcrossDays(byDay, bs.minutes, teacherId) <= bs.count;
+    return breakUnitsAcrossDays(byDay, bs.minutes, teacherId, 'group') <= bs.count;
   }
 
   function teacherWeekGapsValid(teacherId){
     const bs = teacherBreakSettings(teacherId);
-    return breakUnitsAcrossDays(teacherWeekByDay(teacherId, -1), bs.minutes, teacherId) <= bs.count;
+    return breakUnitsAcrossDays(teacherWeekByDay(teacherId, -1), bs.minutes, teacherId, 'group') <= bs.count;
   }
 
   function tryPlaceRecursive(idx, depth, visited){
@@ -1883,12 +2011,11 @@ function runScheduler(randomize){
     });
     if(directChoices.length){
       directChoices.sort((a,b) =>
-        a.gap - b.gap ||
-        ((quotaRemaining[b.teacherId]||0) - teacherQuotaUsed(b.teacherId, assignments, idx)) - ((quotaRemaining[a.teacherId]||0) - teacherQuotaUsed(a.teacherId, assignments, idx)) ||
-        DAYS.indexOf(a.opt.day) - DAYS.indexOf(b.opt.day) ||
-        a.opt.start - b.opt.start
+        compareSmallGroupChoice(a, b) ||
+        ((quotaRemaining[b.teacherId]||0) - teacherQuotaUsed(b.teacherId, assignments, idx)) - ((quotaRemaining[a.teacherId]||0) - teacherQuotaUsed(a.teacherId, assignments, idx))
       );
-      const best = directChoices[0];
+      const ranked = promoteTopKRandom(directChoices, 3, randomize);
+      const best = ranked[0];
       assignments[idx] = {day:best.opt.day, start:best.opt.start, end:best.opt.end, teacherId:best.teacherId, students, ...roomFieldsOf(l)};
       return true; // stays in `visited` — it's now committed, not up for further bumping in this search
     }
@@ -1908,9 +2035,10 @@ function runScheduler(randomize){
           bumpChoices.push({opt, teacherId: t.id, gap});
         });
       });
-      bumpChoices.sort((a,b) => a.gap - b.gap || DAYS.indexOf(a.opt.day) - DAYS.indexOf(b.opt.day) || a.opt.start - b.opt.start);
+      bumpChoices.sort((a,b) => compareSmallGroupChoice(a, b));
+      const rankedBumps = promoteTopKRandom(bumpChoices, 3, randomize);
 
-      for(const choice of bumpChoices){
+      for(const choice of rankedBumps){
         const {opt, teacherId: t} = choice;
         const usingT = assignments.map((a,i) => (a && a.teacherId === t) ? i : -1).filter(i => i >= 0 && i !== idx);
         for(const cIdx of usingT){
@@ -1940,11 +2068,11 @@ function runScheduler(randomize){
     return false;
   }
 
-  const SWAP_DEPTH = 4;
+  const SWAP_DEPTH = smallGroupItems.length;
   if(!SearchLog.quiet){
     SearchLog.section('Phase 2 — auto-match small groups');
     SearchLog.info(smallGroupItems.length
-      ? `${smallGroupItems.length} teacher-less small group(s), most constrained first (fewest member+teacher slot options). Picks the tightest legal gap; can reshuffle up to ${SWAP_DEPTH} hops.`
+      ? `${smallGroupItems.length} teacher-less small group(s), most constrained first (fewest member+teacher slot options). Slots every 5 min. Deterministic attempt picks the tightest legal gap; shuffled attempts pick among the 3 tightest. Can reshuffle up to ${SWAP_DEPTH} hops (one per small group). If bands stay stuck, 1–2 blocking subject lessons may be evicted and Phase 2 retried.`
       : 'No teacher-less small groups');
   }
   smallGroupItems.forEach((_, idx) => { if(!assignments[idx]) tryPlaceRecursive(idx, SWAP_DEPTH, new Set()); });
@@ -1956,14 +2084,18 @@ function runScheduler(randomize){
   // it" rule, re-check every commitment after all placement is done; anything that no
   // longer complies gets unassigned and re-attempted (which may find it a new, valid home,
   // or correctly leave it unresolved) — repeated until the whole set is self-consistent.
-  for(let round = 0; round < smallGroupItems.length + 5; round++){
-    const teacherIds = new Set();
-    assignments.forEach(a => { if(a) teacherIds.add(a.teacherId); });
+  function assignedSmallGroupCount(){
+    return assignments.filter(Boolean).length;
+  }
+  function repairAutoSmallGroupAssignments(){
+    for(let round = 0; round < smallGroupItems.length + 5; round++){
+      const teacherIdsRepair = new Set();
+      assignments.forEach(a => { if(a) teacherIdsRepair.add(a.teacherId); });
     let anyInvalid = false;
-    teacherIds.forEach(teacherId => {
+      teacherIdsRepair.forEach(teacherId => {
       if(!teacherWeekGapsValid(teacherId)){
         anyInvalid = true;
-        SearchLog.warn(`Break-budget repair: ${teacherName(teacherId) || teacherId} went over the week limit after a reshuffle — unassigned their auto small groups and retried`);
+          SearchLog.warn(`Break-budget repair: ${teacherName(teacherId) || teacherId} went over the week limit after a reshuffle — unassigned their auto small groups and retried`);
         assignments.forEach((a,i) => { if(a && a.teacherId === teacherId) assignments[i] = null; });
       }
     });
@@ -1974,17 +2106,121 @@ function runScheduler(randomize){
         const b = assignments[j];
         if(!b || a.day !== b.day || !intervalsOverlap(a.start, a.end, b.start, b.end)) continue;
         const sameTeacher = a.teacherId === b.teacherId;
-        const roomClash = roomsOverlap(a, b);
+          const roomClash = roomsOverlap(a, b);
         const aIds = new Set(a.students.map(s => s.ID));
         const studentClash = b.students.some(s => aIds.has(s.ID));
         if(!sameTeacher && !roomClash && !studentClash) continue;
         anyInvalid = true;
-        SearchLog.warn(`Reshuffle repair: ${smallGroupItems[i].l.name} and ${smallGroupItems[j].l.name} overlap after a bump — unassigned the later one and retried`);
+          SearchLog.warn(`Reshuffle repair: ${smallGroupItems[i].l.name} and ${smallGroupItems[j].l.name} overlap after a bump — unassigned the later one and retried`);
         assignments[j] = null;
       }
     }
     if(!anyInvalid) break;
-    smallGroupItems.forEach((_, idx) => { if(!assignments[idx]) tryPlaceRecursive(idx, SWAP_DEPTH, new Set()); });
+      smallGroupItems.forEach((_, idx) => { if(!assignments[idx]) tryPlaceRecursive(idx, SWAP_DEPTH, new Set()); });
+    }
+  }
+  function dropBusySlot(map, id, day, start, end){
+    const list = map[id] && map[id][day];
+    if(!list) return;
+    const i = list.findIndex(iv => iv.start === start && iv.end === end);
+    if(i >= 0) list.splice(i, 1);
+  }
+  function overwriteBusy(dst, src){
+    Object.keys(dst).forEach(k => { delete dst[k]; });
+    Object.assign(dst, JSON.parse(JSON.stringify(src)));
+  }
+  repairAutoSmallGroupAssignments();
+
+  const stuckAfterPhase2 = smallGroupItems
+    .map((item, idx) => ({item, idx}))
+    .filter(x => !assignments[x.idx] && x.item.students.length);
+  if(stuckAfterPhase2.length){
+    const stuckIds = new Set();
+    const stuckRooms = new Set();
+    stuckAfterPhase2.forEach(({item}) => {
+      item.students.forEach(s => stuckIds.add(s.ID));
+      const rid = itemRoomId(item.l);
+      if(rid) stuckRooms.add(rid);
+    });
+    const candidates = scheduled.map(s => {
+      if(!s || !s.lessonId || isSmallGroupId(s.lessonId) || fixedIds.has(s.lessonId)) return null;
+      const lesson = (DB.lessons || []).find(l => l.id === s.lessonId);
+      if(!lesson) return null;
+      const kids = lessonStudents(lesson);
+      let score = kids.filter(k => stuckIds.has(k.ID)).length;
+      if(itemRoomId(s) && stuckRooms.has(itemRoomId(s))) score += 2;
+      if(!score) return null;
+      return {s, lesson, kids, score};
+    }).filter(Boolean).sort((a,b) => b.score - a.score || String(a.s.lessonId).localeCompare(String(b.s.lessonId)));
+    let pick = candidates.slice(0, Math.min(2, candidates.length));
+    if(randomize && candidates.length > 2){
+      pick = shuffleArray(candidates.slice(0, Math.min(4, candidates.length))).slice(0, 2);
+    }
+    if(pick.length){
+      const snap = {
+        scheduled: scheduled.slice(),
+        assignments: assignments.slice(),
+        teacherBusy: JSON.parse(JSON.stringify(teacherBusy)),
+        studentBusy: JSON.parse(JSON.stringify(studentBusy)),
+        roomBusy: JSON.parse(JSON.stringify(roomBusy)),
+        placedBefore: assignedSmallGroupCount()
+      };
+      SearchLog.warn(`Phase 2 leftover — evicting ${pick.map(c => c.s.name).join(', ')} so stuck small groups can retry`);
+      pick.forEach(c => {
+        const i = scheduled.indexOf(c.s);
+        if(i >= 0) scheduled.splice(i, 1);
+        dropBusySlot(teacherBusy, c.s.teacherId, c.s.day, c.s.start, c.s.end);
+        c.kids.forEach(st => dropBusySlot(studentBusy, st.ID, c.s.day, c.s.start, c.s.end));
+        if(itemRoomId(c.s)) dropBusySlot(roomBusy, itemRoomId(c.s), c.s.day, c.s.start, c.s.end);
+      });
+      stuckAfterPhase2.forEach(({idx}) => { if(!assignments[idx]) tryPlaceRecursive(idx, SWAP_DEPTH, new Set()); });
+      repairAutoSmallGroupAssignments();
+      if(assignedSmallGroupCount() <= snap.placedBefore){
+        scheduled.length = 0;
+        snap.scheduled.forEach(row => scheduled.push(row));
+        for(let i=0;i<assignments.length;i++) assignments[i] = snap.assignments[i];
+        overwriteBusy(teacherBusy, snap.teacherBusy);
+        overwriteBusy(studentBusy, snap.studentBusy);
+        overwriteBusy(roomBusy, snap.roomBusy);
+        SearchLog.info('Evict-and-retry did not place more small groups — kept the original Phase 1 pack');
+      } else {
+        assignments.forEach(a => {
+          if(!a) return;
+          occupyRoom(roomBusy, itemRoomId(a), a.day, a.start, a.end);
+          (a.students || []).forEach(st => {
+            studentBusy[st.ID] = studentBusy[st.ID] || {};
+            studentBusy[st.ID][a.day] = studentBusy[st.ID][a.day] || [];
+            studentBusy[st.ID][a.day].push({start:a.start, end:a.end});
+          });
+          if(a.teacherId){
+            teacherBusy[a.teacherId] = teacherBusy[a.teacherId] || {};
+            teacherBusy[a.teacherId][a.day] = teacherBusy[a.teacherId][a.day] || [];
+            teacherBusy[a.teacherId][a.day].push({start:a.start, end:a.end});
+          }
+        });
+        pick.forEach(c => {
+          const item = {
+            lesson: c.lesson,
+            students: c.kids,
+            duration: parseInt(c.lesson.duration, 10) || 45
+          };
+          const {placed, unresolved: leftover} = scheduleTeacherAcrossDays(c.s.teacherId, [item], teacherBusy, studentBusy, roomBusy, randomize);
+          placed.forEach(p => {
+            scheduled.push({
+              lessonId: p.lesson.id, name: p.lesson.name, group: p.lesson.group, groupId: p.lesson.groupId,
+              teacher: p.lesson.teacher, teacherId: p.lesson.teacherId,
+              day: p.day, start: p.start, end: p.end,
+              studentCount: p.students.length, ...roomFieldsOf(p.lesson),
+              studentNames: p.students.map(st => `${st.NAME1} ${st.NAME2}${st.NAME3 ? ' '+st.NAME3 : ''}`).sort()
+            });
+          });
+          leftover.forEach(it => {
+            unresolved.push({lesson: it.lesson, students: it.students, dayWin: teacherDayWindows(c.s.teacherId, 'group')});
+          });
+        });
+        SearchLog.ok(`Evict-and-retry placed ${assignedSmallGroupCount() - snap.placedBefore} more small group(s)`);
+      }
+    }
   }
 
   smallGroupItems.forEach((item, idx) => {
@@ -2016,11 +2252,12 @@ function runScheduler(randomize){
   });
 
   scheduled.sort((a,b)=> DAYS.indexOf(a.day)-DAYS.indexOf(b.day) || a.start-b.start);
-  logQuotaLedger(scheduled, 'Small group quota ledger (this attempt)');
+  if(!SearchLog.quiet) logQuotaLedger(scheduled, 'Small group quota ledger (this attempt)');
   const attemptLog = SearchLog.lines.slice();
   SearchLog.lines = parentLines;
   SearchLog.quiet = parentQuiet;
-  return {scheduled, unresolved, searchLog: attemptLog, idleGapMinutes: scheduledIdleGapMinutes(scheduled)};
+  const idleGapMinutes = scheduledIdleGapMinutes(scheduled);
+  return {scheduled, unresolved, searchLog: attemptLog, idleGapMinutes};
 }
 
 // ---------- Rendering results ----------
@@ -2043,7 +2280,10 @@ function computeScheduleFingerprint(){
     students: DB.students, lessons: lessonsSummary, teacherAvail: DB.teacherAvail, classAvail: DB.classAvail,
     refTeachers: DB.refTeachers, refClasses: DB.refClasses, refGroups: DB.refGroups, refInstruments: DB.refInstruments, refRooms: DB.refRooms,
     smallGroupQuotas: DB.smallGroupQuotas, breaks: DB.breaks,
-    smallGroups: smallGroupsSummary
+    smallGroups: smallGroupsSummary,
+    phase1TeacherOrder: normalizePhase1TeacherOrder(DB.phase1TeacherOrder),
+    forbidUnlistedGroupGaps: forbidUnlistedGroupGapsEnabled(),
+    lookaheadEveryLayout: lookaheadEveryLayoutEnabled()
   });
 }
 
@@ -2052,12 +2292,112 @@ function computeScheduleFingerprint(){
 // teacher-less small groups get a say. Distinct layouts are ranked and only the best
 // handful are kept in the Solution dropdown.
 let SCHEDULE_SEARCH_ATTEMPTS = 100;
-const SCHEDULE_SEARCH_ATTEMPTS_MAX = 1000;
+const SCHEDULE_SEARCH_ATTEMPTS_MAX = 50000;
+const DEEP_SEARCH_AFTER = 1000;
+const DEEP_SEARCH_YIELD_EVERY = 25;
+const DEEP_SEARCH_LIVE_EVERY = 100;
 const SCHEDULE_VARIANT_KEEP = 10;
+const TEACHER_SWAP_EVAL_MAX = 48;
+const TEACHER_SWAP_KEEP = 5;
+const TEACHER_SWAP_SEARCH_ATTEMPTS = 8;
+const TEACHER_SWAP_PACK_BUDGET = 96;
+let SEARCH_CANCELLED = false;
 function clampScheduleSearchAttempts(n){
   const v = parseInt(n, 10);
   if(!Number.isFinite(v)) return 100;
   return Math.max(1, Math.min(SCHEDULE_SEARCH_ATTEMPTS_MAX, v));
+}
+function isDeepScheduleSearch(attempts){
+  return clampScheduleSearchAttempts(attempts) > DEEP_SEARCH_AFTER;
+}
+function resetSearchCancel(){
+  SEARCH_CANCELLED = false;
+}
+function requestCancelSearch(){
+  SEARCH_CANCELLED = true;
+}
+function isSearchCancelled(){
+  return !!SEARCH_CANCELLED;
+}
+function beginScheduleSearch(attempts){
+  attempts = clampScheduleSearchAttempts(attempts);
+  return {
+    attempts,
+    deep: isDeepScheduleSearch(attempts),
+    keep: SCHEDULE_VARIANT_KEEP,
+    seen: new Set(),
+    beam: [],
+    all: [],
+    foundOnAttempt: new Map(),
+    discarded: 0,
+    distinct: 0,
+    first: null,
+    lastN: 0,
+    cancelled: false
+  };
+}
+function recordScheduleAttempt(state, attempt, n){
+  state.lastN = n;
+  const sig = resultSignature(attempt);
+  if(state.seen.has(sig)){
+    state.discarded++;
+    return 'dup';
+  }
+  state.seen.add(sig);
+  state.distinct++;
+  if(!state.deep){
+    state.all.push(attempt);
+    state.foundOnAttempt.set(sig, n);
+    return 'kept';
+  }
+  if(state.deep && n > 1){
+    attempt.searchLog = [{type:'info', text:`Attempt ${n} (random): ${resultLogLine(attempt)}`}];
+  }
+  if(state.beam.length < state.keep){
+    state.beam.push(attempt);
+    state.beam.sort((a, b) => compareGroupResults(a, b));
+    state.foundOnAttempt.set(sig, n);
+    return 'kept';
+  }
+  const worst = state.beam[state.beam.length - 1];
+  if(compareGroupResults(attempt, worst) < 0){
+    const evicted = state.beam.pop();
+    if(evicted) state.foundOnAttempt.delete(resultSignature(evicted));
+    state.beam.push(attempt);
+    state.beam.sort((a, b) => compareGroupResults(a, b));
+    state.foundOnAttempt.set(sig, n);
+    return 'kept';
+  }
+  return 'skip';
+}
+function finishScheduleSearch(state){
+  return (state.deep ? state.beam : state.all).slice().sort((a, b) => compareGroupResults(a, b));
+}
+function finalizeScheduleSearch(state){
+  const variants = finishScheduleSearch(state);
+  const first = state.first;
+  const best = variants[0];
+  const bestN = best ? state.foundOnAttempt.get(resultSignature(best)) : 0;
+  SearchLog.always('info', `${state.discarded} shuffled ${state.discarded === 1 ? 'try was' : 'tries were'} the same as an earlier layout — discarded`);
+  if(state.deep){
+    SearchLog.always('info', `Deep search kept ${variants.length} of ${state.distinct} distinct layout(s); signatures only for the rest`);
+  }
+  if(state.cancelled){
+    SearchLog.always('warn', `Stopped after attempt ${state.lastN} of ${state.attempts}`);
+  }
+  SearchLog.section('Pick');
+  SearchLog.info(`Ranking: fewest unresolved small groups, then fewest unresolved items, then least idle gap (like 1/1). ${state.distinct} distinct layout(s) this click; the Solution list keeps the best ${SCHEDULE_VARIANT_KEEP}.`);
+  if(best){
+    SearchLog.ok(`Best this click is attempt ${bestN}: ${resultLogLine(best)}. Search log opens on the ★ layout.`);
+  }
+  if(first){
+    variants.forEach(v => {
+      const extra = collectHowRedsCleared(first, v, v.attemptNo);
+      v.searchLog = (v.searchLog || []).concat(extra);
+    });
+    if(best) logHowRedsCleared(first, best, bestN);
+  }
+  return variants;
 }
 function readScheduleSearchAttempts(){
   const el = document.getElementById('scheduleSearchAttempts');
@@ -2067,12 +2407,37 @@ function readScheduleSearchAttempts(){
   }
   return clampScheduleSearchAttempts(SCHEDULE_SEARCH_ATTEMPTS);
 }
+function leftoverOneOneHoleMinutes(scheduled){
+  const jobs = collectOneOneAssignments(DB && DB.oneToOne);
+  if(!jobs.length) return 0;
+  const seen = new Set();
+  let total = 0;
+  jobs.forEach(j => {
+    if(!j || seen.has(j.studentId)) return;
+    seen.add(j.studentId);
+    const st = (DB.students || []).find(s => s.ID === j.studentId);
+    if(!st) return;
+    DAYS.forEach(day => {
+      const busy = (scheduled || []).filter(item => {
+        if(!item || item.day !== day) return false;
+        return studentsForScheduledItem(item).some(x => x && x.ID === st.ID);
+      }).map(item => ({
+        start: typeof item.start === 'number' ? item.start : toMin(item.start),
+        end: typeof item.end === 'number' ? item.end : toMin(item.end)
+      })).filter(iv => iv.start != null && iv.end != null);
+      subtractBusyFromIntervals(classFreeGaps(st.CLASS_ID, day), busy).forEach(([s, e]) => {
+        if(e > s) total += (e - s);
+      });
+    });
+  });
+  return total;
+}
 function resultScore(result){
-  const unresolvedSmallGroups = result.unresolved.filter(u => u.lesson.id && isSmallGroupId(u.lesson.id)).length;
   const idle = result && Number.isFinite(result.idleGapMinutes)
     ? result.idleGapMinutes
     : scheduledIdleGapMinutes(result && result.scheduled);
-  return [unresolvedSmallGroups, result.unresolved.length, idle];
+  const holes = result && Number.isFinite(result.oneOneHoleMinutes) ? result.oneOneHoleMinutes : 0;
+  return [((result && result.unresolved) || []).length, -holes, idle];
 }
 function compareGroupResults(a, b){
   const sa = resultScore(a), sb = resultScore(b);
@@ -2188,97 +2553,105 @@ function runSchedulerSearchAll(){
   return collectSchedulerSearch(readScheduleSearchAttempts());
 }
 function collectSchedulerSearch(attempts, onTick){
-  attempts = clampScheduleSearchAttempts(attempts);
-  const seen = new Map();
-  const foundOnAttempt = new Map();
+  const state = beginScheduleSearch(attempts);
+  attempts = state.attempts;
   SearchLog.quiet = false;
   const first = runScheduler(false);
   first.attemptNo = 1;
   first.attemptKind = 'deterministic';
+  state.first = first;
   SearchLog.always('ok', `Attempt 1 (deterministic): ${resultLogLine(first)}`);
-  const firstSig = resultSignature(first);
-  seen.set(firstSig, first);
-  foundOnAttempt.set(firstSig, 1);
+  recordScheduleAttempt(state, first, 1);
   if(onTick) onTick(1, attempts, `Layout 1 / ${attempts}`);
   SearchLog.always('section', 'Further attempts');
-  SearchLog.always('info', `${Math.max(0, attempts - 1)} more tries with shuffled day order / lesson order — looking for a layout that unblocks a stuck small group`);
-  let discarded = 0;
+  SearchLog.always('info', state.deep
+    ? `${Math.max(0, attempts - 1)} more tries — deep search keeps only the best ${state.keep} layouts and skips per-attempt logs`
+    : `${Math.max(0, attempts - 1)} more tries with shuffled teacher order / day order / lesson order — looking for a layout that unblocks a stuck small group`);
   for(let i = 0; i < attempts - 1; i++){
-    const attempt = runScheduler(true);
-    attempt.attemptNo = i + 2;
+    const n = i + 2;
+    const attempt = runScheduler(true, state.deep ? {quiet: true} : null);
+    attempt.attemptNo = n;
     attempt.attemptKind = 'random';
-    const sig = resultSignature(attempt);
-    if(seen.has(sig)){
-      discarded++;
-    } else {
-      seen.set(sig, attempt);
-      foundOnAttempt.set(sig, i + 2);
-      SearchLog.always('ok', `Attempt ${i+2} (random): ${resultLogLine(attempt)} — kept`);
+    const kind = recordScheduleAttempt(state, attempt, n);
+    if(kind === 'kept' && !state.deep){
+      SearchLog.always('ok', `Attempt ${n} (random): ${resultLogLine(attempt)} — kept`);
     }
-    if(onTick) onTick(i + 2, attempts, `Layout ${i + 2} / ${attempts}`);
+    if(onTick) onTick(n, attempts, `Layout ${n} / ${attempts}`);
   }
-  SearchLog.always('info', `${discarded} shuffled ${discarded === 1 ? 'try was' : 'tries were'} the same as an earlier layout — discarded`);
-  const variants = [...seen.values()];
-  variants.sort((a,b) => compareGroupResults(a, b));
-  const best = variants[0];
-  const bestN = foundOnAttempt.get(resultSignature(best));
-  SearchLog.section('Pick');
-  SearchLog.info(`Ranking: fewest unresolved small groups, then fewest unresolved items, then least idle gap (like 1/1). ${variants.length} distinct layout(s) this click; the Solution list keeps the best ${SCHEDULE_VARIANT_KEEP}.`);
-  SearchLog.ok(`Best this click is attempt ${bestN}: ${resultLogLine(best)}. Search log opens on the ★ layout.`);
-  variants.forEach(v => {
-    const extra = collectHowRedsCleared(first, v, v.attemptNo);
-    v.searchLog = (v.searchLog || []).concat(extra);
-  });
-  logHowRedsCleared(first, best, bestN);
-  return variants;
+  return finalizeScheduleSearch(state);
 }
 function yieldUi(){
   return new Promise(resolve => setTimeout(resolve, 0));
 }
 async function collectSchedulerSearchAsync(attempts, onTick){
-  attempts = clampScheduleSearchAttempts(attempts);
-  const seen = new Map();
-  const foundOnAttempt = new Map();
+  const state = beginScheduleSearch(attempts);
+  attempts = state.attempts;
   SearchLog.quiet = false;
+  setSearchLiveHeadline(searchLiveAttemptHeadline(1, attempts, false));
+  searchLiveSay(state.deep
+    ? `Deep search: ${attempts} tries, keep the best ${state.keep}. Quiet logs, beam only, yield every ${DEEP_SEARCH_YIELD_EVERY}.`
+    : 'Packing pinned slots, then subjects teacher-first, then auto-match small groups…', 'info');
+  if(onTick) onTick(0, attempts, `Starting 1 / ${attempts}`);
+  await yieldUi();
+  if(SEARCH_CANCELLED){
+    state.cancelled = true;
+    return finalizeScheduleSearch(state);
+  }
   const first = runScheduler(false);
   first.attemptNo = 1;
   first.attemptKind = 'deterministic';
+  state.first = first;
   SearchLog.always('ok', `Attempt 1 (deterministic): ${resultLogLine(first)}`);
-  seen.set(resultSignature(first), first);
-  foundOnAttempt.set(resultSignature(first), 1);
+  recordScheduleAttempt(state, first, 1);
+  let bestSoFar = first;
+  searchLiveSay(`Attempt 1: ${resultLogLine(first)} — baseline kept.`, 'ok');
   if(onTick) onTick(1, attempts, `Layout 1 / ${attempts}`);
   await yieldUi();
   SearchLog.always('section', 'Further attempts');
-  SearchLog.always('info', `${Math.max(0, attempts - 1)} more tries with shuffled day order / lesson order — looking for a layout that unblocks a stuck small group`);
-  let discarded = 0;
-  for(let i = 0; i < attempts - 1; i++){
-    const attempt = runScheduler(true);
-    attempt.attemptNo = i + 2;
-    attempt.attemptKind = 'random';
-    const sig = resultSignature(attempt);
-    if(seen.has(sig)){
-      discarded++;
-    } else {
-      seen.set(sig, attempt);
-      foundOnAttempt.set(sig, i + 2);
-      SearchLog.always('ok', `Attempt ${i+2} (random): ${resultLogLine(attempt)} — kept`);
-    }
-    if(onTick) onTick(i + 2, attempts, `Layout ${i + 2} / ${attempts}`);
-    await yieldUi();
+  SearchLog.always('info', state.deep
+    ? `${Math.max(0, attempts - 1)} more tries — deep search keeps only the best ${state.keep} layouts and skips per-attempt logs`
+    : `${Math.max(0, attempts - 1)} more tries with shuffled teacher order / day order / lesson order — looking for a layout that unblocks a stuck small group`);
+  if(attempts > 1 && !state.deep){
+    searchLiveSay(`${attempts - 1} shuffled ${attempts - 1 === 1 ? 'try' : 'tries'} next — looking for a week that unblocks a stuck small group.`, 'info');
   }
-  SearchLog.always('info', `${discarded} shuffled ${discarded === 1 ? 'try was' : 'tries were'} the same as an earlier layout — discarded`);
-  const variants = [...seen.values()];
-  variants.sort((a,b) => compareGroupResults(a, b));
+  for(let i = 0; i < attempts - 1; i++){
+    if(SEARCH_CANCELLED){
+      state.cancelled = true;
+      break;
+    }
+    const n = i + 2;
+    if(!state.deep){
+      setSearchLiveHeadline(searchLiveAttemptHeadline(n, attempts, true));
+      searchLiveSay(`Mixing a new teacher / day / lesson order for attempt ${n}…`, 'info');
+      await yieldUi();
+    }
+    const attempt = runScheduler(true, state.deep ? {quiet: true} : null);
+    attempt.attemptNo = n;
+    attempt.attemptKind = 'random';
+    const kind = recordScheduleAttempt(state, attempt, n);
+    if(kind === 'kept' && compareGroupResults(attempt, bestSoFar) < 0){
+      bestSoFar = attempt;
+      searchLiveSay(`Attempt ${n}: ${resultLogLine(attempt)} — new best.`, 'ok');
+    } else if(!state.deep){
+      if(kind === 'dup') searchLiveSay(`Attempt ${n}: same week as an earlier try — discarded.`, 'info');
+      else if(kind === 'kept'){
+        SearchLog.always('ok', `Attempt ${n} (random): ${resultLogLine(attempt)} — kept`);
+        searchLiveSay(`Attempt ${n}: ${resultLogLine(attempt)} — distinct, kept.`, 'ok');
+      }
+    } else if(n % DEEP_SEARCH_LIVE_EVERY === 0){
+      setSearchLiveHeadline(`Attempt ${n} / ${attempts} — deep search`);
+      searchLiveSay(`Checked ${n}. Best so far: ${resultLogLine(bestSoFar)}. ${state.distinct} distinct, ${state.beam.length} kept.`, 'info');
+    }
+    if(onTick) onTick(n, attempts, `Layout ${n} / ${attempts}`);
+    if(!state.deep || n % DEEP_SEARCH_YIELD_EVERY === 0) await yieldUi();
+  }
+  setSearchLiveHeadline('Ranking layouts');
+  const variants = finalizeScheduleSearch(state);
   const best = variants[0];
-  const bestN = foundOnAttempt.get(resultSignature(best));
-  SearchLog.section('Pick');
-  SearchLog.info(`Ranking: fewest unresolved small groups, then fewest unresolved items, then least idle gap (like 1/1). ${variants.length} distinct layout(s) this click; the Solution list keeps the best ${SCHEDULE_VARIANT_KEEP}.`);
-  SearchLog.ok(`Best this click is attempt ${bestN}: ${resultLogLine(best)}. Search log opens on the ★ layout.`);
-  variants.forEach(v => {
-    const extra = collectHowRedsCleared(first, v, v.attemptNo);
-    v.searchLog = (v.searchLog || []).concat(extra);
-  });
-  logHowRedsCleared(first, best, bestN);
+  searchLiveSay(state.cancelled
+    ? `Stopped at attempt ${state.lastN}. Kept ${variants.length} layout(s); best: ${best ? resultLogLine(best) : '—'}.`
+    : `${state.discarded} duplicate ${state.discarded === 1 ? 'try' : 'tries'} thrown away. ${state.distinct} distinct; best this click is ${best ? resultLogLine(best) : '—'}.`,
+    state.cancelled ? 'warn' : 'ok');
   return variants;
 }
 
@@ -2332,6 +2705,90 @@ function setModalOverlay(id, open){
 function hideGenerateConfirm(){
   setModalOverlay('generateConfirmOverlay', false);
 }
+function isSearchLiveOpen(){
+  return overlayIsOpen(document.getElementById('searchLiveOverlay'));
+}
+function setSearchLiveHeadline(text){
+  const el = document.getElementById('searchLiveHeadline');
+  if(el) el.textContent = text || '';
+}
+let SEARCH_LIVE_STARTED_AT = 0;
+function formatSearchLiveEta(ms){
+  if(!Number.isFinite(ms) || ms < 0) return '';
+  const sec = Math.max(0, Math.round(ms / 1000));
+  if(sec < 8) return 'a few seconds left';
+  if(sec < 55) return `about ${sec}s left`;
+  const min = Math.max(1, Math.round(sec / 60));
+  return min === 1 ? 'about 1 min left' : `about ${min} min left`;
+}
+function setSearchLiveEta(text){
+  const el = document.getElementById('searchLiveEta');
+  if(el) el.textContent = text || '';
+}
+function setSearchLiveProgress(done, total, label){
+  const fill = document.getElementById('searchLiveFill');
+  const count = document.getElementById('searchLiveCount');
+  const pct = total ? Math.max(0, Math.min(100, Math.round(100 * done / total))) : 0;
+  if(fill) fill.style.width = pct + '%';
+  if(count) count.textContent = label || (total ? `${done} / ${total}` : '');
+  if(!total){
+    setSearchLiveEta('');
+    return;
+  }
+  if(done >= total){
+    setSearchLiveEta('finishing…');
+    return;
+  }
+  if(!(done > 0) || !SEARCH_LIVE_STARTED_AT){
+    setSearchLiveEta('estimating…');
+    return;
+  }
+  const elapsed = Date.now() - SEARCH_LIVE_STARTED_AT;
+  if(elapsed < 250){
+    setSearchLiveEta('estimating…');
+    return;
+  }
+  setSearchLiveEta(formatSearchLiveEta(elapsed * (total - done) / done));
+}
+function searchLiveSay(text, type){
+  const body = document.getElementById('searchLiveBody');
+  if(!body || !text) return;
+  const line = document.createElement('div');
+  line.className = 'search-live-line' + (type === 'ok' || type === 'warn' || type === 'info' ? ' search-live-'+type : '');
+  line.textContent = text;
+  body.appendChild(line);
+  while(body.childElementCount > 48 && body.firstChild) body.removeChild(body.firstChild);
+  if(body.scrollTop != null) body.scrollTop = body.scrollHeight;
+}
+function openSearchLive(title){
+  const t = document.getElementById('searchLiveTitle');
+  if(t) t.textContent = title || 'Search';
+  const body = document.getElementById('searchLiveBody');
+  if(body) body.innerHTML = '';
+  SEARCH_LIVE_STARTED_AT = Date.now();
+  setSearchLiveHeadline('Starting…');
+  setSearchLiveEta('estimating…');
+  setSearchLiveProgress(0, 1, '');
+  const cancel = document.getElementById('searchLiveCancelBtn');
+  if(cancel){
+    cancel.disabled = false;
+    cancel.textContent = 'Stop search';
+  }
+  setModalOverlay('searchLiveOverlay', true);
+}
+function closeSearchLive(){
+  const cancel = document.getElementById('searchLiveCancelBtn');
+  if(cancel) cancel.disabled = true;
+  setModalOverlay('searchLiveOverlay', false);
+}
+function searchLiveAttemptHeadline(n, total, shuffled){
+  if(!shuffled){
+    return hasManualPhase1TeacherOrder()
+      ? `Attempt ${n} / ${total} — packing in your teacher order`
+      : `Attempt ${n} / ${total} — fewest available days first`;
+  }
+  return `Attempt ${n} / ${total} — shuffled teacher / day / lesson mix`;
+}
 function isGenerateConfirmOpen(){
   return overlayIsOpen(document.getElementById('generateConfirmOverlay'));
 }
@@ -2339,6 +2796,7 @@ function showGenerateConfirm(kind){
   abortCalendarInteraction();
   setModalOverlay('searchLogOverlay', false);
   setModalOverlay('smallGroupQuotasOverlay', false);
+  setModalOverlay('phase1TeacherOrderOverlay', false);
   hideSmallGroupStudentsEditor();
   PENDING_GENERATE = kind === 'smallgroups' ? 'smallgroups' : 'timetable';
   const title = document.getElementById('generateConfirmTitle');
@@ -2382,6 +2840,7 @@ function setSearchUiLock(on){
     abortCalendarInteraction();
     setModalOverlay('searchLogOverlay', false);
     setModalOverlay('smallGroupQuotasOverlay', false);
+    setModalOverlay('phase1TeacherOrderOverlay', false);
     hideSmallGroupStudentsEditor();
     hideGenerateConfirm();
   }
@@ -2394,26 +2853,19 @@ function setGenerateBusy(busy){
     btn.disabled = !!busy;
     btn.textContent = busy ? 'Generating…' : '▶ Generate group lessons';
   }
+  const orderBtn = document.getElementById('phase1TeacherOrderBtn');
+  if(orderBtn) orderBtn.disabled = !!busy;
   const attempts = document.getElementById('scheduleSearchAttempts');
   if(attempts) attempts.disabled = !!busy;
+  const gapToggle = document.getElementById('forbidUnlistedGroupGaps');
+  if(gapToggle) gapToggle.disabled = !!busy;
+  const lookaheadToggle = document.getElementById('lookaheadEveryLayout');
+  if(lookaheadToggle) lookaheadToggle.disabled = !!busy;
+  const swapToggle = document.getElementById('teacherSwapProbe');
+  if(swapToggle) swapToggle.disabled = !!busy;
 }
 function setGenerateProgress(done, total, label){
-  const wrap = document.getElementById('generateProgressWrap');
-  const fill = document.getElementById('generateProgressFill');
-  const text = document.getElementById('generateProgressLabel');
-  if(!wrap) return;
-  if(!total){
-    wrap.hidden = true;
-    wrap.style.display = 'none';
-    if(fill) fill.style.width = '0%';
-    if(text) text.textContent = '';
-    return;
-  }
-  wrap.hidden = false;
-  wrap.style.display = 'flex';
-  const pct = Math.max(0, Math.min(100, Math.round(100 * done / total)));
-  if(fill) fill.style.width = pct + '%';
-  if(text) text.textContent = label || `${done} / ${total}`;
+  setSearchLiveProgress(done, total, label);
 }
 function setSmallGroupsBusy(busy){
   setSearchUiLock(busy);
@@ -2440,17 +2892,37 @@ function clearGeneratedTimetableGrid(){
   if(variantRow) variantRow.style.display = 'none';
   const searchLogBtn = document.getElementById('searchLogBtn');
   if(searchLogBtn) searchLogBtn.disabled = true;
+  LAST_TEACHER_SWAP_SUGGESTIONS = [];
+  renderTeacherSwapSuggestions();
   updateTimetableAcceptBtn();
 }
 function queueGenerateTimetable(clearAccepted){
   hideGenerateConfirm();
   const attempts = readScheduleSearchAttempts();
+  resetSearchCancel();
   setGenerateBusy(true);
+  openSearchLive('Generate group lessons');
+  searchLiveSay(isDeepScheduleSearch(attempts)
+    ? `Deep search: ${attempts} tries, keep the best ${SCHEDULE_VARIANT_KEEP}. Quiet logs, beam only — Stop search keeps the best so far.`
+    : `${attempts} layout attempt(s); keep the best ${SCHEDULE_VARIANT_KEEP}.`, 'info');
+  if(hasManualPhase1TeacherOrder()){
+    searchLiveSay('First attempt follows your teacher order; shuffled attempts still permute that list.', 'info');
+  }
+  searchLiveSay(forbidUnlistedGroupGapsEnabled()
+    ? 'No gaps without Break Management — listed teachers use MIN × COUNT, everyone else flush only.'
+    : 'Optimizing idle — Break Management is ignored; any teacher may gap.', 'info');
+  searchLiveSay(lookaheadEveryLayoutEnabled()
+    ? '1/1 + piano preview: every distinct layout.'
+    : `1/1 + piano preview: only the best ${SCHEDULE_VARIANT_KEEP} layouts.`, 'info');
+  searchLiveSay(teacherSwapProbeEnabled()
+    ? 'Hypothetical teacher swaps: on — each same-duration pair re-runs the group search (shuffled packs + 1/1 preview) and keeps the better leftover week. The grid stays as packed.'
+    : 'Hypothetical teacher swaps: off.', 'info');
   setGenerateProgress(0, attempts, 'Starting…');
   (async () => {
     try {
       await runGenerateTimetableAsync(clearAccepted);
     } finally {
+      closeSearchLive();
       setGenerateBusy(false);
       setGenerateProgress(0, 0);
     }
@@ -2470,28 +2942,33 @@ function prepareGenerateTimetable(clearAccepted){
   else if(hadScheduled) SearchLog.info('Accepted schedule kept — this search does not read SCHEDULED columns');
   if(fp !== LAST_FINGERPRINT){
     SearchLog.info('Inputs changed (or first run) — previous solution pool cleared, search starts clean');
+    searchLiveSay('Inputs changed — previous solution pool cleared.', 'info');
     LAST_VARIANTS = [];
     LAST_FINGERPRINT = fp;
   } else if(hadDrags){
     SearchLog.info('Dragged grid was thrown away — this search starts from the lessons table, not from where blocks were moved');
+    searchLiveSay('Dragged grid thrown away — packing from the lessons table.', 'info');
     LAST_VARIANTS = [];
   } else {
     SearchLog.info(`Same inputs as last click — new layouts are merged in, then the best ${SCHEDULE_VARIANT_KEEP} are kept`);
+    searchLiveSay('Same inputs — new layouts merge into the existing pool.', 'info');
   }
 }
-function mergeGenerateVariants(freshVariants){
+function mergeGenerateVariants(freshVariants, opts){
   freshVariants = freshVariants || [];
   freshVariants.sort((a,b) => compareGroupResults(a, b));
   const freshBest = freshVariants[0] || null;
-  const skipAccepted = LAST_RESULT && LAST_RESULT.accepted ? LAST_RESULT : null;
   const merged = new Map();
   freshVariants.forEach(v => merged.set(resultSignature(v), v));
   LAST_VARIANTS.forEach(v => {
-    if(!v || v === skipAccepted) return;
+    if(!v) return;
     const sig = resultSignature(v);
     if(!merged.has(sig)) merged.set(sig, v);
   });
-  LAST_VARIANTS = [...merged.values()].sort((a,b) => compareGroupResults(a, b)).slice(0, SCHEDULE_VARIANT_KEEP);
+  LAST_VARIANTS = [...merged.values()].sort((a,b) => compareGroupResults(a, b));
+  if(!(opts && opts.all) && LAST_VARIANTS.length > SCHEDULE_VARIANT_KEEP){
+    LAST_VARIANTS = LAST_VARIANTS.slice(0, SCHEDULE_VARIANT_KEEP);
+  }
   LAST_VARIANTS.forEach(v => {
     if(!v) return;
     v.accepted = false;
@@ -2500,8 +2977,15 @@ function mergeGenerateVariants(freshVariants){
   });
   return {freshBest, freshCount: freshVariants.length};
 }
+function keepLookaheadBestVariants(){
+  LAST_VARIANTS = (LAST_VARIANTS || []).slice()
+    .sort((a,b) => compareScoreTuple(groupLookaheadScore(a), groupLookaheadScore(b)))
+    .slice(0, SCHEDULE_VARIANT_KEEP);
+  markSuggestedByLookahead(LAST_VARIANTS, groupLookaheadScore);
+}
 function paintGenerateTimetable(freshCount){
   logGroupLookahead(LAST_VARIANTS);
+  logTeacherSwapSuggestions();
   const starI = suggestedVariantIndex(LAST_VARIANTS);
   LAST_RESULT = LAST_VARIANTS[starI] || LAST_VARIANTS[0] || null;
   if(LAST_VARIANTS.length > freshCount){
@@ -2514,8 +2998,11 @@ function paintGenerateTimetable(freshCount){
   markWorkDirty();
 }
 function completeGenerateTimetable(freshVariants, onLookahead){
-  const {freshCount} = mergeGenerateVariants(freshVariants);
+  const previewAll = lookaheadEveryLayoutEnabled();
+  const {freshCount} = mergeGenerateVariants(freshVariants, previewAll ? {all:true} : null);
   attachGroupLookahead(LAST_VARIANTS, onLookahead);
+  if(previewAll) keepLookaheadBestVariants();
+  collectTeacherSwapSuggestionsForLayouts(LAST_VARIANTS);
   paintGenerateTimetable(freshCount);
 }
 function runGenerateTimetable(clearAccepted){
@@ -2525,17 +3012,47 @@ function runGenerateTimetable(clearAccepted){
 async function runGenerateTimetableAsync(clearAccepted){
   prepareGenerateTimetable(clearAccepted);
   const attempts = readScheduleSearchAttempts();
-  const previewBudget = SCHEDULE_VARIANT_KEEP;
+  const previewAll = lookaheadEveryLayoutEnabled();
+  const previewBudget = previewAll ? Math.max(SCHEDULE_VARIANT_KEEP, attempts) : SCHEDULE_VARIANT_KEEP;
   const fresh = await collectSchedulerSearchAsync(attempts, (done, total, label) => {
     setGenerateProgress(done, total + previewBudget, label);
   });
-  const {freshCount} = mergeGenerateVariants(fresh);
+  if(!(fresh || []).length){
+    searchLiveSay(SEARCH_CANCELLED ? 'Stopped before a layout was kept.' : 'No layout produced.', 'warn');
+    return;
+  }
+  const {freshCount} = mergeGenerateVariants(fresh, previewAll ? {all:true} : null);
   const previewN = LAST_VARIANTS.length || Math.min(SCHEDULE_VARIANT_KEEP, (fresh || []).length);
+  setSearchLiveHeadline('Previewing 1/1 and Required Piano');
+  searchLiveSay(previewAll
+    ? `Checking leftover 1/1 and piano on every distinct layout (${previewN}) — this picks ★.`
+    : `Checking leftover 1/1 and piano on the ${previewN} kept layout(s) — this picks ★.`, 'info');
   await yieldUi();
   await attachGroupLookaheadAsync(LAST_VARIANTS, (i, n) => {
+    setSearchLiveHeadline(`1/1 preview ${i} / ${n}`);
+    searchLiveSay(`Trying leftover 1/1 holes on layout ${i} of ${n}…`, 'info');
     setGenerateProgress(attempts + i, attempts + n, `1/1 preview ${i} / ${n}`);
   });
+  if(previewAll) keepLookaheadBestVariants();
+  if(teacherSwapProbeEnabled() && !SEARCH_CANCELLED){
+    const layouts = LAST_VARIANTS || [];
+    const swapCands = collectTeacherSwapCandidates();
+    if(swapCands.length){
+      setSearchLiveHeadline('Hypothetical teacher swaps');
+      searchLiveSay(`${swapCands.length} same-duration swap(s); each re-runs the group search then a 1/1 preview. The timetable will not change.`, 'info');
+      await collectTeacherSwapSuggestionsForLayoutsAsync(layouts, (done, total, label) => {
+        setSearchLiveHeadline(label || `Teacher swap check ${done} / ${total}`);
+        setGenerateProgress(attempts + previewN + done, attempts + previewN + total, label || `Teacher swap ${done} / ${total}`);
+      });
+    } else {
+      clearTeacherSwapsOnLayouts(layouts);
+    }
+  } else {
+    clearTeacherSwapsOnLayouts(LAST_VARIANTS);
+  }
   paintGenerateTimetable(freshCount);
+  setSearchLiveHeadline('Done');
+  searchLiveSay('Search finished. The grid shows the ★ layout.', 'ok');
   setGenerateProgress(attempts + previewN, attempts + previewN, 'Done');
 }
 function requestGenerateTimetable(){
@@ -2555,6 +3072,39 @@ document.getElementById('scheduleSearchAttempts').addEventListener('change', () 
   readScheduleSearchAttempts();
   markWorkDirty();
 });
+function syncForbidUnlistedGroupGapsCheckbox(){
+  const el = document.getElementById('forbidUnlistedGroupGaps');
+  if(el) el.checked = forbidUnlistedGroupGapsEnabled();
+}
+function syncLookaheadEveryLayoutCheckbox(){
+  const el = document.getElementById('lookaheadEveryLayout');
+  if(el) el.checked = lookaheadEveryLayoutEnabled();
+}
+function syncTeacherSwapProbeCheckbox(){
+  const el = document.getElementById('teacherSwapProbe');
+  if(el) el.checked = teacherSwapProbeEnabled();
+}
+const forbidUnlistedGroupGapsEl = document.getElementById('forbidUnlistedGroupGaps');
+if(forbidUnlistedGroupGapsEl){
+  forbidUnlistedGroupGapsEl.addEventListener('change', () => {
+    DB.forbidUnlistedGroupGaps = !!forbidUnlistedGroupGapsEl.checked;
+    markWorkDirty();
+  });
+}
+const lookaheadEveryLayoutEl = document.getElementById('lookaheadEveryLayout');
+if(lookaheadEveryLayoutEl){
+  lookaheadEveryLayoutEl.addEventListener('change', () => {
+    DB.lookaheadEveryLayout = !!lookaheadEveryLayoutEl.checked;
+    markWorkDirty();
+  });
+}
+const teacherSwapProbeEl = document.getElementById('teacherSwapProbe');
+if(teacherSwapProbeEl){
+  teacherSwapProbeEl.addEventListener('change', () => {
+    DB.teacherSwapProbe = !!teacherSwapProbeEl.checked;
+    markWorkDirty();
+  });
+}
 document.getElementById('generateCancelBtn').addEventListener('click', hideGenerateConfirm);
 document.getElementById('generateKeepAcceptedBtn').addEventListener('click', () => queuePendingGenerate(false));
 document.getElementById('generateClearAcceptedBtn').addEventListener('click', () => queuePendingGenerate(true));
@@ -2592,6 +3142,7 @@ function populateVariantSelector(){
     sel.value = String(selected);
   }
   renderLookaheadSummary(summary, LAST_VARIANTS, 'group', selected);
+  renderTeacherSwapSuggestions();
 }
 function renderSearchLogBody(){
   const el = document.getElementById('searchLogBody');
@@ -2612,7 +3163,7 @@ function renderSearchLogBody(){
   }
   if(hint){
     if(LAST_RESULT && LAST_RESULT.suggested){
-      hint.textContent = LAST_VARIANTS.length > 1
+    hint.textContent = LAST_VARIANTS.length > 1
         ? 'Walkthrough of the ★ layout after Generate — packing, attempt-1 reds, quota ledger, and 1/1 / piano preview. Switch the Solution list to see another log.'
         : 'How the ★ layout was built, including unresolved (red) items, the quota ledger, and the 1/1 / piano preview.';
     } else if(LAST_VARIANTS.length > 1 && who){
@@ -2642,6 +3193,133 @@ document.getElementById('searchLogCloseBtn').addEventListener('click', () => {
 document.getElementById('searchLogOverlay').addEventListener('click', (e) => {
   if(e.target.id === 'searchLogOverlay') setModalOverlay('searchLogOverlay', false);
 });
+const searchLiveCancelBtn = document.getElementById('searchLiveCancelBtn');
+if(searchLiveCancelBtn){
+  searchLiveCancelBtn.addEventListener('click', () => {
+    requestCancelSearch();
+    searchLiveCancelBtn.disabled = true;
+    searchLiveCancelBtn.textContent = 'Stopping…';
+    searchLiveSay('Stop requested — finishing the current attempt, then keeping the best so far.', 'warn');
+  });
+}
+
+function updatePhase1TeacherOrderBtn(){
+  const btn = document.getElementById('phase1TeacherOrderBtn');
+  if(!btn) return;
+  const manual = hasManualPhase1TeacherOrder();
+  const n = (normalizePhase1TeacherOrder(DB.phase1TeacherOrder) || []).length;
+  btn.textContent = manual ? `Teacher order · ${n}` : 'Teacher order';
+  btn.classList.toggle('is-manual-order', manual);
+  btn.title = manual
+    ? 'The first Generate attempt packs in this order. Shuffled attempts still permute the list.'
+    : 'Set a Phase 1 teacher order for the first attempt, or leave automatic (fewest available days).';
+}
+function setManualPhase1TeacherOrder(ids){
+  const current = collectPhase1TeacherIds();
+  const present = new Set(current);
+  const cleaned = (ids || []).filter(id => present.has(id));
+  const extra = automaticPhase1TeacherOrder(current.filter(id => !cleaned.includes(id)));
+  DB.phase1TeacherOrder = cleaned.concat(extra);
+  if(!DB.phase1TeacherOrder.length) DB.phase1TeacherOrder = null;
+  markWorkDirty();
+  updatePhase1TeacherOrderBtn();
+}
+function clearManualPhase1TeacherOrder(){
+  DB.phase1TeacherOrder = null;
+  markWorkDirty();
+  updatePhase1TeacherOrderBtn();
+}
+function renderPhase1TeacherOrderModal(){
+  const list = document.getElementById('phase1TeacherOrderList');
+  const hint = document.getElementById('phase1TeacherOrderHint');
+  if(!list) return;
+  const ids = resolvePhase1TeacherOrder(collectPhase1TeacherIds(), false);
+  if(!ids.length){
+    list.innerHTML = '<li class="teacher-order-empty">No Phase 1 teachers yet — add subject lessons or a small-group teacher override.</li>';
+    if(hint) hint.textContent = '';
+    return;
+  }
+  list.innerHTML = ids.map((id, i) => `
+    <li class="teacher-order-item" draggable="true" data-id="${escapeAttr(id)}">
+      <span class="teacher-order-handle" aria-hidden="true">⋮⋮</span>
+      <span class="teacher-order-n">${i + 1}</span>
+      <span class="teacher-order-name">${escapeAttr(teacherName(id) || id)}</span>
+    </li>
+  `).join('');
+  if(hint){
+    hint.textContent = hasManualPhase1TeacherOrder()
+      ? 'The first Generate attempt uses this order. Shuffled attempts still permute the list. New teachers appear at the end.'
+      : 'Automatic: fewest available days, then most minutes. Drag a name to set the first-attempt order; shuffled attempts still permute.';
+  }
+  let dragId = null;
+  list.querySelectorAll('.teacher-order-item').forEach(li => {
+    li.addEventListener('dragstart', e => {
+      dragId = li.dataset.id;
+      li.classList.add('is-dragging');
+      if(e.dataTransfer){
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', dragId);
+      }
+    });
+    li.addEventListener('dragend', () => {
+      li.classList.remove('is-dragging');
+      list.querySelectorAll('.is-over').forEach(el => el.classList.remove('is-over'));
+      dragId = null;
+    });
+    li.addEventListener('dragover', e => {
+      e.preventDefault();
+      if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+      li.classList.add('is-over');
+    });
+    li.addEventListener('dragleave', () => li.classList.remove('is-over'));
+    li.addEventListener('drop', e => {
+      e.preventDefault();
+      li.classList.remove('is-over');
+      const from = (e.dataTransfer && e.dataTransfer.getData('text/plain')) || dragId;
+      const to = li.dataset.id;
+      if(!from || !to || from === to) return;
+      const order = [...list.querySelectorAll('[data-id]')].map(el => el.dataset.id);
+      const fi = order.indexOf(from);
+      const ti = order.indexOf(to);
+      if(fi < 0 || ti < 0) return;
+      order.splice(fi, 1);
+      order.splice(ti, 0, from);
+      setManualPhase1TeacherOrder(order);
+      renderPhase1TeacherOrderModal();
+    });
+  });
+}
+function openPhase1TeacherOrderModal(){
+  if(SEARCH_UI_LOCK) return;
+  hideGenerateConfirm();
+  setModalOverlay('searchLogOverlay', false);
+  setModalOverlay('smallGroupQuotasOverlay', false);
+  hideSmallGroupStudentsEditor();
+  renderPhase1TeacherOrderModal();
+  setModalOverlay('phase1TeacherOrderOverlay', true);
+}
+const phase1TeacherOrderBtn = document.getElementById('phase1TeacherOrderBtn');
+if(phase1TeacherOrderBtn){
+  phase1TeacherOrderBtn.addEventListener('click', openPhase1TeacherOrderModal);
+}
+const phase1TeacherOrderCloseBtn = document.getElementById('phase1TeacherOrderCloseBtn');
+if(phase1TeacherOrderCloseBtn){
+  phase1TeacherOrderCloseBtn.addEventListener('click', () => setModalOverlay('phase1TeacherOrderOverlay', false));
+}
+const phase1TeacherOrderResetBtn = document.getElementById('phase1TeacherOrderResetBtn');
+if(phase1TeacherOrderResetBtn){
+  phase1TeacherOrderResetBtn.addEventListener('click', () => {
+    clearManualPhase1TeacherOrder();
+    renderPhase1TeacherOrderModal();
+  });
+}
+const phase1TeacherOrderOverlay = document.getElementById('phase1TeacherOrderOverlay');
+if(phase1TeacherOrderOverlay){
+  phase1TeacherOrderOverlay.addEventListener('click', e => {
+    if(e.target.id === 'phase1TeacherOrderOverlay') setModalOverlay('phase1TeacherOrderOverlay', false);
+  });
+}
+updatePhase1TeacherOrderBtn();
 
 document.getElementById('variantSelect').addEventListener('change', (e) => {
   if(SEARCH_UI_LOCK) return;
@@ -3376,7 +4054,7 @@ function auditTimetable(scheduled){
     if(!isIndividual && (item.start < DEFAULT_START || item.end > DEFAULT_END)){
       addIssue(`<b>${item.name}</b> sits outside the 08:00–20:00 school day (${itemSlotLabel(item)})`, item.lessonId);
     }
-    const tw = teacherWindowClash(item.teacherId, item.teacher, item.day, item.start, item.end);
+    const tw = teacherWindowClash(item.teacherId, item.teacher, item.day, item.start, item.end, availKindForItem(item));
     if(tw) addIssue(`<b>${item.name}</b> ${itemSlotLabel(item)} — ${tw}`, item.lessonId);
     const sr = studentReservationClash(studentsOf.get(item) || [], item.day, item.start, item.end);
     if(sr){
@@ -4283,6 +4961,8 @@ function collectUiState(){
   return {
     smallGroupCount: document.getElementById('smallGroupCountInput') ? document.getElementById('smallGroupCountInput').value : '',
     scheduleSearchAttempts: document.getElementById('scheduleSearchAttempts') ? document.getElementById('scheduleSearchAttempts').value : '',
+    oneOneSearchAttempts: document.getElementById('oneoneSearchAttempts') ? document.getElementById('oneoneSearchAttempts').value : '',
+    rpianoSearchAttempts: document.getElementById('rpianoSearchAttempts') ? document.getElementById('rpianoSearchAttempts').value : '',
     viewMode: document.getElementById('viewMode') ? document.getElementById('viewMode').value : 'week',
     teacherFilter: document.getElementById('teacherFilter') ? document.getElementById('teacherFilter').value : '',
     reportFilters: Object.assign({}, REPORT_FILTERS),
@@ -4299,6 +4979,16 @@ function applyUiState(ui){
   if(attemptsIn && ui.scheduleSearchAttempts != null && ui.scheduleSearchAttempts !== ''){
     attemptsIn.value = String(clampScheduleSearchAttempts(ui.scheduleSearchAttempts));
     SCHEDULE_SEARCH_ATTEMPTS = clampScheduleSearchAttempts(attemptsIn.value);
+  }
+  if(ui.oneOneSearchAttempts != null && ui.oneOneSearchAttempts !== ''){
+    ONEONE_SEARCH_ATTEMPTS = clampOneOneSearchAttempts(ui.oneOneSearchAttempts);
+    const oneEl = document.getElementById('oneoneSearchAttempts');
+    if(oneEl) oneEl.value = String(ONEONE_SEARCH_ATTEMPTS);
+  }
+  if(ui.rpianoSearchAttempts != null && ui.rpianoSearchAttempts !== ''){
+    RPIANO_SEARCH_ATTEMPTS = clampOneOneSearchAttempts(ui.rpianoSearchAttempts);
+    const pianoEl = document.getElementById('rpianoSearchAttempts');
+    if(pianoEl) pianoEl.value = String(RPIANO_SEARCH_ATTEMPTS);
   }
   if(ui.activeTab){
     try {
@@ -4376,6 +5066,10 @@ function restoreFromLoadedObject(loaded){
   (DB.timetableVariants || []).forEach(v => (v.scheduled || []).forEach(migrateRpianoItem));
   if(DB.lastResult && DB.lastResult.scheduled) DB.lastResult.scheduled.forEach(migrateRpianoItem);
   DB.smallGroupQuotas = DB.smallGroupQuotas || [];
+  DB.phase1TeacherOrder = normalizePhase1TeacherOrder(DB.phase1TeacherOrder);
+  DB.forbidUnlistedGroupGaps = !!DB.forbidUnlistedGroupGaps;
+  DB.lookaheadEveryLayout = !!DB.lookaheadEveryLayout;
+  DB.teacherSwapProbe = !!DB.teacherSwapProbe;
   DB.breaks = DB.breaks || []; // older exports may not have this yet
   DB.refRooms = DB.refRooms || [];
   normalizeDbRooms(DB);
@@ -4432,6 +5126,10 @@ function restoreFromLoadedObject(loaded){
   showLogForSelected();
   applyUiState(DB.uiState);
   updateFixedPinsBanner();
+  updatePhase1TeacherOrderBtn();
+  syncForbidUnlistedGroupGapsCheckbox();
+  syncLookaheadEveryLayoutCheckbox();
+  syncTeacherSwapProbeCheckbox();
   renderOneOneTab();
   renderRpianoTab();
 }
@@ -4596,6 +5294,10 @@ function inferHeaders(labels, colTypes, sheetKey){
       out[i] = 'SMALLGR_AMOUNT';
       continue;
     }
+    if(sheetKey === 'teacherAvail' && !out[i] && prev === 'TYPE'){
+      out[i] = 'SCOPE';
+      continue;
+    }
   }
   return out;
 }
@@ -4626,19 +5328,29 @@ function rowGet(row, ...aliases){
   }
   return '';
 }
+function lookupRoomId(v, rById, rByName){
+  if(!v) return '';
+  const k = String(v).trim().toLowerCase();
+  if(rById && rById[k]) return rById[k].id;
+  if(rByName && rByName[k]) return rByName[k].id;
+  return '';
+}
+function roomFieldsFromValue(raw, rById, rByName){
+  const v = cleanCellText(raw);
+  const roomId = lookupRoomId(v, rById, rByName);
+  if(!roomId) return { roomId: '', room: '' };
+  return { roomId, room: resolveName(rById, roomId, v) };
+}
 function parseRoomAssignment(row, rById, rByName){
   const idRaw = rowGet(row, 'ROOM_ID');
   const nameRaw = rowGet(row, 'ROOM', 'ROOM_LOCK', 'ROOMLOCK', 'ROOM_NAME');
-  const lookup = (v) => {
-    if(!v) return '';
-    const k = String(v).trim().toLowerCase();
-    if(rById[k]) return rById[k].id;
-    if(rByName[k]) return rByName[k].id;
-    return '';
-  };
-  const roomId = lookup(idRaw) || lookup(nameRaw);
-  if(!roomId) return { roomId: '', room: '' };
-  return { roomId, room: resolveName(rById, roomId, nameRaw) };
+  const fromId = roomFieldsFromValue(idRaw, rById, rByName);
+  if(fromId.roomId) return fromId;
+  return roomFieldsFromValue(nameRaw, rById, rByName);
+}
+function isMatrixRoomLockId(v){
+  const n = normHeader(v);
+  return n === 'ROOM' || n === 'ROOM_LOCK' || n === 'ROOMLOCK' || n === 'ROOM_ID' || n === 'ROOM_NAME';
 }
 function normDay(v){
   const s = String(v == null ? '' : v).trim().toUpperCase();
@@ -4984,6 +5696,7 @@ function sheetsTablesToDb(tables){
         start: normTime(rowGet(r,'START') || (looksLikeTime(rowGet(r,'DAY_ID')) ? rowGet(r,'DAY_ID') : '')),
         end: normTime(rowGet(r,'END')),
         type: TYPE_OPTIONS.includes(type) ? type : 'AVAILABLE',
+        scope: normalizeAvailScope(rowGet(r,'SCOPE','USE','FOR','USAGE','SLOT')),
         option: rowGet(r,'OPTION','NOTE'),
       };
     }).filter(r => r.teacherId || r.teacher);
@@ -5051,7 +5764,7 @@ function sheetsTablesToDb(tables){
 
   let oneToOne;
   if(tables.oneToOne && tables.oneToOne.length){
-    oneToOne = parseOneToOneTable(tables.oneToOne, refTeachers);
+    oneToOne = mergeMatrixColumnRooms(parseOneToOneTable(tables.oneToOne, refTeachers, refRooms), DB.oneToOne);
   } else if(DB.oneToOne && (DB.oneToOne.columns || DB.oneToOne.hours)){
     keep.push('oneToOne');
     oneToOne = JSON.parse(JSON.stringify(DB.oneToOne));
@@ -5061,7 +5774,7 @@ function sheetsTablesToDb(tables){
 
   let rpiano;
   if(tables.rpiano && tables.rpiano.length){
-    rpiano = parseOneToOneTable(tables.rpiano, refTeachers);
+    rpiano = mergeMatrixColumnRooms(parseOneToOneTable(tables.rpiano, refTeachers, refRooms), DB.rpiano);
   } else if(DB.rpiano && (DB.rpiano.columns || DB.rpiano.hours)){
     keep.push('rpiano');
     rpiano = JSON.parse(JSON.stringify(DB.rpiano));
@@ -5122,8 +5835,8 @@ async function importFromDriveTables(loaded, sourceLabel){
       msg = 'This tab has work that is only in the browser autosave (including any dragged times). ' + msg;
     }
     if(!confirm(msg)){
-      setSheetsStatus('Load cancelled.');
-      return;
+    setSheetsStatus('Load cancelled.');
+    return;
     }
   }
   restoreFromLoadedObject(db);
@@ -5186,9 +5899,9 @@ const DRIVE_EXPORT_SPECS = [
   },
   {
     key: 'teacherAvail', name: 'TEACHER_CONST',
-    headers: ['TEACHER','TEACHER_ID','DAY','START','END','TYPE','NOTE'],
+    headers: ['TEACHER','TEACHER_ID','DAY','START','END','TYPE','SCOPE','NOTE'],
     rows: (db) => (db.teacherAvail || []).map(r => [
-      r.teacher, r.teacherId, r.day, exportTime(r.start), exportTime(r.end), r.type, r.option
+      r.teacher, r.teacherId, r.day, exportTime(r.start), exportTime(r.end), r.type, normalizeAvailScope(r.scope), r.option
     ])
   },
   {
@@ -5355,7 +6068,12 @@ function generateSmallGroups(numSmallGroups){
   SMALL_GROUP_TYPES.forEach(t => { neverUsed[t] = eligible.filter(s => studentType(s) === t); usedOnce[t] = []; });
   eligible.forEach(s => { appearances[s.ID] = 0; });
 
-  const smallGroups = Array.from({length:numSmallGroups}, (_, i) => emptySmallGroupRecord('SG' + (i+1)));
+  const smallGroups = Array.from({length:numSmallGroups}, (_, i) => {
+    const rec = emptySmallGroupRecord('SG' + (i+1));
+    rec.roomId = defaultRoomId();
+    rec.room = roomName(rec.roomId);
+    return rec;
+  });
 
   // Picks the closest-grade match available: exact/same-level first, then the nearest
   // neighboring grade in MUCLASS_LEVEL_ORDER, and only if the type's pool is truly empty
@@ -5565,8 +6283,6 @@ function parseSmallGroupsTable(rows, students, ctx){
   const rById = ctx.rById || lookupMapBy(ctx.refRooms || [], 'id');
   const rByName = ctx.rByName || lookupMapBy(ctx.refRooms || [], 'name');
   const refClasses = ctx.refClasses || [];
-  const refRooms = ctx.refRooms || [];
-  const fallbackRoom = refRooms[0] || null;
   const byId = {};
   const order = [];
   function muclassOf(s){
@@ -5594,8 +6310,8 @@ function parseSmallGroupsTable(rows, students, ctx){
       const rec = emptySmallGroupRecord(id);
       rec.teacherId = teacherId || '';
       rec.duration = parseInt(rowGet(r, 'DURATION_MIN', 'DURATION'), 10) || 90;
-      rec.roomId = room.roomId || (fallbackRoom && fallbackRoom.id) || '';
-      rec.room = room.room || (fallbackRoom && fallbackRoom.name) || rec.room;
+      rec.roomId = room.roomId || '';
+      rec.room = room.room || '';
       rec.fixedDay = normDay(rowGet(r, 'FIXED_DAY', 'FIXEDDAY', 'PIN_DAY'));
       rec.fixedStart = normTime(rowGet(r, 'FIXED_START', 'FIXEDSTART', 'PIN_START'));
       rec.fixedEnd = normTime(rowGet(r, 'FIXED_END', 'FIXEDEND', 'PIN_END'));
@@ -6077,8 +6793,17 @@ document.getElementById('downloadSmallGroupsBtn').addEventListener('click', () =
 // ---------- 1/1 individual-lesson scheduler ----------
 // Packs one-person lessons around the accepted group timetable. Hard constraints:
 // teacher availability, class reservations (every leftover gap, not only the largest),
-// no overlap with accepted bookings or other 1/1. Breaks are flexible: prefer sitting
-// flush against an existing teacher block, then spreading evenly across available days.
+// no overlap with accepted bookings or other 1/1. Breaks are flexible: if the
+// teacher already has a lesson that day, sit flush against it; if the day is
+// empty, start as early as the leftover hole allows and chain forward.
+// Then spread evenly across available days.
+// A matrix cell is one weekly load. Round 1 packs every cell as one block.
+// If that teacher still has no complete layout, round 2 keeps the placed
+// blocks and splits only the leftovers. If that is still incomplete, round 3
+// splits every cell (including ones that already sat) and packs from one pool.
+// Allowed splits (1/1 and Required Piano): 60 → 2×30, 90 → 2×45 or 60+30,
+// 120 → 2×60. A 30-min lesson stays 30. Two pieces of the same
+// student×teacher may share a day only when they sit flush.
 const ONEONE_SNAP = 5;
 
 function parseIdList(s){
@@ -6099,9 +6824,25 @@ function shuffledCopy(arr, rng){
   }
   return a;
 }
+function shuffleWithinGroups(arr, keyFn, rng){
+  const groups = new Map();
+  const order = [];
+  (arr || []).forEach(item => {
+    const k = keyFn(item);
+    if(!groups.has(k)){
+      groups.set(k, []);
+      order.push(k);
+    }
+    groups.get(k).push(item);
+  });
+  const out = [];
+  order.forEach(k => out.push.apply(out, shuffledCopy(groups.get(k), rng)));
+  return out;
+}
 function acceptedBusyMaps(rows){
   const teacherBusy = {};
   const studentBusy = {};
+  const roomBusy = {};
   (rows || []).forEach(r => {
     if(r.status && r.status !== 'scheduled') return;
     const day = r.day;
@@ -6118,8 +6859,9 @@ function acceptedBusyMaps(rows){
       studentBusy[sid][day] = studentBusy[sid][day] || [];
       studentBusy[sid][day].push({start, end, name: r.name || ''});
     });
+    occupyRoom(roomBusy, itemRoomId(r), day, start, end);
   });
-  return {teacherBusy, studentBusy};
+  return {teacherBusy, studentBusy, roomBusy};
 }
 function intervalGapScore(start, end, busy){
   if(!busy || !busy.length) return 0;
@@ -6164,37 +6906,102 @@ function oneOneHoursToMinutes(hours){
   if(!h) return 0;
   return Math.max(15, Math.round(h * 60 / ONEONE_SNAP) * ONEONE_SNAP);
 }
+function oneOneSplitPlans(duration){
+  const dur = clampOneOneDuration(duration);
+  if(dur === 60) return [[30, 30]];
+  if(dur === 90) return [[45, 45], [60, 30], [30, 60]];
+  if(dur === 120) return [[60, 60]];
+  return [];
+}
+function oneOneHalves(duration){
+  const plans = oneOneSplitPlans(duration);
+  return plans.length ? plans[0].slice() : null;
+}
 function formatOneOneHours(h){
   const n = parseOneOneHours(h);
   if(!n) return '';
   return String(n);
 }
-function parseOneToOneTable(rows, refTeachers){
+function matrixIdentityHeader(nh){
+  return !!(nh && ({
+    STUDENT_ID:1, ID:1, NAME1:1, NAME2:1, NAME3:1, PUBLIC_NAME:1,
+    INSTR:1, INSTR_ID:1, NAME:1, ROOM:1, ROOM_LOCK:1, ROOMLOCK:1, ROOM_ID:1, ROOM_NAME:1
+  })[nh]);
+}
+function matchTeacherRoomHeader(nh, tByNorm){
+  if(!nh || !tByNorm) return null;
+  const suffixes = ['_ROOM_LOCK', '_ROOMLOCK', '_ROOM_ID', '_ROOM'];
+  for(let i = 0; i < suffixes.length; i++){
+    const suf = suffixes[i];
+    if(nh.length > suf.length && nh.slice(-suf.length) === suf){
+      const t = tByNorm[nh.slice(0, -suf.length)];
+      if(t && t.id) return t;
+    }
+  }
+  const prefixes = ['ROOM_LOCK_', 'ROOMLOCK_', 'ROOM_ID_', 'ROOM_'];
+  for(let i = 0; i < prefixes.length; i++){
+    const pre = prefixes[i];
+    if(nh.length > pre.length && nh.slice(0, pre.length) === pre){
+      const t = tByNorm[nh.slice(pre.length)];
+      if(t && t.id) return t;
+    }
+  }
+  return null;
+}
+function parseOneToOneTable(rows, refTeachers, refRooms){
   const teachers = refTeachers || [];
+  const rooms = refRooms || (DB && DB.refRooms) || [];
+  const rById = lookupMapBy(rooms, 'id');
+  const rByName = lookupMapBy(rooms, 'name');
   const tByNorm = {};
   teachers.forEach(t => {
     if(t && t.name) tByNorm[normHeader(t.name)] = t;
     if(t && t.id) tByNorm[normHeader(t.id)] = t;
   });
-  const identity = new Set(['STUDENT_ID','ID','NAME1','NAME2','NAME3','PUBLIC_NAME','INSTR','INSTR_ID','NAME']);
   const columns = [];
   const seen = new Set();
   const headerKeys = rows && rows[0] ? Object.keys(rows[0]) : [];
+  const roomHeaders = [];
   headerKeys.forEach(h => {
     const nh = normHeader(h);
-    if(!nh || identity.has(nh)) return;
+    if(!nh || matrixIdentityHeader(nh)) return;
+    if(matchTeacherRoomHeader(nh, tByNorm)){
+      roomHeaders.push(h);
+      return;
+    }
     const t = tByNorm[nh];
     if(!t || !t.id || seen.has(t.id)) return;
     seen.add(t.id);
-    columns.push({id: t.id, name: t.name});
+    columns.push({id: t.id, name: t.name, roomId: '', room: ''});
   });
   const hours = {};
+  let hasRoomRow = false;
+  const roomColumnIds = [];
+  const roomOwned = new Set();
+  function colByTeacher(tid){
+    return columns.find(c => c.id === tid);
+  }
   (rows || []).forEach(r => {
     const sid = rowGet(r, 'STUDENT_ID', 'ID');
     if(!sid) return;
+    if(isMatrixRoomLockId(sid)){
+      hasRoomRow = true;
+      headerKeys.forEach(h => {
+        const nh = normHeader(h);
+        if(!nh || matrixIdentityHeader(nh) || matchTeacherRoomHeader(nh, tByNorm)) return;
+        const t = tByNorm[nh];
+        if(!t || !t.id) return;
+        const col = colByTeacher(t.id);
+        if(!col) return;
+        const fields = roomFieldsFromValue(r[h], rById, rByName);
+        col.roomId = fields.roomId;
+        col.room = fields.room;
+      });
+      return;
+    }
     headerKeys.forEach(h => {
       const nh = normHeader(h);
-      if(!nh || identity.has(nh)) return;
+      if(!nh || matrixIdentityHeader(nh) || matchTeacherRoomHeader(nh, tByNorm)) return;
       const t = tByNorm[nh];
       if(!t || !t.id) return;
       const n = parseOneOneHours(r[h]);
@@ -6203,18 +7010,153 @@ function parseOneToOneTable(rows, refTeachers){
       hours[sid][t.id] = n;
     });
   });
-  return {columns, hours};
+  roomHeaders.forEach(h => {
+    const t = matchTeacherRoomHeader(normHeader(h), tByNorm);
+    if(!t || !t.id) return;
+    const col = colByTeacher(t.id) || (() => {
+      const c = {id: t.id, name: t.name, roomId: '', room: ''};
+      columns.push(c);
+      return c;
+    })();
+    if(!roomOwned.has(t.id)){
+      roomOwned.add(t.id);
+      roomColumnIds.push(t.id);
+    }
+    let found = {roomId: '', room: ''};
+    (rows || []).some(r => {
+      const sid = rowGet(r, 'STUDENT_ID', 'ID');
+      if(!sid || isMatrixRoomLockId(sid)) return false;
+      const fields = roomFieldsFromValue(r[h], rById, rByName);
+      if(!fields.roomId) return false;
+      found = fields;
+      return true;
+    });
+    col.roomId = found.roomId;
+    col.room = found.room;
+  });
+  const hasStudentRooms = headerKeys.some(h => isMatrixRoomLockId(h));
+  const studentRooms = {};
+  if(hasStudentRooms){
+    (rows || []).forEach(r => {
+      const sid = rowGet(r, 'STUDENT_ID', 'ID');
+      if(!sid || isMatrixRoomLockId(sid)) return;
+      studentRooms[sid] = parseRoomAssignment(r, rById, rByName);
+    });
+  }
+  return {columns, hours, hasRoomRow, roomColumnIds, studentRooms, hasStudentRooms};
+}
+function teacherMatrixRoom(matrix, teacherId){
+  const col = ((matrix && matrix.columns) || []).find(c => c && c.id === teacherId);
+  return roomFieldsOf(col || {});
+}
+function studentMatrixRoom(matrix, studentId){
+  return roomFieldsOf(((matrix && matrix.studentRooms) || {})[studentId] || {});
+}
+function sessionLock(matrix, studentId, teacherId){
+  const stu = studentMatrixRoom(matrix, studentId);
+  if(itemRoomId(stu)) return stu;
+  return teacherMatrixRoom(matrix, teacherId);
+}
+function migrateStudentRooms(matrix){
+  if(!matrix) return matrix;
+  matrix.studentRooms = matrix.studentRooms || {};
+  Object.keys(matrix.studentRooms).forEach(sid => {
+    const rec = matrix.studentRooms[sid];
+    if(rec) migrateRoomLock(rec, {defaultOn:false});
+  });
+  return matrix;
+}
+function mergeMatrixColumnRooms(next, prev){
+  if(!next) return next;
+  next.columns = next.columns || [];
+  if(next.hasStudentRooms){
+    next.studentRooms = next.studentRooms || {};
+  } else {
+    next.studentRooms = Object.assign({}, (prev && prev.studentRooms) || {}, next.studentRooms || {});
+  }
+  const owned = new Set(next.roomColumnIds || []);
+  if(next.hasRoomRow){
+    next.columns.forEach(c => migrateRoomLock(c, {defaultOn:false}));
+    return next;
+  }
+  const byId = {};
+  ((prev && prev.columns) || []).forEach(c => {
+    if(c && c.id) byId[c.id] = c;
+  });
+  next.columns.forEach(c => {
+    if(!c) return;
+    if(owned.has(c.id)){
+      migrateRoomLock(c, {defaultOn:false});
+      return;
+    }
+    if(itemRoomId(c)){
+      migrateRoomLock(c, {defaultOn:false});
+      return;
+    }
+    const old = byId[c.id];
+    if(old && itemRoomId(old)){
+      c.roomId = old.roomId;
+      c.room = old.room || roomName(old.roomId);
+    } else {
+      migrateRoomLock(c, {defaultOn:false});
+    }
+  });
+  return next;
+}
+function stampTeacherRoomOnScheduled(list, teacherId, fields, matrix){
+  (list || []).forEach(s => {
+    if(!s || s.teacherId !== teacherId) return;
+    if(itemRoomId(studentMatrixRoom(matrix, s.studentId))) return;
+    Object.assign(s, fields);
+  });
+}
+function restampStudentSessions(list, matrix, studentId){
+  (list || []).forEach(s => {
+    if(s && s.studentId === studentId) Object.assign(s, sessionLock(matrix, studentId, s.teacherId));
+  });
+}
+function setMatrixTeacherRoom(matrix, teacherId, roomId, kind){
+  if(!matrix || !teacherId) return;
+  matrix.columns = matrix.columns || [];
+  let col = matrix.columns.find(c => c && c.id === teacherId);
+  if(!col){
+    col = {id: teacherId, name: teacherName(teacherId) || teacherId};
+    matrix.columns.push(col);
+  }
+  col.roomId = String(roomId || '').trim();
+  col.room = col.roomId ? (roomName(col.roomId) || col.roomId) : '';
+  const fields = roomFieldsOf(col);
+  const state = kind === 'rpiano' ? LAST_RPIANO : LAST_ONEONE;
+  if(state){
+    stampTeacherRoomOnScheduled(state.scheduled, teacherId, fields, matrix);
+    (state.variants || []).forEach(v => stampTeacherRoomOnScheduled(v && v.scheduled, teacherId, fields, matrix));
+    if((state.scheduled || []).some(s => s.teacherId === teacherId)) markLayoutNeedsAccept(kind);
+  }
+}
+function setMatrixStudentRoom(matrix, studentId, roomId, kind){
+  if(!matrix || !studentId) return;
+  matrix.studentRooms = matrix.studentRooms || {};
+  const rid = String(roomId || '').trim();
+  if(!rid) delete matrix.studentRooms[studentId];
+  else matrix.studentRooms[studentId] = {roomId: rid, room: roomName(rid) || rid};
+  const state = kind === 'rpiano' ? LAST_RPIANO : LAST_ONEONE;
+  if(state){
+    restampStudentSessions(state.scheduled, matrix, studentId);
+    (state.variants || []).forEach(v => restampStudentSessions(v && v.scheduled, matrix, studentId));
+    if((state.scheduled || []).some(s => s.studentId === studentId)) markLayoutNeedsAccept(kind);
+  }
 }
 function hoursMatrixAoa(db, matrix, sheetName){
   const m = matrix || {columns: [], hours: {}};
   const cols = m.columns || [];
-  const headers = ['STUDENT_ID','NAME1','NAME2','NAME3','PUBLIC_NAME','INSTR','INSTR_ID'].concat(cols.map(c => c.name));
+  const headers = ['STUDENT_ID','NAME1','NAME2','NAME3','PUBLIC_NAME','INSTR','INSTR_ID','ROOM']
+    .concat(cols.map(c => c.name));
+  const rooms = m.studentRooms || {};
   const rows = (db.students || []).map(s => {
-    const line = [s.ID, s.NAME1, s.NAME2, s.NAME3, s.PUBLIC_NAME, s.INSTR, s.INSTR_ID];
+    const line = [s.ID, s.NAME1, s.NAME2, s.NAME3, s.PUBLIC_NAME, s.INSTR, s.INSTR_ID, itemRoomLabel(rooms[s.ID]) || ''];
     cols.forEach(c => {
       const h = ((m.hours || {})[s.ID] || {})[c.id];
-      if(!h){ line.push(''); return; }
-      line.push(Number.isInteger(h) ? String(h) : String(h).replace('.', ','));
+      line.push(!h ? '' : (Number.isInteger(h) ? String(h) : String(h).replace('.', ',')));
     });
     return line;
   });
@@ -6258,7 +7200,7 @@ function scheduleOneToOne(opts){
   const accepted = (opts && opts.acceptedRows) || (DB.acceptedSchedule || []);
   const extra = (opts && opts.existingOneOne) || [];
   const tname = teacherName(teacherId) || teacherId || '';
-  const wins = teacherId ? teacherDayWindows(teacherId) : {};
+  const wins = teacherId ? teacherDayWindows(teacherId, 'oneone') : {};
   const rng = (opts && opts.rng) || Math.random.bind(Math);
   const randomize = !!(opts && opts.randomize);
   let days = DAYS.filter(d => wins[d]);
@@ -6284,11 +7226,21 @@ function scheduleOneToOne(opts){
     start: s.start,
     end: s.end,
     studentIds: s.studentIds || s.studentId || '',
-    name: s.name
+    name: s.name,
+    ...roomFieldsOf(s)
   }));
   const maps = acceptedBusyMaps(accepted.concat(extraRows));
+  maps.roomBusy = maps.roomBusy || {};
   const tBusy = {};
   DAYS.forEach(d => { tBusy[d] = ((maps.teacherBusy[teacherId] || {})[d] || []).slice(); });
+  const matrix = (opts && opts.matrix)
+    || ((opts && opts.source) === 'rpiano' ? DB.rpiano : DB.oneToOne);
+  function lockFor(student){
+    const stu = studentMatrixRoom(matrix, student && student.ID);
+    if(itemRoomId(stu)) return stu;
+    if(opts && Object.prototype.hasOwnProperty.call(opts, 'roomId')) return roomFieldsOf(opts);
+    return teacherMatrixRoom(matrix, teacherId);
+  }
 
   let jobs = [];
   studentIds.forEach(sid => {
@@ -6301,7 +7253,8 @@ function scheduleOneToOne(opts){
     for(let k=0; k<perStudent; k++) jobs.push({student, copy: k, duration: dur});
   });
 
-  const target = Math.ceil(jobs.length / Math.max(1, days.length));
+  const target0 = Math.ceil(jobs.length / Math.max(1, days.length));
+  let target = target0;
   const dayCount = {};
   days.forEach(d => { dayCount[d] = 0; });
 
@@ -6319,43 +7272,56 @@ function scheduleOneToOne(opts){
     }));
     let ivs = subtractBusyFromIntervals(teacherWindowIntervals(win), reserved);
     const busy = (tBusy[day] || []).concat(((maps.studentBusy[student.ID] || {})[day]) || []);
+    const rid = itemRoomId(lockFor(student));
+    const rBusy = rid ? ((maps.roomBusy[rid] || {})[day] || []) : [];
     ivs = subtractBusyFromIntervals(ivs, busy);
+    if(rBusy.length) ivs = subtractBusyFromIntervals(ivs, rBusy);
     const slots = [];
     ivs.forEach(([s,e]) => {
-      candidateStartsForInterval(s, e, dur, tBusy[day], randomize).forEach(start => {
+      candidateStartsForInterval(s, e, dur, busy.concat(rBusy), randomize).forEach(start => {
         const end = start + dur;
         if(busy.some(iv => intervalsOverlap(start, end, iv.start, iv.end))) return;
+        if(roomSlotTaken(maps.roomBusy, rid, day, start, end)) return;
         if(overlappingClassReservation(student.CLASS_ID, day, start, end)) return;
-        if(teacherWindowClash(teacherId, tname, day, start, end)) return;
+        if(teacherWindowClash(teacherId, tname, day, start, end, 'oneone')) return;
         slots.push({day, start, end, gap: intervalGapScore(start, end, tBusy[day]), rank: win.rank});
       });
     });
-    return slots;
+    const have = scheduled.filter(s => s.studentId === student.ID && s.day === day);
+    if(!have.length) return slots;
+    return slots.filter(sl => have.some(ex => sl.start === ex.end || sl.end === ex.start));
   }
 
-  jobs.sort((a,b) => {
-    const fa = days.reduce((n,d) => n + (studentDaySlots(a.student, d, a.duration).length ? 1 : 0), 0);
-    const fb = days.reduce((n,d) => n + (studentDaySlots(b.student, d, b.duration).length ? 1 : 0), 0);
-    return fa - fb || (randomize ? rng() - 0.5 : 0);
-  });
-  if(randomize) jobs = shuffledCopy(jobs, rng);
+  const prefix = (opts && opts.idPrefix) || 'O2O';
+  const label = (opts && opts.lessonLabel) || '1/1';
+  const source = (opts && opts.source) || 'oneone';
+  const allowSplit = ((parseInt(opts && opts.perStudent, 10) || 1) === 1);
+  const placedByPair = {};
 
-  jobs.forEach(job => {
-    const slots = days.flatMap(d => studentDaySlots(job.student, d, job.duration));
-    if(!slots.length){
-      unresolved.push({
-        studentId: job.student.ID,
-        name: studentDisplayName(job.student),
-        teacherId,
-        reason: 'no shared free slot with the teacher (accepted bookings, class reservations, or availability)'
-      });
-      return;
-    }
+  function snapshotBusy(){
+    return {
+      tBusy: JSON.parse(JSON.stringify(tBusy)),
+      studentBusy: JSON.parse(JSON.stringify(maps.studentBusy)),
+      roomBusy: JSON.parse(JSON.stringify(maps.roomBusy || {})),
+      dayCount: Object.assign({}, dayCount),
+      n: scheduled.length
+    };
+  }
+  function restoreBusy(snap){
+    DAYS.forEach(d => { tBusy[d] = ((snap.tBusy || {})[d] || []).slice(); });
+    Object.keys(maps.studentBusy).forEach(k => { delete maps.studentBusy[k]; });
+    Object.assign(maps.studentBusy, JSON.parse(JSON.stringify(snap.studentBusy || {})));
+    Object.keys(maps.roomBusy || {}).forEach(k => { delete maps.roomBusy[k]; });
+    Object.assign(maps.roomBusy, JSON.parse(JSON.stringify(snap.roomBusy || {})));
+    Object.keys(dayCount).forEach(k => { delete dayCount[k]; });
+    Object.assign(dayCount, snap.dayCount || {});
+    scheduled.length = snap.n;
+  }
+  function pickSlot(slots){
+    if(!slots.length) return null;
     slots.sort((a,b) => {
       const overA = Math.max(0, (dayCount[a.day] + 1) - target);
       const overB = Math.max(0, (dayCount[b.day] + 1) - target);
-      // Pack against existing teacher blocks first. Even-day spread is a
-      // tie-break: a 3-hour hole is worse than going one over the per-day target.
       return a.gap - b.gap
         || overA - overB
         || dayCount[a.day] - dayCount[b.day]
@@ -6364,41 +7330,256 @@ function scheduleOneToOne(opts){
         || a.start - b.start;
     });
     const tight = randomize ? slots.filter(s => s.gap === slots[0].gap) : slots;
-    const pick = (randomize && tight.length > 1)
+    return (randomize && tight.length > 1)
       ? tight[Math.floor(rng() * tight.length)]
       : slots[0];
-    const prefix = (opts && opts.idPrefix) || 'O2O';
-    const label = (opts && opts.lessonLabel) || '1/1';
-    const source = (opts && opts.source) || 'oneone';
+  }
+  function occupySlot(student, pick, duration, copy, split, pairId){
+    const fields = lockFor(student);
+    const rid = itemRoomId(fields);
     const item = {
-      lessonId: prefix + '-' + teacherId + '-' + job.student.ID + (job.copy ? '-' + (job.copy + 1) : ''),
-      name: studentDisplayName(job.student) + ' ' + label,
+      lessonId: prefix + '-' + teacherId + '-' + student.ID + (copy ? '-' + (copy + 1) : ''),
+      name: studentDisplayName(student) + ' ' + label + (split ? ' · ' + duration + '′' : ''),
       group: label, groupId: '',
       teacherId, teacher: tname,
       day: pick.day, start: pick.start, end: pick.end,
       studentCount: 1,
-      studentNames: [studentDisplayName(job.student)],
-      studentId: job.student.ID,
-      studentIds: job.student.ID,
-      roomId: '',
-      room: '',
+      studentNames: [studentDisplayName(student)],
+      studentId: student.ID,
+      studentIds: student.ID,
+      ...roomFieldsOf(fields),
       source,
-      duration: job.duration
+      duration
     };
     scheduled.push(item);
     tBusy[pick.day].push({start: pick.start, end: pick.end, name: item.name});
-    maps.studentBusy[job.student.ID] = maps.studentBusy[job.student.ID] || {};
-    maps.studentBusy[job.student.ID][pick.day] = maps.studentBusy[job.student.ID][pick.day] || [];
-    maps.studentBusy[job.student.ID][pick.day].push({start: pick.start, end: pick.end});
-    dayCount[pick.day]++;
-  });
+    maps.studentBusy[student.ID] = maps.studentBusy[student.ID] || {};
+    maps.studentBusy[student.ID][pick.day] = maps.studentBusy[student.ID][pick.day] || [];
+    maps.studentBusy[student.ID][pick.day].push({start: pick.start, end: pick.end});
+    occupyRoom(maps.roomBusy, rid, pick.day, pick.start, pick.end);
+    dayCount[pick.day] = (dayCount[pick.day] || 0) + 1;
+    if(pairId){
+      placedByPair[pairId] = placedByPair[pairId] || [];
+      placedByPair[pairId].push(item);
+    }
+    return item;
+  }
+  function unoccupy(item){
+    if(!item) return;
+    const i = scheduled.indexOf(item);
+    if(i >= 0) scheduled.splice(i, 1);
+    const tb = tBusy[item.day] || [];
+    const ti = tb.findIndex(iv => iv.start === item.start && iv.end === item.end);
+    if(ti >= 0) tb.splice(ti, 1);
+    const sb = ((maps.studentBusy[item.studentId] || {})[item.day] || []);
+    const si = sb.findIndex(iv => iv.start === item.start && iv.end === item.end);
+    if(si >= 0) sb.splice(si, 1);
+    vacateRoom(maps.roomBusy, itemRoomId(item), item.day, item.start, item.end);
+    dayCount[item.day] = Math.max(0, (dayCount[item.day] || 0) - 1);
+  }
+  function failReason(student){
+    return itemRoomId(lockFor(student))
+      ? 'no shared free slot with the teacher (accepted bookings, class reservations, room lock, or availability)'
+      : 'no shared free slot with the teacher (accepted bookings, class reservations, or availability)';
+  }
+  function tryPlaceBlock(student, duration, copy, split, pairId){
+    const pick = pickSlot(days.flatMap(d => studentDaySlots(student, d, duration)));
+    if(!pick) return null;
+    return occupySlot(student, pick, duration, copy, !!split, pairId);
+  }
+  function tryPlacePlan(student, parts, pairId){
+    const snap = snapshotBusy();
+    if(pairId) placedByPair[pairId] = [];
+    for(let i = 0; i < parts.length; i++){
+      const pick = pickSlot(days.flatMap(d => studentDaySlots(student, d, parts[i])));
+      if(!pick){
+        restoreBusy(snap);
+        if(pairId) placedByPair[pairId] = [];
+        return false;
+      }
+      occupySlot(student, pick, parts[i], i, true, pairId);
+    }
+    return true;
+  }
+
+  function studentFreeMinutes(student, dur){
+    let n = 0;
+    days.forEach(day => {
+      const win = wins[day];
+      if(!win) return;
+      const reserved = (student.CLASS_ID ? (DB.classAvail || []).filter(r =>
+        r.classId === student.CLASS_ID && r.day === day && (r.start || r.end)
+      ) : []).map(r => ({
+        start: toMin(r.start) ?? DEFAULT_START,
+        end: toMin(r.end) ?? DEFAULT_END
+      }));
+      let ivs = subtractBusyFromIntervals(teacherWindowIntervals(win), reserved);
+      const busy = (tBusy[day] || []).concat(((maps.studentBusy[student.ID] || {})[day]) || []);
+      const rid = itemRoomId(lockFor(student));
+      const rBusy = rid ? ((maps.roomBusy[rid] || {})[day] || []) : [];
+      ivs = subtractBusyFromIntervals(ivs, busy);
+      if(rBusy.length) ivs = subtractBusyFromIntervals(ivs, rBusy);
+      ivs.forEach(([s,e]) => {
+        if(e - s >= dur) n += (e - s);
+      });
+    });
+    return n;
+  }
+  function packJobs(list, asHalves){
+    Object.keys(placedByPair).forEach(k => { delete placedByPair[k]; });
+    Object.keys(dayCount).forEach(k => { dayCount[k] = 0; });
+    days.forEach(d => { dayCount[d] = dayCount[d] || 0; });
+    target = Math.ceil(list.length / Math.max(1, days.length));
+    days.forEach(d => { dayCount[d] = dayCount[d] || 0; });
+    list.forEach(job => {
+      job.flexDays = days.filter(d => studentDaySlots(job.student, d, job.duration).length).length;
+      job.freeMin = studentFreeMinutes(job.student, job.duration);
+    });
+    list.sort((a,b) => a.flexDays - b.flexDays || b.duration - a.duration || a.freeMin - b.freeMin || String(a.student.ID).localeCompare(String(b.student.ID)) || (a.copy || 0) - (b.copy || 0));
+    if(randomize) list = shuffleWithinGroups(list, j => j.flexDays + ':' + j.duration, rng);
+    const leftoverJobs = [];
+    const leftoverPairs = new Set();
+    const jobsByPair = {};
+    list.forEach(j => {
+      if(j.pairId) (jobsByPair[j.pairId] = jobsByPair[j.pairId] || []).push(j);
+    });
+    list.forEach(job => {
+      if(job.pairId && leftoverPairs.has(job.pairId)) return;
+      if(tryPlaceBlock(job.student, job.duration, job.copy, !!job.splitFrom, job.pairId)) return;
+      leftoverJobs.push(job);
+      if(!job.pairId) return;
+      leftoverPairs.add(job.pairId);
+      (placedByPair[job.pairId] || []).slice().forEach(unoccupy);
+      placedByPair[job.pairId] = [];
+      (jobsByPair[job.pairId] || []).forEach(j => {
+        if(j !== job) leftoverJobs.push(j);
+      });
+    });
+    leftoverJobs.forEach(job => {
+      if(!job.pairId) return;
+      tryPlaceBlock(job.student, job.duration, job.copy, !!job.splitFrom, job.pairId);
+    });
+    leftoverJobs.forEach(job => {
+      if(job.pairId) return;
+      unresolved.push({
+        studentId: job.student.ID,
+        name: studentDisplayName(job.student),
+        teacherId,
+        reason: failReason(job.student)
+      });
+    });
+    [...new Set(list.map(j => j.pairId).filter(Boolean))].forEach(pid => {
+      const pieces = (placedByPair[pid] || []).filter(it => scheduled.includes(it));
+      if(pieces.length === 2) return;
+      pieces.forEach(unoccupy);
+      placedByPair[pid] = [];
+      const sample = list.find(j => j.pairId === pid);
+      const alts = (sample && sample.altPlans) || [];
+      let ok = false;
+      for(let i = 0; i < alts.length && !ok; i++){
+        ok = tryPlacePlan(sample.student, alts[i], pid);
+      }
+      if(ok) return;
+      const student = sample ? sample.student : (DB.students || []).find(s => s.ID === pid);
+      const sid = student && student.ID ? student.ID : pid;
+      if(unresolved.some(u => u.studentId === sid)) return;
+      unresolved.push({
+        studentId: sid,
+        name: student ? studentDisplayName(student) : sid,
+        teacherId,
+        reason: failReason(student || {ID: sid})
+      });
+    });
+  }
+
+  function captureLayout(){
+    return {
+      snap: snapshotBusy(),
+      scheduled: scheduled.slice(),
+      unresolved: unresolved.slice()
+    };
+  }
+  function applyLayout(cap){
+    restoreBusy(cap.snap);
+    scheduled.length = 0;
+    cap.scheduled.forEach(s => scheduled.push(s));
+    unresolved.length = 0;
+    cap.unresolved.forEach(u => unresolved.push(u));
+  }
+  function isGhost(u){
+    return u && u.reason === 'student not in the roster';
+  }
+  function hasRealUnresolved(){
+    return unresolved.some(u => !isGhost(u));
+  }
+  function splitPoolJobs(list){
+    const halfJobs = [];
+    list.forEach(j => {
+      const plans = oneOneSplitPlans(j.duration);
+      if(!plans.length){
+        halfJobs.push({student: j.student, copy: j.copy, duration: j.duration});
+        return;
+      }
+      const pid = j.student.ID + '#' + (j.copy || 0);
+      const alts = plans.slice(1);
+      plans[0].forEach((dur, i) => {
+        halfJobs.push({student: j.student, copy: i, duration: dur, pairId: pid, splitFrom: j.duration, altPlans: alts});
+      });
+    });
+    return halfJobs;
+  }
+  function trySplitJob(j){
+    const plans = oneOneSplitPlans(j.duration);
+    if(!plans.length) return false;
+    const pid = j.student.ID + '#' + (j.copy || 0);
+    for(let i = 0; i < plans.length; i++){
+      if(tryPlacePlan(j.student, plans[i], pid)) return true;
+    }
+    return false;
+  }
+
+  const startSnap = snapshotBusy();
+  packJobs(jobs, false);
+  const ghosts = unresolved.filter(isGhost);
+  if(allowSplit && hasRealUnresolved()){
+    const round1 = captureLayout();
+    const retryIds = new Set(unresolved.filter(u => !isGhost(u)).map(u => u.studentId));
+    unresolved.length = 0;
+    ghosts.forEach(u => unresolved.push(u));
+    jobs.forEach(j => {
+      if(!retryIds.has(j.student.ID)) return;
+      if(trySplitJob(j)) return;
+      unresolved.push({
+        studentId: j.student.ID,
+        name: studentDisplayName(j.student),
+        teacherId,
+        reason: failReason(j.student)
+      });
+    });
+    if(!hasRealUnresolved()){
+      // Round 2 placed every leftover; keep the original blocks.
+    } else {
+      const round2 = captureLayout();
+      restoreBusy(startSnap);
+      scheduled.length = 0;
+      unresolved.length = 0;
+      packJobs(splitPoolJobs(jobs), true);
+      ghosts.forEach(u => {
+        if(!unresolved.some(x => x.studentId === u.studentId)) unresolved.push(u);
+      });
+      const round3 = captureLayout();
+      const best = [round1, round2, round3].sort(compareOneOneResults)[0];
+      applyLayout(best);
+    }
+  }
 
   scheduled.sort((a,b) => DAYS.indexOf(a.day) - DAYS.indexOf(b.day) || a.start - b.start);
   return {scheduled, unresolved, duration, teacherId, dayCount, target};
 }
 
 function scheduleAllOneToOne(opts){
-  const assignments = (opts && opts.assignments) || collectOneOneAssignments((opts && opts.matrix) || DB.oneToOne);
+  const matrix = (opts && opts.matrix) || ((opts && opts.source) === 'rpiano' ? DB.rpiano : DB.oneToOne);
+  const assignments = (opts && opts.assignments) || collectOneOneAssignments(matrix);
   const accepted = (opts && opts.acceptedRows) || (DB.acceptedSchedule || []);
   const rng = (opts && opts.rng) || Math.random.bind(Math);
   const randomize = !!(opts && opts.randomize);
@@ -6409,8 +7590,8 @@ function scheduleAllOneToOne(opts){
     byTeacher[a.teacherId].push(a);
   });
   let teacherIds = Object.keys(byTeacher).sort((a,b) => {
-    const da = DAYS.filter(d => teacherDayWindows(a)[d]).length;
-    const dbn = DAYS.filter(d => teacherDayWindows(b)[d]).length;
+    const da = DAYS.filter(d => teacherDayWindows(a, 'oneone')[d]).length;
+    const dbn = DAYS.filter(d => teacherDayWindows(b, 'oneone')[d]).length;
     return da - dbn || byTeacher[b].length - byTeacher[a].length || String(teacherName(a)).localeCompare(String(teacherName(b)));
   });
   if(randomize) teacherIds = shuffledCopy(teacherIds, rng);
@@ -6421,6 +7602,7 @@ function scheduleAllOneToOne(opts){
     const list = byTeacher[tid];
     const durations = {};
     list.forEach(a => { durations[a.studentId] = a.duration; });
+    const lock = teacherMatrixRoom(matrix, tid);
     const result = scheduleOneToOne({
       teacherId: tid,
       studentIds: list.map(a => a.studentId),
@@ -6432,6 +7614,9 @@ function scheduleAllOneToOne(opts){
       source: opts && opts.source,
       lessonLabel: opts && opts.lessonLabel,
       idPrefix: opts && opts.idPrefix,
+      matrix,
+      roomId: lock.roomId,
+      room: lock.room,
       randomize,
       rng
     });
@@ -6443,8 +7628,36 @@ function scheduleAllOneToOne(opts){
   return {scheduled, unresolved, assignmentCount: assignments.length};
 }
 
-const ONEONE_SEARCH_ATTEMPTS = 15;
+let ONEONE_SEARCH_ATTEMPTS = 15;
+let RPIANO_SEARCH_ATTEMPTS = 15;
+const ONEONE_SEARCH_ATTEMPTS_MAX = 5000;
 const ONEONE_SEARCH_MAX_TRIES = 60;
+function clampOneOneSearchAttempts(n){
+  const v = parseInt(n, 10);
+  if(!Number.isFinite(v)) return 15;
+  return Math.max(1, Math.min(ONEONE_SEARCH_ATTEMPTS_MAX, v));
+}
+function oneOneSearchMaxTries(attempts){
+  const n = clampOneOneSearchAttempts(attempts);
+  return Math.max(n, n * 4);
+}
+function oneOneAttemptsInputId(kind){
+  return kind === 'rpiano' ? 'rpianoSearchAttempts' : 'oneoneSearchAttempts';
+}
+function readOneOneSearchAttempts(kind){
+  const piano = kind === 'rpiano';
+  const el = document.getElementById(oneOneAttemptsInputId(kind));
+  let v;
+  if(el && String(el.value || '').trim() !== ''){
+    v = clampOneOneSearchAttempts(el.value);
+  } else {
+    v = clampOneOneSearchAttempts(piano ? RPIANO_SEARCH_ATTEMPTS : ONEONE_SEARCH_ATTEMPTS);
+  }
+  if(piano) RPIANO_SEARCH_ATTEMPTS = v;
+  else ONEONE_SEARCH_ATTEMPTS = v;
+  if(el) el.value = String(v);
+  return v;
+}
 function lessonStartMinutes(row){
   if(!row) return null;
   return typeof row.start === 'number' ? row.start : toMin(row.start);
@@ -6482,14 +7695,38 @@ function attachOneOneLayoutScore(result, acceptedRows){
   result.idleGapMinutes = scheduledIdleGapMinutes((acceptedRows || []).concat(result.scheduled || []));
   return result;
 }
+function oneOneCoverageCount(result){
+  const keys = new Set();
+  ((result && result.scheduled) || []).forEach(s => {
+    if(s && s.studentId && s.teacherId) keys.add(s.teacherId + '::' + s.studentId);
+  });
+  return keys.size;
+}
+function oneOneAvgDayStartMinutes(rows){
+  const first = {};
+  (rows || []).forEach(r => {
+    if(!r || r.status === 'unscheduled') return;
+    const tid = r.teacherId;
+    const day = r.day;
+    const start = lessonStartMinutes(r);
+    if(!tid || !day || start == null) return;
+    const k = tid + '\t' + day;
+    if(first[k] == null || start < first[k]) first[k] = start;
+  });
+  const vals = Object.keys(first).map(k => first[k]);
+  if(!vals.length) return 0;
+  return vals.reduce((a, b) => a + b, 0) / vals.length;
+}
 function oneOneResultScore(result){
   const idle = result && Number.isFinite(result.idleGapMinutes)
     ? result.idleGapMinutes
     : scheduledIdleGapMinutes(result && result.scheduled);
   return [
     ((result && result.unresolved) || []).length,
-    -(((result && result.scheduled) || []).length),
-    idle
+    -oneOneCoverageCount(result),
+    ((result && result.scheduled) || []).length,
+    idle,
+    oneOneAvgDayStartMinutes(result && result.scheduled)
   ];
 }
 function compareOneOneResults(a, b){
@@ -6508,10 +7745,16 @@ function mergeIndividualVariants(prev, fresh){
   });
   return [...merged.values()].sort(compareOneOneResults).slice(0, 30);
 }
+function oneOneResultLogLine(result){
+  const pairs = oneOneCoverageCount(result);
+  const left = ((result && result.unresolved) || []).length;
+  const idle = result && Number.isFinite(result.idleGapMinutes) ? `, ${result.idleGapMinutes} min idle` : '';
+  return `${pairs} placed, ${left} left${idle}`;
+}
 function scheduleAllOneToOneSearch(opts){
   const accepted = (opts && opts.acceptedRows) || [];
-  const target = Math.max(1, (opts && opts.attempts) || ONEONE_SEARCH_ATTEMPTS);
-  const maxTries = Math.max(target, (opts && opts.maxTries) || ONEONE_SEARCH_MAX_TRIES);
+  const target = Math.max(1, (opts && opts.attempts) || readOneOneSearchAttempts());
+  const maxTries = Math.max(target, (opts && opts.maxTries) || oneOneSearchMaxTries(target));
   const seen = new Map();
   const first = attachOneOneLayoutScore(
     scheduleAllOneToOne(Object.assign({}, opts, {randomize: false})),
@@ -6533,6 +7776,54 @@ function scheduleAllOneToOneSearch(opts){
     n++;
   }
   return [...seen.values()].sort(compareOneOneResults);
+}
+async function scheduleAllOneToOneSearchAsync(opts, onTick){
+  const accepted = (opts && opts.acceptedRows) || [];
+  const target = Math.max(1, (opts && opts.attempts) || readOneOneSearchAttempts());
+  const maxTries = Math.max(target, (opts && opts.maxTries) || oneOneSearchMaxTries(target));
+  const seen = new Map();
+  setSearchLiveHeadline(`Attempt 1 / ${target} — fewest teacher days first`);
+  if(onTick) onTick(0, maxTries, `Starting 1 / ${target}`);
+  await yieldUi();
+  if(SEARCH_CANCELLED) return [];
+  const first = attachOneOneLayoutScore(
+    scheduleAllOneToOne(Object.assign({}, opts, {randomize: false})),
+    accepted
+  );
+  first.attemptNo = 1;
+  first.attemptKind = 'deterministic';
+  seen.set(resultSignature(first), first);
+  searchLiveSay(`Attempt 1: ${oneOneResultLogLine(first)} — baseline kept.`, 'ok');
+  if(onTick) onTick(1, maxTries, `1 / ${target} distinct · try 1`);
+  await yieldUi();
+  let n = 2;
+  while(seen.size < target && n <= maxTries){
+    if(SEARCH_CANCELLED) break;
+    setSearchLiveHeadline(`Attempt ${n} / ${target} — shuffled mix`);
+    const result = attachOneOneLayoutScore(
+      scheduleAllOneToOne(Object.assign({}, opts, {randomize: true})),
+      accepted
+    );
+    result.attemptNo = n;
+    result.attemptKind = 'random';
+    const sig = resultSignature(result);
+    if(!seen.has(sig)){
+      seen.set(sig, result);
+      searchLiveSay(`Attempt ${n}: ${oneOneResultLogLine(result)} — distinct, ${seen.size} / ${target}.`, 'ok');
+    } else if(n % 5 === 0){
+      searchLiveSay(`Attempt ${n}: same week as an earlier try — discarded. ${seen.size} / ${target} so far.`, 'info');
+    }
+    if(onTick) onTick(n, maxTries, `${seen.size} / ${target} distinct · try ${n}`);
+    n++;
+    await yieldUi();
+  }
+  const variants = [...seen.values()].sort(compareOneOneResults);
+  const best = variants[0];
+  searchLiveSay(SEARCH_CANCELLED
+    ? `Stopped after try ${n - 1}. Kept ${variants.length} layout(s); best: ${best ? oneOneResultLogLine(best) : '—'}.`
+    : `${variants.length} distinct layout(s). Best: ${best ? oneOneResultLogLine(best) : '—'}.`,
+    SEARCH_CANCELLED ? 'warn' : 'ok');
+  return variants;
 }
 const VARIANT_LOOKAHEAD_ATTEMPTS = 1;
 const VARIANT_LOOKAHEAD_MAX_TRIES = 1;
@@ -6701,6 +7992,37 @@ function attachOneOneLookahead(variants){
   });
   return markSuggestedByLookahead(list, oneOneLookaheadScore);
 }
+async function attachOneOneLookaheadAsync(variants, onTick){
+  const list = variants || [];
+  const pianoJobs = collectOneOneAssignments(DB.rpiano);
+  list.forEach(v => {
+    if(!v) return;
+    v.suggested = false;
+    v.lookahead = null;
+  });
+  if(!list.length || !pianoJobs.length) return -1;
+  const groupBusy = DB.acceptedSchedule || [];
+  for(let i=0;i<list.length;i++){
+    const v = list[i];
+    if(!v) continue;
+    if(SEARCH_CANCELLED) break;
+    if(onTick) onTick(i + 1, list.length);
+    await yieldUi();
+    const piano = probeBestIndividual({
+      matrix: DB.rpiano,
+      acceptedRows: groupBusy.concat(busyRowsFromScheduled(v.scheduled)),
+      source: 'rpiano',
+      lessonLabel: 'piano',
+      idPrefix: 'RP'
+    });
+    v.lookahead = {
+      pianoUnresolved: piano.unresolved.length,
+      pianoPlaced: piano.scheduled.length,
+      pianoTotal: pianoJobs.length
+    };
+  }
+  return markSuggestedByLookahead(list, oneOneLookaheadScore);
+}
 function variantOptionText(v, i, kind){
   const mark = v && v.suggested ? '★ ' : '';
   const name = variantDisplayName(i);
@@ -6712,7 +8034,9 @@ function variantOptionText(v, i, kind){
     const sgOk = sgTotal - sgLeft;
     return `${mark}${name} · ${sgOk}/${sgTotal} SG · ${left} left`;
   }
-  return `${mark}${name} · ${placed} placed · ${left} left`;
+  const pairs = oneOneCoverageCount(v);
+  const extra = placed > pairs ? ` · ${placed} sessions` : '';
+  return `${mark}${name} · ${pairs} placed${extra} · ${left} left`;
 }
 function lookaheadStatHtml(label, placed, total, left){
   if(!total) return '';
@@ -6765,18 +8089,394 @@ function logGroupLookahead(variants){
   const v = list[starI];
   if(v && v.lookahead){
     SearchLog.section('Lookahead');
-    SearchLog.info('Each layout was probed with a deterministic 1/1 pack, then Required Piano in those leftover holes. ★ is only among layouts with the fewest leftover items on this tab, then fewest unplaced 1/1, then fewest unplaced piano. Search log and the Solution list open on ★.');
+    SearchLog.info(lookaheadEveryLayoutEnabled()
+      ? 'Every distinct layout was probed with a deterministic 1/1 pack, then Required Piano in those leftover holes. ★ is the layout with the fewest leftover items on this tab (every unplaced lesson, not small groups first), then fewest unplaced 1/1, then fewest unplaced piano. Search log and the Solution list open on ★.'
+      : `The best ${SCHEDULE_VARIANT_KEEP} layouts were probed with a deterministic 1/1 pack, then Required Piano in those leftover holes. ★ is the layout with the fewest leftover items among those (every unplaced lesson, not small groups first), then fewest unplaced 1/1, then fewest unplaced piano. Search log and the Solution list open on ★.`);
     const bits = formatLookaheadLabel(v.lookahead, 'group').replace(/^ · /, '') || 'no 1/1 or piano hours to preview';
     SearchLog.ok(`★ ${variantDisplayName(starI)}: ${bits}`);
     if(starI > 0 && list[0] && list[0].lookahead){
       const other = formatLookaheadLabel(list[0].lookahead, 'group').replace(/^ · /, '');
-      SearchLog.info(`Best (fewest unresolved groups) is still the first option${other ? ': ' + other : ''}.`);
+      SearchLog.info(`Best (fewest leftover items, then least idle) is still the first option${other ? ': ' + other : ''}.`);
     }
   }
   list.forEach((item, i) => {
     if(!item || !item.lookahead) return;
     item.searchLog = stripLookaheadLogSection(item.searchLog).concat(lookaheadLogLines(item, i, 'group'));
   });
+}
+function collectSwappableGroupLessons(){
+  return (DB.lessons || []).filter(l =>
+    l && l.id && !isSmallGroupId(l.id) && l.teacherId && !l.fixedDay
+    && lessonDurationMinutes(l) > 0
+  );
+}
+function matchLessonsByDuration(listA, listB){
+  const bucket = list => {
+    const m = {};
+    (list || []).slice().sort((a,b) => String(a.id).localeCompare(String(b.id))).forEach(l => {
+      const d = lessonDurationMinutes(l);
+      (m[d] = m[d] || []).push(l);
+    });
+    return m;
+  };
+  const a = bucket(listA), b = bucket(listB);
+  const pairs = [];
+  Object.keys(a).sort((x,y) => Number(x) - Number(y)).forEach(d => {
+    const la = a[d], lb = b[d] || [];
+    const n = Math.min(la.length, lb.length);
+    for(let i=0;i<n;i++) pairs.push([la[i], lb[i]]);
+  });
+  return pairs;
+}
+function describeTeacherSwap(cand){
+  const pairBits = ((cand && cand.pairs) || []).map(([a,b]) => {
+    const d = lessonDurationMinutes(a);
+    const ta = (a && (a.teacher || teacherName(a.teacherId))) || (a && a.teacherId) || '';
+    const tb = (b && (b.teacher || teacherName(b.teacherId))) || (b && b.teacherId) || '';
+    return `${(a && (a.name || a.id)) || '?'} (${ta}) ↔ ${(b && (b.name || b.id)) || '?'} (${tb}) · ${d} min`;
+  });
+  if(cand && cand.kind === 'teachers' && pairBits.length > 1){
+    const a = cand.pairs[0][0], b = cand.pairs[0][1];
+    const ta = (a && (a.teacher || teacherName(a.teacherId))) || (a && a.teacherId) || '';
+    const tb = (b && (b.teacher || teacherName(b.teacherId))) || (b && b.teacherId) || '';
+    return `If Generate had swapped ${ta} and ${tb} on their matching group lessons (${pairBits.join('; ')})`;
+  }
+  return pairBits.length ? `If Generate had swapped ${pairBits.join('; ')}` : '';
+}
+function collectTeacherSwapCandidates(){
+  const lessons = collectSwappableGroupLessons();
+  const oneTeachers = new Set(collectOneOneAssignments(DB.oneToOne).concat(collectOneOneAssignments(DB.rpiano)).map(a => a.teacherId));
+  const byTeacher = {};
+  lessons.forEach(l => {
+    (byTeacher[l.teacherId] = byTeacher[l.teacherId] || []).push(l);
+  });
+  Object.keys(byTeacher).forEach(tid => {
+    byTeacher[tid].sort((a,b) => String(a.id).localeCompare(String(b.id)));
+  });
+  const seen = new Set();
+  const out = [];
+  function addPairs(pairs, kind){
+    if(!pairs || !pairs.length) return;
+    if(pairs.some(([a,b]) => !a || !b || a.teacherId === b.teacherId || a.id === b.id)) return;
+    const key = pairs.map(p => [p[0].id, p[1].id].sort().join('|')).sort().join(';');
+    if(seen.has(key)) return;
+    seen.add(key);
+    const cand = {kind, pairs, label: ''};
+    cand.label = describeTeacherSwap(cand);
+    out.push(cand);
+  }
+  const byDurTeacher = {};
+  lessons.forEach(l => {
+    const d = lessonDurationMinutes(l);
+    byDurTeacher[d] = byDurTeacher[d] || {};
+    if(!byDurTeacher[d][l.teacherId]) byDurTeacher[d][l.teacherId] = l;
+  });
+  Object.keys(byDurTeacher).forEach(d => {
+    const tids = Object.keys(byDurTeacher[d]).sort();
+    for(let i=0;i<tids.length;i++){
+      for(let j=i+1;j<tids.length;j++){
+        addPairs([[byDurTeacher[d][tids[i]], byDurTeacher[d][tids[j]]]], 'lesson');
+      }
+    }
+  });
+  const tids = Object.keys(byTeacher).sort();
+  for(let i=0;i<tids.length;i++){
+    for(let j=i+1;j<tids.length;j++){
+      const matched = matchLessonsByDuration(byTeacher[tids[i]], byTeacher[tids[j]]);
+      if(matched.length >= 2) addPairs(matched, 'teachers');
+    }
+  }
+  out.sort((a,b) => {
+    const score = c => {
+      const ts = new Set(c.pairs.flatMap(p => [p[0].teacherId, p[1].teacherId]));
+      return [...ts].filter(t => oneTeachers.has(t)).length;
+    };
+    return score(b) - score(a) || String(a.label).localeCompare(String(b.label));
+  });
+  return out.slice(0, TEACHER_SWAP_EVAL_MAX);
+}
+function withLessonTeacherSwaps(pairs, fn){
+  const snap = [];
+  (pairs || []).forEach(([a,b]) => {
+    if(!a || !b) return;
+    snap.push({l:a, teacherId:a.teacherId, teacher:a.teacher});
+    snap.push({l:b, teacherId:b.teacherId, teacher:b.teacher});
+  });
+  (pairs || []).forEach(([a,b]) => {
+    if(!a || !b) return;
+    const ta = a.teacherId, na = a.teacher;
+    a.teacherId = b.teacherId;
+    a.teacher = b.teacher;
+    b.teacherId = ta;
+    b.teacher = na;
+  });
+  try { return fn(); }
+  finally {
+    snap.forEach(s => {
+      s.l.teacherId = s.teacherId;
+      s.l.teacher = s.teacher;
+    });
+  }
+}
+async function withLessonTeacherSwapsAsync(pairs, fn){
+  const snap = [];
+  (pairs || []).forEach(([a,b]) => {
+    if(!a || !b) return;
+    snap.push({l:a, teacherId:a.teacherId, teacher:a.teacher});
+    snap.push({l:b, teacherId:b.teacherId, teacher:b.teacher});
+  });
+  (pairs || []).forEach(([a,b]) => {
+    if(!a || !b) return;
+    const ta = a.teacherId, na = a.teacher;
+    a.teacherId = b.teacherId;
+    a.teacher = b.teacher;
+    b.teacherId = ta;
+    b.teacher = na;
+  });
+  try { return await fn(); }
+  finally {
+    snap.forEach(s => {
+      s.l.teacherId = s.teacherId;
+      s.l.teacher = s.teacher;
+    });
+  }
+}
+function teacherSwapSearchAttempts(candCount){
+  const want = Math.max(1, Math.min(TEACHER_SWAP_SEARCH_ATTEMPTS, readScheduleSearchAttempts()));
+  const n = Math.max(1, candCount || 1);
+  return Math.max(1, Math.min(want, Math.ceil(TEACHER_SWAP_PACK_BUDGET / n)));
+}
+function considerSwapPack(best, result, oneJobs, pianoJobs){
+  fillGroupLookahead(result, oneJobs, pianoJobs);
+  if(!best || compareScoreTuple(groupLookaheadScore(result), groupLookaheadScore(best)) < 0) return result;
+  return best;
+}
+function searchBestLayoutWithLookahead(attempts){
+  attempts = Math.max(1, attempts || 1);
+  const oneJobs = collectOneOneAssignments(DB.oneToOne);
+  const pianoJobs = collectOneOneAssignments(DB.rpiano);
+  let best = null;
+  for(let i = 0; i < attempts; i++){
+    if(SEARCH_CANCELLED) break;
+    const result = runScheduler(i > 0, {quiet: true});
+    result.swapAttempts = i + 1;
+    best = considerSwapPack(best, result, oneJobs, pianoJobs);
+  }
+  if(best) best.swapSearchAttempts = attempts;
+  return best;
+}
+async function searchBestLayoutWithLookaheadAsync(attempts, onTick){
+  attempts = Math.max(1, attempts || 1);
+  const oneJobs = collectOneOneAssignments(DB.oneToOne);
+  const pianoJobs = collectOneOneAssignments(DB.rpiano);
+  let best = null;
+  for(let i = 0; i < attempts; i++){
+    if(SEARCH_CANCELLED) break;
+    if(onTick) onTick(i + 1, attempts);
+    const result = runScheduler(i > 0, {quiet: true});
+    result.swapAttempts = i + 1;
+    best = considerSwapPack(best, result, oneJobs, pianoJobs);
+    await yieldUi();
+  }
+  if(best) best.swapSearchAttempts = attempts;
+  return best;
+}
+function evaluateHypotheticalTeacherSwap(pairs, attempts){
+  return withLessonTeacherSwaps(pairs, () => searchBestLayoutWithLookahead(attempts));
+}
+async function evaluateHypotheticalTeacherSwapAsync(pairs, attempts, onTick){
+  return withLessonTeacherSwapsAsync(pairs, () => searchBestLayoutWithLookaheadAsync(attempts, onTick));
+}
+function teacherSwapBeats(baseline, hyp){
+  if(!baseline || !hyp) return false;
+  return compareScoreTuple(groupLookaheadScore(hyp), groupLookaheadScore(baseline)) < 0;
+}
+function teacherSwapDeltaLine(sugg, baseline){
+  const bL = (baseline && baseline.lookahead) || {};
+  const sL = (sugg && sugg.lookahead) || {};
+  const parts = [];
+  const bLeft = variantLeftOut(baseline);
+  const sLeft = sugg && sugg.unresolvedN != null ? sugg.unresolvedN : variantLeftOut(sugg);
+  if(sLeft !== bLeft) parts.push(`group leftover ${sLeft} instead of ${bLeft}`);
+  if(sL.oneUnresolved != null && bL.oneUnresolved != null && sL.oneUnresolved !== bL.oneUnresolved){
+    parts.push(`1/1 left ${sL.oneUnresolved} instead of ${bL.oneUnresolved}`);
+  }
+  if(sL.pianoUnresolved != null && bL.pianoUnresolved != null && sL.pianoUnresolved !== bL.pianoUnresolved){
+    parts.push(`piano left ${sL.pianoUnresolved} instead of ${bL.pianoUnresolved}`);
+  }
+  return parts.join(', ') || 'a better leftover preview';
+}
+function recordTeacherSwapHits(baseline, cands, onTick){
+  const better = [];
+  const attempts = teacherSwapSearchAttempts((cands || []).length);
+  for(let i=0;i<cands.length;i++){
+    if(SEARCH_CANCELLED) break;
+    if(onTick) onTick(i + 1, cands.length);
+    const hyp = evaluateHypotheticalTeacherSwap(cands[i].pairs, attempts);
+    if(!teacherSwapBeats(baseline, hyp)) continue;
+    better.push(teacherSwapHitFrom(cands[i], hyp));
+  }
+  better.sort((a,b) => compareScoreTuple(
+    groupLookaheadScore({unresolved: Array(a.unresolvedN), lookahead: a.lookahead}),
+    groupLookaheadScore({unresolved: Array(b.unresolvedN), lookahead: b.lookahead})
+  ));
+  return better.slice(0, TEACHER_SWAP_KEEP);
+}
+function teacherSwapHitFrom(cand, hyp){
+  return {
+    kind: cand.kind,
+    label: cand.label,
+    pairs: cand.pairs.map(([a,b]) => [
+      {id:a.id, name:a.name, teacherId:a.teacherId, teacher:a.teacher, duration:lessonDurationMinutes(a)},
+      {id:b.id, name:b.name, teacherId:b.teacherId, teacher:b.teacher, duration:lessonDurationMinutes(b)}
+    ]),
+    lookahead: hyp && hyp.lookahead,
+    unresolvedN: (((hyp && hyp.unresolved) || []).length),
+    scheduledN: (((hyp && hyp.scheduled) || []).length),
+    swapSearchAttempts: (hyp && hyp.swapSearchAttempts) || 1
+  };
+}
+function clearTeacherSwapsOnLayouts(variants){
+  (variants || []).forEach(v => { if(v) v.teacherSwaps = []; });
+  LAST_TEACHER_SWAP_SUGGESTIONS = [];
+}
+function selectedTeacherSwaps(){
+  return (LAST_RESULT && LAST_RESULT.teacherSwaps) || LAST_TEACHER_SWAP_SUGGESTIONS || [];
+}
+function attachTeacherSwapsToLayouts(variants, evaluated){
+  (variants || []).forEach(v => {
+    if(!v) return;
+    const hits = [];
+    (evaluated || []).forEach(e => {
+      if(teacherSwapBeats(v, e.hyp)) hits.push(teacherSwapHitFrom(e.cand, e.hyp));
+    });
+    hits.sort((a,b) => compareScoreTuple(
+      groupLookaheadScore({unresolved: Array(a.unresolvedN), lookahead: a.lookahead}),
+      groupLookaheadScore({unresolved: Array(b.unresolvedN), lookahead: b.lookahead})
+    ));
+    v.teacherSwaps = hits.slice(0, TEACHER_SWAP_KEEP);
+  });
+  LAST_TEACHER_SWAP_SUGGESTIONS = selectedTeacherSwaps();
+}
+function collectTeacherSwapSuggestions(baseline){
+  LAST_TEACHER_SWAP_SUGGESTIONS = [];
+  if(!baseline) return [];
+  if(!teacherSwapProbeEnabled()) return [];
+  const hits = recordTeacherSwapHits(baseline, collectTeacherSwapCandidates(), null);
+  baseline.teacherSwaps = hits;
+  LAST_TEACHER_SWAP_SUGGESTIONS = hits;
+  return hits;
+}
+function collectTeacherSwapSuggestionsForLayouts(variants){
+  const list = variants || [];
+  if(!teacherSwapProbeEnabled()){
+    clearTeacherSwapsOnLayouts(list);
+    return [];
+  }
+  const cands = collectTeacherSwapCandidates();
+  const attempts = teacherSwapSearchAttempts(cands.length);
+  const evaluated = [];
+  for(let i=0;i<cands.length;i++){
+    if(SEARCH_CANCELLED) break;
+    evaluated.push({cand: cands[i], hyp: evaluateHypotheticalTeacherSwap(cands[i].pairs, attempts)});
+  }
+  attachTeacherSwapsToLayouts(list, evaluated);
+  return selectedTeacherSwaps();
+}
+async function collectTeacherSwapSuggestionsForLayoutsAsync(variants, onTick){
+  const list = variants || [];
+  if(!teacherSwapProbeEnabled()){
+    clearTeacherSwapsOnLayouts(list);
+    return [];
+  }
+  const cands = collectTeacherSwapCandidates();
+  const attempts = teacherSwapSearchAttempts(cands.length);
+  const evaluated = [];
+  const total = Math.max(1, cands.length);
+  for(let i=0;i<cands.length;i++){
+    if(SEARCH_CANCELLED) break;
+    if(onTick) onTick(i + 1, total, `Teacher swap ${i + 1} / ${total}`);
+    await yieldUi();
+    evaluated.push({
+      cand: cands[i],
+      hyp: await evaluateHypotheticalTeacherSwapAsync(cands[i].pairs, attempts, (done, n) => {
+        if(onTick) onTick(i + 1, total, `Teacher swap ${i + 1} / ${total} · pack ${done} / ${n}`);
+      })
+    });
+  }
+  attachTeacherSwapsToLayouts(list, evaluated);
+  (list || []).forEach((v, i) => {
+    const n = ((v && v.teacherSwaps) || []).length;
+    if(n) searchLiveSay(`${variantDisplayName(i)}: ${n} improving swap(s) — not applied.`, 'ok');
+    else searchLiveSay(`${variantDisplayName(i)}: no improving swap.`, 'info');
+  });
+  return selectedTeacherSwaps();
+}
+function stripTeacherSwapLogSection(lines){
+  const list = lines || [];
+  const i = list.findIndex(l => l && l.type === 'section' && l.text === 'Hypothetical teacher swaps');
+  if(i < 0) return list.slice();
+  return list.slice(0, i);
+}
+function teacherSwapLogLines(v, i){
+  const hits = (v && v.teacherSwaps) || [];
+  const name = (v && v.suggested ? '★ ' : '') + variantDisplayName(i);
+  const lines = [{type:'section', text:'Hypothetical teacher swaps'}];
+  lines.push({type:'info', text:'Each swap re-ran the group search (shuffled packs) and a 1/1 preview, then kept the better leftover week. The Lesson groups table and the grid were not changed.'});
+  if(!hits.length){
+    lines.push({type:'info', text:`${name}: no improving swap.`});
+    return lines;
+  }
+  hits.forEach(s => {
+    lines.push({type:'ok', text:`${name}: ${s.label} — ${teacherSwapDeltaLine(s, v)}.`});
+  });
+  return lines;
+}
+function logTeacherSwapSuggestions(){
+  const list = LAST_VARIANTS || [];
+  if(!teacherSwapProbeEnabled()){
+    list.forEach(item => {
+      if(item) item.searchLog = stripTeacherSwapLogSection(item.searchLog);
+    });
+    return;
+  }
+  SearchLog.section('Hypothetical teacher swaps');
+  const any = list.some(v => v && v.teacherSwaps && v.teacherSwaps.length);
+  if(!any){
+    SearchLog.info('Re-ran the group search with each same-duration teacher swap (shuffled packs + 1/1 preview). None beat leftover 1/1 / piano. The Lesson groups table and the grid were not changed.');
+  } else {
+    SearchLog.info('Re-ran the group search with each same-duration teacher swap. These staffing swaps were not applied — change the teacher on those Lesson groups rows and Generate again if you want them.');
+    list.forEach((v, i) => {
+      const n = ((v && v.teacherSwaps) || []).length;
+      if(n) SearchLog.ok(`${v && v.suggested ? '★ ' : ''}${variantDisplayName(i)}: ${n} improving swap(s).`);
+      else SearchLog.info(`${variantDisplayName(i)}: no improving swap.`);
+    });
+  }
+  list.forEach((item, i) => {
+    if(!item) return;
+    item.searchLog = stripTeacherSwapLogSection(item.searchLog).concat(teacherSwapLogLines(item, i));
+  });
+}
+function renderTeacherSwapSuggestions(){
+  const el = document.getElementById('teacherSwapSuggestions');
+  if(!el) return;
+  if(!teacherSwapProbeEnabled()){
+    el.style.display = 'none';
+    el.innerHTML = '';
+    return;
+  }
+  const v = LAST_RESULT;
+  const list = (v && v.teacherSwaps) || [];
+  LAST_TEACHER_SWAP_SUGGESTIONS = list;
+  if(!list.length){
+    el.style.display = 'none';
+    el.innerHTML = '';
+    return;
+  }
+  el.style.display = 'block';
+  el.innerHTML = `<p class="teacher-swap-suggest-title">If teachers had been swapped during Generate — not applied</p><ul>` +
+    list.map(s => `<li>${escapeAttr(s.label)} — ${escapeAttr(teacherSwapDeltaLine(s, v))}.</li>`).join('') +
+    `</ul>`;
 }
 function individualSearchFingerprint(kind, scopeTeacherId){
   const matrix = kind === 'rpiano' ? DB.rpiano : DB.oneToOne;
@@ -6792,7 +8492,9 @@ function individualSearchFingerprint(kind, scopeTeacherId){
     kept,
     accepted: (DB.acceptedSchedule || []).map(r => [r.lessonId, r.day, r.start, r.end, r.teacherId]),
     oneone: kind === 'rpiano' ? ((LAST_ONEONE && LAST_ONEONE.scheduled) || []).map(s => [s.lessonId, s.day, s.start, s.end]) : null,
-    hours: (matrix && matrix.hours) || {}
+    hours: (matrix && matrix.hours) || {},
+    rooms: ((matrix && matrix.columns) || []).map(c => [c.id, c.roomId || '']),
+    studentRooms: Object.keys((matrix && matrix.studentRooms) || {}).sort().map(sid => [sid, (matrix.studentRooms[sid] && matrix.studentRooms[sid].roomId) || ''])
   });
 }
 function assignmentsForGenerate(matrix, teacherId){
@@ -6820,28 +8522,43 @@ function mergeKeptIntoVariants(variants, keep){
     });
   });
 }
+function individualSearchOpts(kind, assignments, keep){
+  const attempts = readOneOneSearchAttempts(kind);
+  const base = {
+    assignments,
+    existingOneOne: keep && keep.scheduled,
+    attempts,
+    maxTries: oneOneSearchMaxTries(attempts)
+  };
+  if(kind === 'rpiano'){
+    return Object.assign(base, {
+      acceptedRows: (DB.acceptedSchedule || []).concat(busyRowsFromScheduled(LAST_ONEONE && LAST_ONEONE.scheduled)),
+      source: 'rpiano',
+      lessonLabel: 'piano',
+      idPrefix: 'RP'
+    });
+  }
+  return Object.assign(base, {acceptedRows: DB.acceptedSchedule || []});
+}
 function generateIndividualScoped(kind, scopeTeacherId){
   const matrix = kind === 'rpiano' ? ensureRpianoMatrix() : ensureOneToOneMatrix();
   const assignments = assignmentsForGenerate(matrix, scopeTeacherId);
   const keep = cloneIndividualKeep(kind === 'rpiano' ? LAST_RPIANO : LAST_ONEONE, scopeTeacherId);
-  const searchOpts = kind === 'rpiano'
-    ? {
-      assignments,
-      acceptedRows: (DB.acceptedSchedule || []).concat(busyRowsFromScheduled(LAST_ONEONE && LAST_ONEONE.scheduled)),
-      existingOneOne: keep.scheduled,
-      source: 'rpiano',
-      lessonLabel: 'piano',
-      idPrefix: 'RP'
-    }
-    : {
-      assignments,
-      acceptedRows: DB.acceptedSchedule || [],
-      existingOneOne: keep.scheduled
-    };
   return {
     assignments,
     keep,
-    variants: mergeKeptIntoVariants(scheduleAllOneToOneSearch(searchOpts), keep)
+    variants: mergeKeptIntoVariants(scheduleAllOneToOneSearch(individualSearchOpts(kind, assignments, keep)), keep)
+  };
+}
+async function generateIndividualScopedAsync(kind, scopeTeacherId, onTick){
+  const matrix = kind === 'rpiano' ? ensureRpianoMatrix() : ensureOneToOneMatrix();
+  const assignments = assignmentsForGenerate(matrix, scopeTeacherId);
+  const keep = cloneIndividualKeep(kind === 'rpiano' ? LAST_RPIANO : LAST_ONEONE, scopeTeacherId);
+  const variants = await scheduleAllOneToOneSearchAsync(individualSearchOpts(kind, assignments, keep), onTick);
+  return {
+    assignments,
+    keep,
+    variants: mergeKeptIntoVariants(variants, keep)
   };
 }
 function fillIndividualGenerateTeacherSelect(sel, matrix){
@@ -6976,7 +8693,8 @@ function busyRowsFromScheduled(items){
       start: s.start,
       end: s.end,
       studentIds: ids,
-      name: s.name || ''
+      name: s.name || '',
+      ...roomFieldsOf(s)
     };
   });
 }
@@ -7029,7 +8747,7 @@ function fillIndividualTeacherFilter(sel, stateObj, emptyLabel, kind){
     sel.innerHTML = `<option value="">${emptyLabel}</option>`;
     return;
   }
-  const current = sel.value || (stateObj && stateObj.viewTeacherId) || ids[0];
+  const current = (stateObj && stateObj.viewTeacherId) || sel.value || ids[0];
   const pick = ids.includes(current) ? current : ids[0];
   sel.innerHTML = ids.map(id => `<option value="${escapeAttr(id)}" ${id===pick?'selected':''}>${escapeAttr(teacherName(id)||id)}</option>`).join('');
   if(stateObj) stateObj.viewTeacherId = sel.value;
@@ -7088,8 +8806,10 @@ function renderHoursMatrixPanel(opts){
     box.innerHTML = `<p class="dataio-hint" style="padding:12px;margin:0">${opts.emptyHtml}</p>`;
     return;
   }
+  const rooms = (DB.refRooms || []).slice().sort((a,b) => String(a.name||a.id).localeCompare(String(b.name||b.id)));
   const head = `<thead><tr>
     <th class="is-sticky">Student</th>
+    <th class="oneone-roomcol">Room</th>
     ${cols.map(c => `<th class="oneone-tcol">${escapeAttr(c.name)}</th>`).join('')}
   </tr></thead>`;
   const body = students.map(s => {
@@ -7098,8 +8818,11 @@ function renderHoursMatrixPanel(opts){
       const filled = val ? ' is-filled' : '';
       return `<td class="oneone-tcol${filled}"><input type="number" class="oneone-cell" data-sid="${escapeAttr(s.ID)}" data-tid="${escapeAttr(c.id)}" min="0" max="6" step="0.5" value="${escapeAttr(val)}" title="Hours with ${escapeAttr(c.name)} (1 = 60 min)"></td>`;
     }).join('');
+    const rid = itemRoomId(studentMatrixRoom(m, s.ID));
+    const optsHtml = rooms.map(r => `<option value="${escapeAttr(r.id)}" ${r.id===rid?'selected':''}>${escapeAttr(r.name || r.id)}</option>`).join('');
     return `<tr>
       <td class="is-sticky"><div class="oneone-sid">${escapeAttr(s.ID)}</div><div class="oneone-sname">${escapeAttr(studentDisplayName(s))}</div><div class="meta" style="font-size:10px;color:var(--ink-dim)">${escapeAttr(instrName(s.INSTR_ID)||'—')}</div></td>
+      <td class="oneone-roomcol"><select class="oneone-col-room" data-sid="${escapeAttr(s.ID)}" title="Lock this student's individual lessons into a room. Blank = no lock."><option value="">Room —</option>${optsHtml}</select></td>
       ${cells}
     </tr>`;
   }).join('');
@@ -7116,6 +8839,14 @@ function renderHoursMatrixPanel(opts){
         const n = collectOneOneAssignments(opts.matrix).length;
         countEl.textContent = `${n} filled cells · ${students.length} student${students.length===1?'':'s'}`;
       }
+    });
+  });
+  box.querySelectorAll('select.oneone-col-room').forEach(sel => {
+    sel.addEventListener('change', () => {
+      setMatrixStudentRoom(opts.matrix, sel.dataset.sid, sel.value, opts.kind);
+      markWorkDirty();
+      if(opts.kind === 'rpiano') renderRpianoGrid();
+      else renderOneOneGrid();
     });
   });
 }
@@ -7165,10 +8896,13 @@ function renderOneOneTab(){
         ? 'Accept this schedule first — dragging or regenerating group lessons locks 1/1 until you Accept again.'
         : 'Accept a timetable first.';
     } else if(LAST_ONEONE && LAST_ONEONE.accepted){
-      summary.textContent = `1/1 accepted — ${scheduled.length} frozen. Required Piano is unlocked.`;
+      const pairs = oneOneCoverageCount(LAST_ONEONE);
+      summary.textContent = `1/1 accepted — ${pairs} frozen${scheduled.length > pairs ? ` · ${scheduled.length} sessions` : ''}. Required Piano is unlocked.`;
     } else if(scheduled.length){
       const nVar = (LAST_ONEONE.variants || []).length;
-      summary.textContent = `${scheduled.length} 1/1 placed${nVar > 1 ? ` · ${nVar} layouts` : ''}. Accept 1/1 to freeze this layout (including any dragged times).`;
+      const pairs = oneOneCoverageCount(LAST_ONEONE);
+      const sess = scheduled.length > pairs ? ` · ${scheduled.length} sessions` : '';
+      summary.textContent = `${pairs} 1/1 placed${sess}${nVar > 1 ? ` · ${nVar} layouts` : ''}. Accept 1/1 to freeze this layout (including any dragged times).`;
     } else if(assignments.length){
       summary.textContent = `${assignments.length} 1/1 hours across ${teacherN} teacher${teacherN===1?'':'s'} · 1 = 60 min, 1.5 = 90, 2 = 120. Generate, then Accept 1/1 before piano.`;
     } else {
@@ -7177,7 +8911,7 @@ function renderOneOneTab(){
   }
   if(tag){
     tag.textContent = scheduled.length
-      ? `${scheduled.length} placed${unresolved.length ? ` · ${unresolved.length} left out` : ''}${((LAST_ONEONE.variants||[]).length > 1) ? ` · ${(LAST_ONEONE.variants||[]).length} layouts` : ''}${LAST_ONEONE && LAST_ONEONE.accepted ? ' · accepted' : ''}`
+      ? `${oneOneCoverageCount(LAST_ONEONE)} placed${scheduled.length > oneOneCoverageCount(LAST_ONEONE) ? ` · ${scheduled.length} sessions` : ''}${unresolved.length ? ` · ${unresolved.length} left out` : ''}${((LAST_ONEONE.variants||[]).length > 1) ? ` · ${(LAST_ONEONE.variants||[]).length} layouts` : ''}${LAST_ONEONE && LAST_ONEONE.accepted ? ' · accepted' : ''}`
       : '';
   }
   renderPlacementStats('oneoneStatsRow', scheduled, unresolved, '1/1 placed');
@@ -7208,6 +8942,8 @@ function ensureOneToOneMatrix(){
   if(!DB.oneToOne.columns.length && (DB.refTeachers || []).length){
     DB.oneToOne.columns = (DB.refTeachers || []).map(t => ({id: t.id, name: t.name}));
   }
+  (DB.oneToOne.columns || []).forEach(c => migrateRoomLock(c, {defaultOn:false}));
+  migrateStudentRooms(DB.oneToOne);
   return DB.oneToOne;
 }
 function fillOneOneTeacherFilter(){
@@ -7227,6 +8963,7 @@ function renderOneOneMatrix(){
     filterId: 'oneoneMatrixFilter',
     matrix: ensureOneToOneMatrix(),
     setHours: setOneOneHours,
+    kind: 'oneone',
     emptyHtml: 'No teacher columns — load the Drive 1_1 tab or add teachers in Reference tables.'
   });
 }
@@ -7236,6 +8973,21 @@ function setOneOneGenerateBusy(busy){
   if(!btn) return;
   btn.disabled = !!busy;
   btn.textContent = busy ? 'Generating…' : individualGenerateBtnLabel('oneone');
+  const attempts = document.getElementById('oneoneSearchAttempts');
+  if(attempts) attempts.disabled = !!busy;
+  const teacher = document.getElementById('oneoneGenerateTeacher');
+  if(teacher) teacher.disabled = !!busy;
+}
+function finishIndividualGeneratePaint(kind){
+  if(kind === 'rpiano'){
+    renderRpianoTab();
+    renderOneOneTab();
+  } else {
+    renderOneOneTab();
+    renderRpianoTab();
+  }
+  if(LAST_RESULT) renderGrid();
+  markWorkDirty();
 }
 function runOneOneGenerate(){
   if(SEARCH_UI_LOCK) return;
@@ -7252,14 +9004,39 @@ function runOneOneGenerate(){
       : 'The 1/1 matrix is empty. Fill hours in the table (1 = 60 min).');
     return;
   }
+  const attempts = readOneOneSearchAttempts('oneone');
+  const maxTries = oneOneSearchMaxTries(attempts);
+  const who = scopeTeacherId ? (teacherName(scopeTeacherId) || scopeTeacherId) : '';
+  resetSearchCancel();
   setOneOneGenerateBusy(true);
-  setTimeout(() => {
+  openSearchLive(who ? `Generate 1/1 · ${who}` : 'Generate all 1/1');
+  searchLiveSay(`${attempts} distinct layout(s); up to ${maxTries} tries. Packing into accepted group holes.`, 'info');
+  if(who) searchLiveSay(`Only ${who} — other teachers stay.`, 'info');
+  setSearchLiveProgress(0, maxTries, 'Starting…');
+  (async () => {
     try {
-      const scoped = generateIndividualScoped('oneone', scopeTeacherId);
+      const scoped = await generateIndividualScopedAsync('oneone', scopeTeacherId, (done, total, label) => {
+        setSearchLiveProgress(done, total, label);
+      });
+      if(!(scoped.variants || []).length){
+        searchLiveSay(SEARCH_CANCELLED ? 'Stopped before a layout was kept.' : 'No layout produced.', 'warn');
+        return;
+      }
       const viewId = scopeTeacherId || (document.getElementById('oneoneTeacherFilter') || {}).value;
       const state = applyIndividualSearch('oneone', scoped.variants, viewId, scopeTeacherId);
       if(state && state.variants){
-        attachOneOneLookahead(state.variants);
+        const pianoN = collectOneOneAssignments(DB.rpiano).length;
+        if(pianoN){
+          setSearchLiveHeadline('Previewing Required Piano');
+          searchLiveSay('Checking leftover piano holes on the kept layouts — this picks ★.', 'info');
+          await attachOneOneLookaheadAsync(state.variants, (i, n) => {
+            setSearchLiveHeadline(`Piano preview ${i} / ${n}`);
+            searchLiveSay(`Trying leftover piano on 1/1 layout ${i} of ${n}…`, 'info');
+            setSearchLiveProgress(i, n, `Piano preview ${i} / ${n}`);
+          });
+        } else {
+          attachOneOneLookahead(state.variants);
+        }
         const starI = suggestedVariantIndex(state.variants);
         const v = state.variants[starI];
         if(v){
@@ -7268,14 +9045,15 @@ function runOneOneGenerate(){
           state.unresolved = v.unresolved;
         }
       }
-      renderOneOneTab();
-      renderRpianoTab();
-      if(LAST_RESULT) renderGrid();
-      markWorkDirty();
+      finishIndividualGeneratePaint('oneone');
+      setSearchLiveHeadline('Done');
+      searchLiveSay('Search finished. The grid shows the ★ layout.', 'ok');
     } finally {
+      closeSearchLive();
       setOneOneGenerateBusy(false);
+      setSearchLiveProgress(0, 0);
     }
-  }, 0);
+  })();
 }
 function acceptOneOneSchedule(){
   if(SEARCH_UI_LOCK) return;
@@ -7307,10 +9085,37 @@ document.getElementById('oneoneTeacherFilter').addEventListener('change', () => 
   LAST_ONEONE.viewTeacherId = document.getElementById('oneoneTeacherFilter').value;
   renderOneOneGrid();
 });
+function syncIndividualWeekFromGenerate(kind){
+  const gen = document.getElementById(kind === 'rpiano' ? 'rpianoGenerateTeacher' : 'oneoneGenerateTeacher');
+  const tid = gen && gen.value;
+  if(!tid) return;
+  if(kind === 'rpiano'){
+    LAST_RPIANO = LAST_RPIANO || {scheduled: [], unresolved: []};
+    LAST_RPIANO.viewTeacherId = tid;
+    renderRpianoGrid();
+  } else {
+    LAST_ONEONE = LAST_ONEONE || {scheduled: [], unresolved: []};
+    LAST_ONEONE.viewTeacherId = tid;
+    renderOneOneGrid();
+  }
+}
 document.getElementById('oneoneGenerateTeacher').addEventListener('change', () => {
   const btn = document.getElementById('oneoneGenerateBtn');
   if(btn && btn.textContent !== 'Generating…') btn.textContent = individualGenerateBtnLabel('oneone');
+  syncIndividualWeekFromGenerate('oneone');
 });
+function onOneOneSearchAttemptsChange(){
+  readOneOneSearchAttempts('oneone');
+  markWorkDirty();
+}
+function onRpianoSearchAttemptsChange(){
+  readOneOneSearchAttempts('rpiano');
+  markWorkDirty();
+}
+const oneoneSearchAttemptsEl = document.getElementById('oneoneSearchAttempts');
+if(oneoneSearchAttemptsEl) oneoneSearchAttemptsEl.addEventListener('change', onOneOneSearchAttemptsChange);
+const rpianoSearchAttemptsEl = document.getElementById('rpianoSearchAttempts');
+if(rpianoSearchAttemptsEl) rpianoSearchAttemptsEl.addEventListener('change', onRpianoSearchAttemptsChange);
 document.getElementById('exportOneoneAcceptedBtn').addEventListener('click', () => {
   const rows = hasAcceptedOneOne()
     ? ((LAST_ONEONE.acceptedSchedule && LAST_ONEONE.acceptedSchedule.length)
@@ -7328,6 +9133,8 @@ function ensureRpianoMatrix(){
   if(emptyHours && SEED.rpiano && SEED.rpiano.hours && Object.keys(SEED.rpiano.hours).length){
     DB.rpiano = JSON.parse(JSON.stringify(SEED.rpiano));
   }
+  (DB.rpiano.columns || []).forEach(c => migrateRoomLock(c, {defaultOn:false}));
+  migrateStudentRooms(DB.rpiano);
   return DB.rpiano;
 }
 function setRpianoHours(studentId, teacherId, hours){
@@ -7344,6 +9151,7 @@ function renderRpianoMatrix(){
     filterId: 'rpianoMatrixFilter',
     matrix: ensureRpianoMatrix(),
     setHours: setRpianoHours,
+    kind: 'rpiano',
     tableClass: 'is-rpiano',
     emptyHtml: 'No piano teacher columns — load the Drive rpiano tab.'
   });
@@ -7373,10 +9181,13 @@ function renderRpianoTab(){
     } else if(!hasAcceptedOneOne()){
       summary.textContent = 'Accept 1/1 first — piano packs into leftover holes around the frozen week and 1/1.';
     } else if(LAST_RPIANO && LAST_RPIANO.accepted){
-      summary.textContent = `Required Piano accepted — ${scheduled.length} frozen.`;
+      const pairs = oneOneCoverageCount(LAST_RPIANO);
+      summary.textContent = `Required Piano accepted — ${pairs} frozen${scheduled.length > pairs ? ` · ${scheduled.length} sessions` : ''}.`;
     } else if(scheduled.length){
       const nVar = (LAST_RPIANO.variants || []).length;
-      summary.textContent = `${scheduled.length} piano hours placed${nVar > 1 ? ` · ${nVar} layouts` : ''}. Accept Required Piano to freeze this layout (including any dragged times).`;
+      const pairs = oneOneCoverageCount(LAST_RPIANO);
+      const sess = scheduled.length > pairs ? ` · ${scheduled.length} sessions` : '';
+      summary.textContent = `${pairs} piano hours placed${sess}${nVar > 1 ? ` · ${nVar} layouts` : ''}. Accept Required Piano to freeze this layout (including any dragged times).`;
     } else if(assignments.length){
       summary.textContent = `${assignments.length} Required Piano hours across ${teacherN} teacher${teacherN===1?'':'s'} · 1 = 60 min, 0.5 = 30. Generate, then Accept to freeze the slots.`;
     } else {
@@ -7385,7 +9196,7 @@ function renderRpianoTab(){
   }
   if(tag){
     tag.textContent = scheduled.length
-      ? `${scheduled.length} placed${unresolved.length ? ` · ${unresolved.length} left out` : ''}${((LAST_RPIANO.variants||[]).length > 1) ? ` · ${(LAST_RPIANO.variants||[]).length} layouts` : ''}${LAST_RPIANO && LAST_RPIANO.accepted ? ' · accepted' : ''}`
+      ? `${oneOneCoverageCount(LAST_RPIANO)} placed${scheduled.length > oneOneCoverageCount(LAST_RPIANO) ? ` · ${scheduled.length} sessions` : ''}${unresolved.length ? ` · ${unresolved.length} left out` : ''}${((LAST_RPIANO.variants||[]).length > 1) ? ` · ${(LAST_RPIANO.variants||[]).length} layouts` : ''}${LAST_RPIANO && LAST_RPIANO.accepted ? ' · accepted' : ''}`
       : '';
   }
   renderPlacementStats('rpianoStatsRow', scheduled, unresolved, 'RP placed');
@@ -7415,6 +9226,10 @@ function setRpianoGenerateBusy(busy){
   if(!btn) return;
   btn.textContent = busy ? 'Generating…' : individualGenerateBtnLabel('rpiano');
   btn.disabled = busy || !hasAcceptedOneOne();
+  const attempts = document.getElementById('rpianoSearchAttempts');
+  if(attempts) attempts.disabled = !!busy;
+  const teacher = document.getElementById('rpianoGenerateTeacher');
+  if(teacher) teacher.disabled = !!busy;
 }
 function runRpianoGenerate(){
   if(SEARCH_UI_LOCK) return;
@@ -7431,20 +9246,35 @@ function runRpianoGenerate(){
       : 'The Required Piano matrix is empty. Fill hours in the table (1 = 60 min).');
     return;
   }
+  const attemptsN = readOneOneSearchAttempts('rpiano');
+  const maxTries = oneOneSearchMaxTries(attemptsN);
+  const who = scopeTeacherId ? (teacherName(scopeTeacherId) || scopeTeacherId) : '';
+  resetSearchCancel();
   setRpianoGenerateBusy(true);
-  setTimeout(() => {
+  openSearchLive(who ? `Generate Required Piano · ${who}` : 'Generate Required Piano');
+  searchLiveSay(`${attemptsN} distinct layout(s); up to ${maxTries} tries. Packing into leftover holes around the accepted week and 1/1.`, 'info');
+  if(who) searchLiveSay(`Only ${who} — other piano teachers stay.`, 'info');
+  setSearchLiveProgress(0, maxTries, 'Starting…');
+  (async () => {
     try {
-      const scoped = generateIndividualScoped('rpiano', scopeTeacherId);
+      const scoped = await generateIndividualScopedAsync('rpiano', scopeTeacherId, (done, total, label) => {
+        setSearchLiveProgress(done, total, label);
+      });
+      if(!(scoped.variants || []).length){
+        searchLiveSay(SEARCH_CANCELLED ? 'Stopped before a layout was kept.' : 'No layout produced.', 'warn');
+        return;
+      }
       const viewId = scopeTeacherId || (document.getElementById('rpianoTeacherFilter') || {}).value;
       applyIndividualSearch('rpiano', scoped.variants, viewId, scopeTeacherId);
-      renderRpianoTab();
-      renderOneOneTab();
-      if(LAST_RESULT) renderGrid();
-      markWorkDirty();
+      finishIndividualGeneratePaint('rpiano');
+      setSearchLiveHeadline('Done');
+      searchLiveSay('Search finished. The grid shows the best layout.', 'ok');
     } finally {
+      closeSearchLive();
       setRpianoGenerateBusy(false);
+      setSearchLiveProgress(0, 0);
     }
-  }, 0);
+  })();
 }
 function acceptRpianoSchedule(){
   if(SEARCH_UI_LOCK) return;
@@ -7483,6 +9313,7 @@ document.getElementById('rpianoTeacherFilter').addEventListener('change', () => 
 document.getElementById('rpianoGenerateTeacher').addEventListener('change', () => {
   const btn = document.getElementById('rpianoGenerateBtn');
   if(btn && btn.textContent !== 'Generating…') btn.textContent = individualGenerateBtnLabel('rpiano');
+  syncIndividualWeekFromGenerate('rpiano');
 });
 document.getElementById('exportRpianoAcceptedBtn').addEventListener('click', () => {
   const rows = hasAcceptedRpiano()
@@ -7685,15 +9516,19 @@ window.addEventListener('beforeunload', flushAutosave);
 // ---------- Init ----------
 try {
   restoreAutosaveIfAny();
-  renderStudents();
-  renderLessons();
-  renderAvail();
-  renderCAvail();
-  renderRefTables();
-  renderBreaksTable();
-  renderAcceptedStatus();
+renderStudents();
+renderLessons();
+renderAvail();
+renderCAvail();
+renderRefTables();
+renderBreaksTable();
+renderAcceptedStatus();
   renderAcceptedSchedule();
   updateFixedPinsBanner();
+  updatePhase1TeacherOrderBtn();
+  syncForbidUnlistedGroupGapsCheckbox();
+  syncLookaheadEveryLayoutCheckbox();
+  syncTeacherSwapProbeCheckbox();
   updateAutosaveStatus();
   renderOneOneTab();
   renderRpianoTab();
