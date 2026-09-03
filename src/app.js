@@ -6926,18 +6926,19 @@ async function restorePublishedStateFromSite(){
 }
 async function bootPublishedOrAutosave(){
   const published = await fetchPublishedState();
-  let hasAutosave = false;
-  try { hasAutosave = !!localStorage.getItem(AUTOSAVE_KEY); } catch(e){}
-  if(hasAutosave){
-    restoreAutosaveIfAny();
-    if(published){
-      setPublishedStateStatus(PUBLISHED_STATE_FILENAME + ' is on GitHub, but this browser restored its own autosave. Use Reload from GitHub file to show the committed copy.');
-    }
-    return;
-  }
+  // published-state.json on the site is the source of truth. Browser autosave
+  // only fills in when that file is missing (local file:// / first visit).
   if(published){
     restoreFromLoadedObject(published);
     WORK_DIRTY = false;
+    try {
+      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(published));
+      localStorage.setItem(AUTOSAVE_META_KEY, JSON.stringify({
+        savedAt: published.publishedAt || new Date().toISOString(),
+        dirty: false,
+        fromPublished: true
+      }));
+    } catch(e){}
     const when = published.publishedAt ? new Date(published.publishedAt).toLocaleString() : '';
     setPublishedStateStatus(when
       ? ('Opened ' + PUBLISHED_STATE_FILENAME + ' from this site (' + when + ').')
