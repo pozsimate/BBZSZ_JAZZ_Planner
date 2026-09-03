@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BartokKonzi — Timetable Builder</title>
-<link rel="stylesheet" href="./src/styles.css?v=report-pdf-v2">
+<link rel="stylesheet" href="./src/styles.css?v=report-filters-v2">
 
 </head>
 <body>
@@ -38,6 +38,11 @@
       <span class="brand-sub">planner 2026</span>
     </span>
   </h1>
+  <div class="viewer-gate-bar">
+    <p class="dataio-hint" id="viewerGateStatus" style="margin:0;">Public view: Reports only. Editing tabs need a password.</p>
+    <button type="button" class="btn secondary small" id="viewerUnlockBtn">Unlock editing…</button>
+    <button type="button" class="btn secondary small" id="viewerLockBtn" style="display:none">Lock editing</button>
+  </div>
 </header>
 
 <nav class="tabs">
@@ -49,13 +54,13 @@
     <button class="tab-btn" data-tab="cavail">Class Reservations</button>
     <button class="tab-btn" data-tab="breaks">Break Management</button>
     <button class="tab-btn" data-tab="ref">Reference tables</button>
-    <button class="tab-btn active" data-tab="cloud">☁ Cloud database</button>
+    <button class="tab-btn" data-tab="cloud">☁ Cloud database</button>
   </div>
   <div class="tabs-right">
     <button class="tab-btn tab-btn-timetable" data-tab="timetable">Group Lessons</button>
     <button type="button" class="tab-btn tab-btn-oneone is-locked" data-tab="oneone" aria-disabled="true" title="Accept this schedule first">1/1</button>
     <button type="button" class="tab-btn tab-btn-rpiano is-locked" data-tab="rpiano" aria-disabled="true" title="Accept 1/1 first">Required Piano</button>
-    <button type="button" class="tab-btn tab-btn-reports" data-tab="reports">Reports</button>
+    <button type="button" class="tab-btn tab-btn-reports active" data-tab="reports">Reports</button>
   </div>
 </nav>
 
@@ -167,7 +172,7 @@
     </div>
   </section>
 
-  <section id="tab-cloud" class="tab-panel">
+  <section id="tab-cloud" class="tab-panel" style="display:none">
     <div class="panel">
       <h2>Save & load</h2>
       <div class="row">
@@ -175,12 +180,15 @@
         <label class="btn secondary small" id="importDbLabel">⬆ Load saved edits (.json)
           <input type="file" id="importDbInput" accept="application/json">
         </label>
+        <button type="button" class="btn" id="publishGithubBtn">⬇ Download published-state.json</button>
+        <button type="button" class="btn secondary small" id="reloadPublishedStateBtn">Reload from GitHub file</button>
         <button type="button" class="btn secondary small" id="discardAutosaveBtn">Clear tables</button>
         <button type="button" class="btn secondary small" id="replaceAutosaveBtn" title="After Load from cloud/JSON — makes refresh keep this version, not an older autosave">Pin as autosave</button>
       </div>
-      <p class="dataio-hint">The planner starts empty. Load Google Sheets (or a JSON / .xlsx / cloud copy) to fill the tables. After that, a copy is autosaved in this browser while you work. <b>Clear tables</b> drops the autosave and returns to empty. If refresh brings back an old layout, load the good copy (cloud/JSON) then click <b>Pin as autosave</b>.</p>
+      <p class="dataio-hint">Load Sheets / JSON / cloud into this browser first. That copy is <b>not</b> on GitHub yet — it only lives here (and in autosave). To put the same data on the public site, click <b>published-state.json for GitHub</b>, then add that file next to <code>index.html</code> in the repo and push. Anyone opening the GitHub Pages site then loads that file. <b>Reload from GitHub file</b> pulls it again (drops this browser’s autosave overlay).</p>
       <p class="dataio-hint" id="autosaveRestoreNote" style="display:none;margin:6px 0 0 0;"></p>
       <p class="dataio-hint" id="autosaveStatus" style="margin:6px 0 0 0;"></p>
+      <p class="dataio-hint" id="publishedStateStatus" style="margin:6px 0 0 0;"></p>
     </div>
     <div class="panel">
       <h2>Google Sheets</h2>
@@ -555,49 +563,55 @@
     </div>
   </section>
 
-  <section id="tab-reports" class="tab-panel" style="display:none">
+  <section id="tab-reports" class="tab-panel">
     <div class="panel">
       <h2>Timetable reports</h2>
       <button type="button" class="hint-toggle"><span class="hint-toggle-icon">ⓘ</span> About this section <span class="hint-toggle-arrow">▸</span></button><p class="hint hint-collapsed">A read-only filter of everything currently on the week calendars: generated or accepted group lessons, 1/1, and Required Piano. <b style="color:var(--lavender-deep)">Grey blocks</b> are class reservations from CLASS_CONST — the label is the NOTE (Language, MET, …), not “reserved”. Tick <b style="color:var(--lavender-deep)">Class reservations</b> to overlay them, or untick to hide them. Combine filters — class, student, MUCLASS_TYPE, room, and teacher all apply together (AND). Empty means All. This tab stays locked until group lessons, 1/1, or Required Piano is accepted, and while a layout still needs Accept; it does not edit the grid.</p>
-      <div class="report-filters">
-        <label>Class
-          <select id="reportClassFilter" class="cloud-input"></select>
-        </label>
-        <label>Student
-          <select id="reportStudentFilter" class="cloud-input"></select>
-        </label>
-        <label>MUCLASS_TYPE
-          <select id="reportMuclassFilter" class="cloud-input"></select>
-        </label>
-        <label>Room
-          <select id="reportRoomFilter" class="cloud-input"></select>
-        </label>
-        <label>Teacher
-          <select id="reportTeacherFilter" class="cloud-input"></select>
-        </label>
-        <label>Show
-          <select id="reportKindFilter" class="cloud-input">
-            <option value="">All items</option>
-            <option value="group">Group lessons</option>
-            <option value="oneone">1/1</option>
-            <option value="rpiano">Required Piano</option>
-            <option value="class">Class reservations</option>
-          </select>
-        </label>
-        <label class="report-class-toggle">Class reservations
-          <span class="report-class-toggle-row">
+      <div class="report-toolbar">
+        <div class="report-filters">
+          <label class="report-field">
+            <span class="report-field-label">Class</span>
+            <select id="reportClassFilter"></select>
+          </label>
+          <label class="report-field">
+            <span class="report-field-label">Student</span>
+            <select id="reportStudentFilter"></select>
+          </label>
+          <label class="report-field">
+            <span class="report-field-label">Muclass</span>
+            <select id="reportMuclassFilter"></select>
+          </label>
+          <label class="report-field">
+            <span class="report-field-label">Room</span>
+            <select id="reportRoomFilter"></select>
+          </label>
+          <label class="report-field">
+            <span class="report-field-label">Teacher</span>
+            <select id="reportTeacherFilter"></select>
+          </label>
+          <label class="report-field">
+            <span class="report-field-label">Show</span>
+            <select id="reportKindFilter">
+              <option value="">All items</option>
+              <option value="group">Group lessons</option>
+              <option value="oneone">1/1</option>
+              <option value="rpiano">Required Piano</option>
+              <option value="class">Class reservations</option>
+            </select>
+          </label>
+        </div>
+        <div class="report-toggles">
+          <label class="report-toggle" title="Overlay class reservations from CLASS_CONST on this view">
             <input type="checkbox" id="reportShowClassReservations" checked>
-            <span class="swatch" style="background:rgba(224,87,107,.30);border-color:#c43b50"></span>
-            Show in this view
-          </span>
-        </label>
-        <label class="report-class-toggle">Required Piano
-          <span class="report-class-toggle-row">
+            <span class="report-toggle-swatch is-class" aria-hidden="true"></span>
+            <span class="report-toggle-text">Class reservations</span>
+          </label>
+          <label class="report-toggle" title="Include Required Piano on student view and student PDF">
             <input type="checkbox" id="reportShowRpiano">
-            <span class="swatch" style="background:rgba(45,212,191,.45);border-color:#0f766e"></span>
-            On student view / student PDF
-          </span>
-        </label>
+            <span class="report-toggle-swatch is-rpiano" aria-hidden="true"></span>
+            <span class="report-toggle-text">Required Piano on student PDF</span>
+          </label>
+        </div>
       </div>
       <div class="row report-actions">
         <button type="button" class="btn secondary small" id="reportClearBtn">Clear filters</button>
@@ -710,6 +724,22 @@
 
 <div id="reportBatchPrintHost" class="report-batch-print-host" aria-hidden="true"></div>
 
+<div class="modal-overlay" id="viewerUnlockOverlay" style="display:none" aria-hidden="true">
+  <div class="modal-box" style="max-width:420px">
+    <h3 style="margin-top:0">Unlock editing</h3>
+    <p class="dataio-hint" style="margin:0 0 12px 0;">Reports stays public. Enter the editor password to open Students, Generate, Cloud, and the other working tabs. This is a soft lock in the browser — change the hash in <code>src/app.js</code> if it leaks.</p>
+    <label class="cloud-field">
+      <span>Password</span>
+      <input type="password" id="viewerUnlockPassword" class="cloud-input" autocomplete="current-password">
+    </label>
+    <p class="dataio-hint" id="viewerUnlockError" style="margin:8px 0 0 0;color:#c43b50;"></p>
+    <div class="row" style="margin:16px 0 0 0;justify-content:flex-end;">
+      <button type="button" class="btn secondary" id="viewerUnlockCancelBtn">Cancel</button>
+      <button type="button" class="btn" id="viewerUnlockSubmitBtn">Unlock</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="generateConfirmOverlay" style="display:none">
   <div class="modal-box">
     <h3 id="generateConfirmTitle" style="margin-top:0">Accepted schedule is on file</h3>
@@ -735,7 +765,7 @@
 <script>
 (function(){
   var app = document.createElement('script');
-  app.src = './src/app.js?v=refresh-names-v2';
+  app.src = './src/app.js?v=report-filters-v2';
   app.async = false;
   app.onerror = function(){
     var msg = document.createElement('p');

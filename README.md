@@ -46,9 +46,35 @@ Then open:
 http://localhost:5173
 ```
 
+## Public Reports + password gate
+
+The live site opens on **Reports**. Other tabs stay locked until you unlock editing.
+
+- Default password: `bartok2026`
+- Header: **Unlock editing…** / **Lock editing**
+- Soft lock only (password hash is in `src/app.js`) — not real security against someone who reads the JS
+
+Change the password:
+
+```bash
+node -e "console.log(require('crypto').createHash('sha256').update('YOUR_PASSWORD','utf8').digest('hex'))"
+```
+
+Paste the hex into `EDITOR_PASSWORD_SHA256` in `src/app.js`.
+
 ## Data persistence
 
-The app keeps edits in the current browser tab unless you export them as JSON. It also contains the original Supabase cloud database connection controls.
+Edits stay in this browser (autosave) until you export them.
+
+To put the same data on the **GitHub Pages** site:
+
+1. Load Sheets / JSON / cloud in the Cloud database tab.
+2. Click **published-state.json for GitHub**.
+3. Commit the downloaded `published-state.json` next to `index.html` and push.
+
+Visitors then open https://pozsimate.github.io/BBZSZ_JAZZ_Planner/ and the page fetches that file. A JSON load in the browser alone does not change GitHub.
+
+The original Supabase cloud controls are still there for device-to-device working copies.
 
 ## Notes for Cursor
 

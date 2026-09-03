@@ -146,7 +146,7 @@ function main(){
     ['students','lessons','smallgroups','timetable','oneone','rpiano','cloud','reports'].every(t => tabBtns.includes(t)));
   ok('1/1 tab starts locked', /tab-btn-oneone is-locked/.test(html));
   ok('RJP tab starts locked', /tab-btn-rpiano is-locked/.test(html));
-  ok('Group Lessons has a locked pale-green style', /\.tab-btn-timetable\.is-locked/.test(css));
+  ok('Group Lessons locked tab style exists', /\.tab-btn-timetable\.is-locked/.test(css));
   ok('searching UI freeze style exists', /body\.is-searching/.test(css));
   ok('searching UI shows live progress animation', /search-progress-flow/.test(css) && /search-phase-pulse/.test(css));
   ok('default Drive URL is in the cloud input', html.includes('1VmcZq9AyYb-c3iYHSv0Q8Lh90UwnceAxaQvy6lfJyXU'));
@@ -218,7 +218,9 @@ function main(){
   ok('page seed has no students until Drive', Array.isArray(pageSeed.students) && pageSeed.students.length === 0);
   ok('page seed has no lessons until Drive', Array.isArray(pageSeed.lessons) && pageSeed.lessons.length === 0);
   ok('page seed has no teachers until Drive', Array.isArray(pageSeed.refTeachers) && pageSeed.refTeachers.length === 0);
-  ok('Cloud tab is the landing tab', html.includes('class="tab-btn active" data-tab="cloud"'));
+  ok('Cloud tab is not the landing tab in HTML', !html.includes('class="tab-btn active" data-tab="cloud"'));
+  ok('Reports is the public landing tab in HTML', html.includes('class="tab-btn tab-btn-reports active" data-tab="reports"') || html.includes('data-tab="reports">Reports</button>'));
+  ok('viewer unlock controls exist', htmlIds.has('viewerUnlockBtn') && htmlIds.has('viewerUnlockOverlay'));
   ok('Students is not the landing tab', !/<button class="tab-btn active" data-tab="students">/.test(html));
   ok('search lock is off at start', api.isSearchUiLocked() === false);
   api.setSearchUiLock(true);
@@ -227,8 +229,13 @@ function main(){
   api.setSearchUiLock(false);
   ok('search lock lifts', api.isSearchUiLocked() === false && api.canSwitchTab('cloud') === true);
   ok('Reports locked until a layout is accepted', api.canOpenReports() === false && api.canSwitchTab('reports') === false);
-  ok('boot restores browser autosave',
-    /\/\/ ---------- Init ----------[\s\S]{0,120}restoreAutosaveIfAny\(\)/.test(appSrc));
+  ok('test harness keeps editor gate off', api.editorGateActive() === false && api.isEditorUnlocked() === true);
+  ok('editor password hash is set', typeof api.EDITOR_PASSWORD_SHA256 === 'string' && api.EDITOR_PASSWORD_SHA256.length === 64);
+  ok('boot restores browser autosave in the test harness',
+    /window\.__BJP_HARNESS[\s\S]{0,80}restoreAutosaveIfAny\(\)/.test(appSrc));
+  ok('live site can boot from published-state.json',
+    /bootPublishedOrAutosave/.test(appSrc) && /published-state\.json/.test(appSrc));
+  ok('GitHub publish download button exists', htmlIds.has('publishGithubBtn') && htmlIds.has('reloadPublishedStateBtn'));
 
   const needed = [
     'toMin','toHHMM','cleanCellText','parseGvizTable','inferHeaders','sheetsTablesToDb',
@@ -240,6 +247,7 @@ function main(){
     'frozenIndividualItems','timetableAuditItems','studentsForScheduledItem','scheduledItemIsPinned',
     'hasPendingAccept','pendingAcceptTab','combinedWeekItems',
     'canSwitchTab','canOpenReports','setSearchUiLock','isSearchUiLocked',
+    'editorGateActive','isEditorUnlocked','tryUnlockEditor','lockEditor',
     'attachGroupLookahead','attachOneOneLookahead','markSuggestedByLookahead',
     'SCHEDULE_SEARCH_ATTEMPTS','SCHEDULE_VARIANT_KEEP',
     'clampScheduleSearchAttempts','readScheduleSearchAttempts',
@@ -252,6 +260,7 @@ function main(){
     'buildTimetableIcs','icsEscape','collectFixedPins','clampBookedWindowToDuration',
     'snapMinutes','clampLessonStart','parseIdList','formatOneOneHours','driveTablesToAoa',
     'smallGroupsCsvAoa','parseSmallGroupsTable','restoreAutosaveIfAny',
+    'looksLikePlannerExport','downloadPublishedStateFile','fetchPublishedState',
     'reportWeekItems','reportItemKind','reportItemMatches','filterReportItems','reportCsvAoa',
     'classReservationItems','reportClassReservationItems','classReservationReason',
     'colorForTeacher','calTextForHsl','renderCalendar','mergeFlushIndividualTiles','coalesceFlushIndividualLessons',
@@ -1560,6 +1569,10 @@ function main(){
   const dump = api.buildFullExportObject();
   ok('export has required table keys',
     ['students','lessons','teacherAvail','classAvail','refTeachers'].every(k => k in dump));
+  ok('full export looks like a planner snapshot', api.looksLikePlannerExport(dump));
+  ok('empty object is not a planner snapshot', api.looksLikePlannerExport({}) === false);
+  ok('published filename is published-state.json', api.PUBLISHED_STATE_FILENAME === 'published-state.json');
+  ok('fetchPublishedState is exported', typeof api.fetchPublishedState === 'function');
   ok('CSV headers include KIND and SCHEDULED_DATA',
     api.ACCEPTED_SCHEDULE_CSV_HEADERS.includes('KIND')
     && api.ACCEPTED_SCHEDULE_CSV_HEADERS.includes('SCHEDULED_DATA'));

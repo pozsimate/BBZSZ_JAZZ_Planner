@@ -13,6 +13,181 @@ window.addEventListener('error', ev => {
   showBootError(ev.error || ev.message);
 });
 
+// Soft public gate: Reports is open to everyone; other tabs need a password.
+// This is browser-side only (hash is in the JS) — not real security.
+// Default password: bartok2026
+// To change it: node -e "console.log(require('crypto').createHash('sha256').update('YOUR_PASSWORD','utf8').digest('hex'))"
+// then paste the hex into EDITOR_PASSWORD_SHA256 below.
+const EDITOR_GATE_ENABLED = true;
+const EDITOR_PASSWORD_SHA256 = '37422285ab64d3164c15350b2cf70909cd0eb5ee7507b6d163a17ab5b5f8952d';
+const EDITOR_UNLOCK_KEY = 'bartok_jazz_planner_editor_unlock';
+let EDITOR_UNLOCKED_MEM = false;
+
+function editorGateActive(){
+  if(typeof window !== 'undefined' && window.__BJP_HARNESS) return false;
+  return !!EDITOR_GATE_ENABLED;
+}
+function isEditorUnlocked(){
+  if(!editorGateActive()) return true;
+  if(EDITOR_UNLOCKED_MEM) return true;
+  try {
+    return sessionStorage.getItem(EDITOR_UNLOCK_KEY) === EDITOR_PASSWORD_SHA256;
+  } catch(e){
+    return false;
+  }
+}
+function setEditorUnlocked(on){
+  EDITOR_UNLOCKED_MEM = !!on;
+  try {
+    if(on) sessionStorage.setItem(EDITOR_UNLOCK_KEY, EDITOR_PASSWORD_SHA256);
+    else sessionStorage.removeItem(EDITOR_UNLOCK_KEY);
+  } catch(e){}
+  try { document.body.classList.toggle('is-editor-unlocked', !!on); } catch(e){}
+  updateViewerGateUi();
+  updateAllTabLocks();
+}
+async function hashEditorPassword(password){
+  const text = String(password == null ? '' : password);
+  if(typeof crypto !== 'undefined' && crypto.subtle && typeof TextEncoder !== 'undefined'){
+    try {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch(e){ /* fall through to pure JS */ }
+  }
+  return sha256HexPure(text);
+}
+function sha256HexPure(message){
+  // Minimal SHA-256 so unlock works on file:// and other non-secure contexts without SubtleCrypto.
+  function rotr(n, x){ return (x >>> n) | (x << (32 - n)); }
+  function toWords(bytes){
+    const words = [];
+    for(let i=0;i<bytes.length;i++) words[i>>2] = (words[i>>2] || 0) | (bytes[i] << (24 - 8*(i%4)));
+    return words;
+  }
+  const utf8 = unescape(encodeURIComponent(message));
+  const bytes = [];
+  for(let i=0;i<utf8.length;i++) bytes.push(utf8.charCodeAt(i) & 255);
+  const bitLen = bytes.length * 8;
+  bytes.push(0x80);
+  while((bytes.length % 64) !== 56) bytes.push(0);
+  for(let i=7;i>=0;i--) bytes.push((Math.floor(bitLen / Math.pow(2, 8*i))) & 255);
+  const K = [
+    0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+    0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+    0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+    0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+    0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+    0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+    0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+    0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
+  ];
+  let h0=0x6a09e667,h1=0xbb67ae85,h2=0x3c6ef372,h3=0xa54ff53a,h4=0x510e527f,h5=0x9b05688c,h6=0x1f83d9ab,h7=0x5be0cd19;
+  const w = new Array(64);
+  for(let i=0;i<bytes.length;i+=64){
+    const chunk = toWords(bytes.slice(i, i+64));
+    for(let t=0;t<16;t++) w[t] = chunk[t] | 0;
+    for(let t=16;t<64;t++){
+      const s0 = rotr(7,w[t-15]) ^ rotr(18,w[t-15]) ^ (w[t-15] >>> 3);
+      const s1 = rotr(17,w[t-2]) ^ rotr(19,w[t-2]) ^ (w[t-2] >>> 10);
+      w[t] = (w[t-16] + s0 + w[t-7] + s1) | 0;
+    }
+    let a=h0,b=h1,c=h2,d=h3,e=h4,f=h5,g=h6,h=h7;
+    for(let t=0;t<64;t++){
+      const S1 = rotr(6,e) ^ rotr(11,e) ^ rotr(25,e);
+      const ch = (e & f) ^ (~e & g);
+      const temp1 = (h + S1 + ch + K[t] + w[t]) | 0;
+      const S0 = rotr(2,a) ^ rotr(13,a) ^ rotr(22,a);
+      const maj = (a & b) ^ (a & c) ^ (b & c);
+      const temp2 = (S0 + maj) | 0;
+      h=g; g=f; f=e; e=(d + temp1)|0; d=c; c=b; b=a; a=(temp1 + temp2)|0;
+    }
+    h0=(h0+a)|0; h1=(h1+b)|0; h2=(h2+c)|0; h3=(h3+d)|0;
+    h4=(h4+e)|0; h5=(h5+f)|0; h6=(h6+g)|0; h7=(h7+h)|0;
+  }
+  return [h0,h1,h2,h3,h4,h5,h6,h7].map(n => ('00000000'+(n>>>0).toString(16)).slice(-8)).join('');
+}
+async function tryUnlockEditor(password){
+  const hash = await hashEditorPassword(password);
+  if(hash !== EDITOR_PASSWORD_SHA256) return false;
+  setEditorUnlocked(true);
+  return true;
+}
+function lockEditor(){
+  setEditorUnlocked(false);
+  try {
+    if(typeof currentTab === 'function' && currentTab() !== 'reports') showTab('reports');
+  } catch(e){}
+}
+function updateViewerGateUi(){
+  const unlocked = isEditorUnlocked();
+  const status = document.getElementById('viewerGateStatus');
+  const unlockBtn = document.getElementById('viewerUnlockBtn');
+  const lockBtn = document.getElementById('viewerLockBtn');
+  if(status){
+    status.textContent = unlocked
+      ? 'Editing unlocked for this browser tab.'
+      : 'Public view: Reports only. Editing tabs need a password.';
+  }
+  if(unlockBtn){
+    unlockBtn.style.display = (!editorGateActive() || unlocked) ? 'none' : '';
+    unlockBtn.disabled = false;
+  }
+  if(lockBtn){
+    lockBtn.style.display = (editorGateActive() && unlocked) ? '' : 'none';
+    lockBtn.disabled = false;
+  }
+  try { document.body.classList.toggle('is-editor-unlocked', unlocked && editorGateActive()); } catch(e){}
+}
+function openViewerUnlockModal(){
+  try {
+    const err = document.getElementById('viewerUnlockError');
+    if(err) err.textContent = '';
+    const input = document.getElementById('viewerUnlockPassword');
+    if(input) input.value = '';
+    const overlay = document.getElementById('viewerUnlockOverlay');
+    if(overlay && typeof setModalOverlay === 'function'){
+      setModalOverlay('viewerUnlockOverlay', true);
+      if(input) setTimeout(() => { try { input.focus(); } catch(e){} }, 30);
+      return;
+    }
+  } catch(e){
+    console.error(e);
+  }
+  const typed = window.prompt('Editor password:');
+  if(typed == null) return;
+  submitViewerUnlockWithPassword(typed);
+}
+function closeViewerUnlockModal(){
+  try {
+    if(typeof setModalOverlay === 'function') setModalOverlay('viewerUnlockOverlay', false);
+  } catch(e){}
+}
+async function submitViewerUnlockWithPassword(password){
+  const err = document.getElementById('viewerUnlockError');
+  try {
+    const ok = await tryUnlockEditor(password);
+    if(!ok){
+      if(err) err.textContent = 'Wrong password.';
+      else alert('Wrong password.');
+      const input = document.getElementById('viewerUnlockPassword');
+      if(input){ input.focus(); input.select(); }
+      return false;
+    }
+    closeViewerUnlockModal();
+    return true;
+  } catch(e){
+    const msg = 'Unlock failed: ' + (e && e.message ? e.message : String(e));
+    if(err) err.textContent = msg;
+    else alert(msg);
+    console.error(e);
+    return false;
+  }
+}
+async function submitViewerUnlock(){
+  const input = document.getElementById('viewerUnlockPassword');
+  return submitViewerUnlockWithPassword(input ? input.value : '');
+}
+
 function emptyPlannerDb(){
   return {
     students:[], lessons:[], teacherAvail:[], classAvail:[],
@@ -635,6 +810,9 @@ function canSwitchTab(to){
   if(!to) return false;
   if(SEARCH_UI_LOCK && to !== currentTab()) return false;
   if(to === currentTab()) return true;
+  if(editorGateActive() && !isEditorUnlocked()){
+    return to === 'reports';
+  }
   const dirty = pendingAcceptTab();
   if(dirty && to !== dirty) return false;
   if(to === 'oneone' && !canOpenOneOne()) return false;
@@ -645,6 +823,9 @@ function canSwitchTab(to){
 function tabLockReason(to){
   if(SEARCH_UI_LOCK && to !== currentTab()){
     return 'Search is running — wait until it finishes.';
+  }
+  if(editorGateActive() && !isEditorUnlocked() && to !== 'reports'){
+    return 'Public view — unlock editing with the password to open this tab.';
   }
   const dirty = pendingAcceptTab();
   if(dirty && to !== dirty && to !== currentTab()){
@@ -681,6 +862,10 @@ function showTab(tab){
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const to = btn.dataset.tab;
+    if(editorGateActive() && !isEditorUnlocked() && to !== 'reports'){
+      openViewerUnlockModal();
+      return;
+    }
     if(!canSwitchTab(to)){
       alert(tabLockReason(to) || 'Accept this layout first.');
       return;
@@ -4994,7 +5179,7 @@ function fillReportFilterOptions(){
     'All students', REPORT_FILTERS.studentId);
   fillReportSelect(document.getElementById('reportMuclassFilter'),
     muclasses.map(m => ({ value: m, label: m })),
-    'All MUCLASS_TYPE', REPORT_FILTERS.muclass);
+    'All muclass', REPORT_FILTERS.muclass);
   fillReportSelect(document.getElementById('reportRoomFilter'),
     rooms.map(r => ({ value: r.id, label: r.name || r.id })),
     'All rooms', REPORT_FILTERS.roomId);
@@ -6664,12 +6849,19 @@ document.getElementById('exportAcceptedBtn').addEventListener('click', () => {
 });
 
 function downloadFile(filename, content, mime){
-  const blob = content instanceof Blob ? content : new Blob([content], {type: mime || 'text/csv'});
+  const blob = content instanceof Blob ? content : new Blob([content], {type: mime || 'application/octet-stream'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  a.href = url;
+  a.download = filename;
+  a.rel = 'noopener';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    try { document.body.removeChild(a); } catch(e){}
+    try { URL.revokeObjectURL(url); } catch(e){}
+  }, 1500);
 }
 
 // ---------- Save / load the whole working database as JSON ----------
@@ -6678,6 +6870,82 @@ function downloadFile(filename, content, mime){
 // the exact same "bundle everything" / "restore everything" logic, so behaviour never
 // drifts between the two.
 const REQUIRED_DB_KEYS = ['students','lessons','teacherAvail','classAvail','refTeachers','refClasses','refGroups','refInstruments'];
+const PUBLISHED_STATE_FILENAME = 'published-state.json';
+
+function looksLikePlannerExport(obj){
+  return !!(obj && typeof obj === 'object' && REQUIRED_DB_KEYS.every(k => k in obj));
+}
+function setPublishedStateStatus(msg){
+  const el = document.getElementById('publishedStateStatus');
+  if(el) el.textContent = msg || '';
+}
+function publishedStateUrls(){
+  return ['./' + PUBLISHED_STATE_FILENAME, './public/' + PUBLISHED_STATE_FILENAME];
+}
+async function fetchPublishedState(){
+  if(typeof window !== 'undefined' && window.__BJP_HARNESS) return null;
+  for(const url of publishedStateUrls()){
+    try {
+      const res = await fetch(url, {cache: 'no-store'});
+      if(!res || !res.ok) continue;
+      const data = await res.json();
+      if(looksLikePlannerExport(data)) return data;
+    } catch(e){}
+  }
+  return null;
+}
+function downloadPublishedStateFile(){
+  try {
+    const payload = buildFullExportObject();
+    payload.publishedAt = new Date().toISOString();
+    const text = JSON.stringify(payload, null, 1);
+    downloadFile(PUBLISHED_STATE_FILENAME, text, 'application/octet-stream');
+    setPublishedStateStatus('Downloaded ' + PUBLISHED_STATE_FILENAME + ' to your Downloads folder. Put that file next to index.html in the GitHub repo and push.');
+    markWorkClean();
+    alert('Downloaded ' + PUBLISHED_STATE_FILENAME + '.\n\nPut this file next to index.html in the GitHub repo and push. The live site reads that file.');
+  } catch(err){
+    const msg = 'Could not build published-state.json: ' + (err && err.message ? err.message : String(err));
+    setPublishedStateStatus(msg);
+    alert(msg);
+    console.error(err);
+  }
+}
+async function restorePublishedStateFromSite(){
+  const data = await fetchPublishedState();
+  if(!data){
+    setPublishedStateStatus('No ' + PUBLISHED_STATE_FILENAME + ' on this site yet. Download it after Load JSON, then commit the file to GitHub.');
+    return false;
+  }
+  restoreFromLoadedObject(data);
+  markWorkClean();
+  const when = data.publishedAt ? new Date(data.publishedAt).toLocaleString() : '';
+  setPublishedStateStatus(when
+    ? ('Loaded ' + PUBLISHED_STATE_FILENAME + ' from this site (' + when + ').')
+    : ('Loaded ' + PUBLISHED_STATE_FILENAME + ' from this site.'));
+  return true;
+}
+async function bootPublishedOrAutosave(){
+  const published = await fetchPublishedState();
+  let hasAutosave = false;
+  try { hasAutosave = !!localStorage.getItem(AUTOSAVE_KEY); } catch(e){}
+  if(hasAutosave){
+    restoreAutosaveIfAny();
+    if(published){
+      setPublishedStateStatus(PUBLISHED_STATE_FILENAME + ' is on GitHub, but this browser restored its own autosave. Use Reload from GitHub file to show the committed copy.');
+    }
+    return;
+  }
+  if(published){
+    restoreFromLoadedObject(published);
+    WORK_DIRTY = false;
+    const when = published.publishedAt ? new Date(published.publishedAt).toLocaleString() : '';
+    setPublishedStateStatus(when
+      ? ('Opened ' + PUBLISHED_STATE_FILENAME + ' from this site (' + when + ').')
+      : ('Opened ' + PUBLISHED_STATE_FILENAME + ' from this site.'));
+    return;
+  }
+  restoreAutosaveIfAny();
+}
 
 function collectUiState(){
   const activeBtn = document.querySelector('.tab-btn.active');
@@ -6716,12 +6984,16 @@ function applyUiState(ui){
   if(ui.activeTab){
     try {
       let tab = ui.activeTab;
-      const dirty = pendingAcceptTab();
-      if(dirty) tab = dirty;
-      else {
-        if(tab === 'rpiano' && !canOpenRpiano()) tab = canOpenOneOne() ? 'oneone' : 'timetable';
-        if(tab === 'oneone' && !canOpenOneOne()) tab = 'timetable';
-        if(tab === 'reports' && !canOpenReports()) tab = 'timetable';
+      if(editorGateActive() && !isEditorUnlocked()){
+        tab = 'reports';
+      } else {
+        const dirty = pendingAcceptTab();
+        if(dirty) tab = dirty;
+        else {
+          if(tab === 'rpiano' && !canOpenRpiano()) tab = canOpenOneOne() ? 'oneone' : 'timetable';
+          if(tab === 'oneone' && !canOpenOneOne()) tab = 'timetable';
+          if(tab === 'reports' && !canOpenReports()) tab = 'timetable';
+        }
       }
       showTab(tab);
     } catch(e){
@@ -6867,8 +7139,21 @@ function restoreFromLoadedObject(loaded){
 }
 
 document.getElementById('exportDbBtn').addEventListener('click', () => {
-  downloadFile('bartokkonzi_database.json', JSON.stringify(buildFullExportObject(), null, 1), 'application/json');
+  downloadFile('bartokkonzi_database.json', JSON.stringify(buildFullExportObject(), null, 1), 'application/octet-stream');
   markWorkClean();
+});
+document.addEventListener('click', e => {
+  const btn = e.target && e.target.closest && e.target.closest('#publishGithubBtn, #reloadPublishedStateBtn');
+  if(!btn) return;
+  e.preventDefault();
+  if(btn.id === 'publishGithubBtn'){
+    downloadPublishedStateFile();
+    return;
+  }
+  restorePublishedStateFromSite().then(ok => {
+    if(ok) alert('Loaded published-state.json from this site.');
+    else alert('No published-state.json next to index.html yet. Download it, commit it to GitHub, then push.');
+  }).catch(err => alert('Could not load published-state.json: ' + (err && err.message ? err.message : err)));
 });
 document.getElementById('importDbInput').addEventListener('change', (e) => {
   const file = e.target.files[0];
@@ -6878,7 +7163,8 @@ document.getElementById('importDbInput').addEventListener('change', (e) => {
     try {
       restoreFromLoadedObject(JSON.parse(reader.result));
       markWorkClean();
-      alert('Database loaded — tables, smallGroups, timetable, search log, quotas, and UI state were all restored exactly as saved.');
+      setPublishedStateStatus('JSON loaded in this browser only. Click “published-state.json for GitHub”, then commit that file so the live site shows it.');
+      alert('Database loaded in this browser. It is not on GitHub until you download published-state.json and push that file to the repo.');
     } catch(err){
       alert('Could not read that file: ' + err.message);
     }
@@ -10972,13 +11258,16 @@ function canOpenOneOne(){
   return isTimetableAccepted();
 }
 function canOpenReports(){
-  return isTimetableAccepted() || hasAcceptedOneOne() || hasAcceptedRpiano();
+  if(editorGateActive() && !isEditorUnlocked()) return true;
+  if(isTimetableAccepted() || hasAcceptedOneOne() || hasAcceptedRpiano()) return true;
+  return (DB.acceptedSchedule || []).some(r => r && r.status === 'scheduled');
 }
 function updateAllTabLocks(){
   document.querySelectorAll('.tab-btn').forEach(btn => {
     const tab = btn.dataset.tab;
     const ok = SEARCH_UI_LOCK ? false : canSwitchTab(tab);
     btn.classList.toggle('is-locked', !ok);
+    btn.classList.toggle('is-viewer-locked', !!(editorGateActive() && !isEditorUnlocked() && tab !== 'reports'));
     btn.setAttribute('aria-disabled', ok ? 'false' : 'true');
     const reason = SEARCH_UI_LOCK
       ? 'Search is running — wait until it finishes.'
@@ -10989,6 +11278,7 @@ function updateAllTabLocks(){
     else if(tab === 'reports') btn.title = 'Filter the week calendar';
     else btn.removeAttribute('title');
   });
+  updateViewerGateUi();
 }
 function updateOneOneTabLock(){ updateAllTabLocks(); }
 function updateRpianoTabLock(){ updateAllTabLocks(); }
@@ -11927,16 +12217,35 @@ if(reportBatchGoBtn) reportBatchGoBtn.addEventListener('click', runReportBatchEx
 window.addEventListener('pagehide', flushAutosave);
 window.addEventListener('beforeunload', flushAutosave);
 
+document.addEventListener('click', e => {
+  const t = e.target && e.target.closest && e.target.closest('#viewerUnlockBtn, #viewerLockBtn, #viewerUnlockCancelBtn, #viewerUnlockSubmitBtn');
+  if(!t) return;
+  e.preventDefault();
+  if(t.id === 'viewerUnlockBtn'){ openViewerUnlockModal(); return; }
+  if(t.id === 'viewerLockBtn'){ lockEditor(); return; }
+  if(t.id === 'viewerUnlockCancelBtn'){ closeViewerUnlockModal(); return; }
+  if(t.id === 'viewerUnlockSubmitBtn'){ submitViewerUnlock(); }
+});
+document.addEventListener('keydown', e => {
+  if(e.key !== 'Enter') return;
+  const input = e.target && e.target.id === 'viewerUnlockPassword' ? e.target : null;
+  if(!input) return;
+  e.preventDefault();
+  submitViewerUnlock();
+});
+document.addEventListener('click', e => {
+  if(e.target && e.target.id === 'viewerUnlockOverlay') closeViewerUnlockModal();
+});
+
 // ---------- Init ----------
-try {
-  restoreAutosaveIfAny();
-renderStudents();
-renderLessons();
-renderAvail();
-renderCAvail();
-renderRefTables();
-renderBreaksTable();
-renderAcceptedStatus();
+function runPlannerBootRenders(){
+  renderStudents();
+  renderLessons();
+  renderAvail();
+  renderCAvail();
+  renderRefTables();
+  renderBreaksTable();
+  renderAcceptedStatus();
   renderAcceptedSchedule();
   updateFixedPinsBanner();
   updatePhase1TeacherOrderBtn();
@@ -11946,7 +12255,22 @@ renderAcceptedStatus();
   updateAutosaveStatus();
   renderOneOneTab();
   renderRpianoTab();
-  if(dbLooksEmpty()) showTab('cloud');
+  updateViewerGateUi();
+  if(editorGateActive() && !isEditorUnlocked()){
+    showTab('reports');
+  } else if(dbLooksEmpty()){
+    showTab('cloud');
+  } else {
+    updateAllTabLocks();
+  }
+}
+try {
+  if(typeof window !== 'undefined' && window.__BJP_HARNESS){
+    restoreAutosaveIfAny();
+    runPlannerBootRenders();
+  } else {
+    bootPublishedOrAutosave().then(runPlannerBootRenders).catch(showBootError);
+  }
 } catch(e){
   showBootError(e);
 }
