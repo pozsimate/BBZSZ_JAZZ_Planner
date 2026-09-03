@@ -55,8 +55,41 @@ function main(){
     lessonIds.join(','));
 
   console.log('\n== Accept follows the small group id, not the slot ==');
-  api.DB = JSON.parse(JSON.stringify(seed));
-  api.LAST_SMALL_GROUPS = api.generateSmallGroups(4);
+  const sgToy = {
+    students: [
+      {ID:'S1', NAME1:'Ann', NAME2:'A', CLASS_ID:'C1', CLASS:'9a', IMPR_ID:'G1', INSTR_ID:'I1'},
+      {ID:'S2', NAME1:'Bob', NAME2:'B', CLASS_ID:'C1', CLASS:'9a', INSTR_ID:'I2'},
+      {ID:'S3', NAME1:'Cat', NAME2:'C', CLASS_ID:'C1', CLASS:'9a', INSTR_ID:'I3'},
+      {ID:'S4', NAME1:'Dan', NAME2:'D', CLASS_ID:'C1', CLASS:'9a', INSTR_ID:'I4'}
+    ],
+    lessons: [],
+    teacherAvail: [{teacherId:'T1', teacher:'Tea', day:'MON', start:'14:00', end:'16:00', type:'AVAILABLE'}],
+    classAvail: [{classId:'C1', class:'9a', day:'MON', start:'08:00', end:'14:00'}],
+    refTeachers: [{id:'T1', name:'Tea'}],
+    refClasses: [{id:'C1', name:'9a', muclass:'9'}],
+    refGroups: [{id:'G1', name:'imprA', type:'IMPR'}],
+    refInstruments: [
+      {id:'I1', name:'bassg', type:'bass'},{id:'I2', name:'drum', type:'drum'},
+      {id:'I3', name:'piano', type:'acc'},{id:'I4', name:'sax', type:'sol'}
+    ],
+    refRooms: [{id:'ROOM1', name:'321'}],
+    smallGroupQuotas: [{teacherId:'T1', amount:2}],
+    breaks: [], oneToOne: {columns:[], hours:{}}, rpiano: {columns:[], hours:{}}, acceptedSchedule: []
+  };
+  api.DB = JSON.parse(JSON.stringify(sgToy));
+  api.LAST_SMALL_GROUPS = {
+    smallGroups: [{
+      id:'SG1',
+      bass:[{ID:'S1', NAME1:'Ann', NAME2:'A', CLASS_ID:'C1', INSTR_ID:'I1'}],
+      drum:[{ID:'S2', NAME1:'Bob', NAME2:'B', CLASS_ID:'C1', INSTR_ID:'I2'}],
+      acc:[{ID:'S3', NAME1:'Cat', NAME2:'C', CLASS_ID:'C1', INSTR_ID:'I3'}],
+      sol:[{ID:'S4', NAME1:'Dan', NAME2:'D', CLASS_ID:'C1', INSTR_ID:'I4'}],
+      teacherId:'T1', roomId:'', room:'', duration:90,
+      fixedDay:'', fixedStart:'', fixedEnd:''
+    }],
+    excluded: [],
+    nextSmallGroupSeq: 2
+  };
   const result = api.runScheduler(false);
   api.LAST_RESULT = result;
   const placedSmallGroup = result.scheduled.find(s => isSmallGroupId(s.lessonId));

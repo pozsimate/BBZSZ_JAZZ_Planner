@@ -73,7 +73,11 @@ function toyStudents(){
 
 function main(){
   console.log('Loading app into harness…');
-  const {api, seed} = loadApp();
+  const {api, seed, root} = loadApp();
+  const appSrc = fs.readFileSync(path.join(root, 'src/app.js'), 'utf8');
+
+  ok('rpiano generate progress uses attemptsN (not undefined attempts)',
+    /setSearchLiveProgress\(0, attemptsN, searchLiveIndividualCount\(0, attemptsN/.test(appSrc));
 
   ['rpianoAoa','busyRowsFromScheduled','hasAcceptedOneOne','acceptOneOneSchedule','hasAcceptedRpiano','acceptRpianoSchedule','individualAcceptedRows','individualTeacherIds','scheduleAllOneToOne','canOpenRpiano','isTimetableAccepted'
   ].forEach(name => {
@@ -175,11 +179,19 @@ function main(){
   ok('1/1 drag / un-accept keeps piano on file', api.hasAcceptedRpiano() === true);
   ok('1/1 un-accept locks piano tab', api.canOpenRpiano() === false);
   api.acceptOneOneSchedule();
-  ok('re-Accept 1/1 keeps piano (Generate 1/1 is what drops it)',
+  ok('re-Accept 1/1 keeps piano',
     api.hasAcceptedRpiano() === true && api.LAST_RPIANO != null);
   api.applyIndividualSearch('oneone', [{scheduled: api.LAST_ONEONE.scheduled, unresolved: []}], '');
   api.acceptOneOneSchedule();
-  ok('Generate 1/1 drops Required Piano', api.LAST_RPIANO == null && api.hasAcceptedRpiano() === false);
+  ok('Generate 1/1 with same slots keeps Required Piano',
+    api.LAST_RPIANO != null && api.hasAcceptedRpiano() === true);
+  api.LAST_RPIANO = {scheduled: [{teacherId:'T1', studentId:'S1', day:'MON', start:11*60, end:12*60}], unresolved:[], accepted:true};
+  api.LAST_ONEONE = null;
+  api.applyIndividualSearch('oneone', [{scheduled: [{teacherId:'T1', studentId:'S1', day:'MON', start:11*60, end:12*60}], unresolved: []}], '', 'T1');
+  ok('Generate 1/1 that clashes keeps Required Piano',
+    api.LAST_RPIANO != null && api.hasAcceptedRpiano() === true);
+  ok('Generate 1/1 that clashes is reported',
+    api.collectOneOneRpianoClashes(api.LAST_ONEONE.scheduled, api.LAST_RPIANO.scheduled).length >= 1);
 
   console.log('\n== piano packs around accepted groups + 1/1 ==');
   api.DB = clone(seed);
@@ -270,6 +282,19 @@ function main(){
       s.teacherId === 'T1' && s.day === pianoT1.day && s.start === pianoT1.start));
   ok('second piano teacher is placed',
     (api.LAST_RPIANO.scheduled || []).some(s => s.teacherId === 'T2'));
+
+  console.log('\n== generate two piano teachers at once ==');
+  api.LAST_RPIANO = null;
+  const both = api.generateIndividualScoped('rpiano', ['T1', 'T2']);
+  api.applyIndividualSearch('rpiano', both.variants, ['T1', 'T2'], ['T1', 'T2']);
+  ok('multi-teacher piano generate places T1',
+    (api.LAST_RPIANO.scheduled || []).some(s => s.teacherId === 'T1'));
+  ok('multi-teacher piano generate places T2',
+    (api.LAST_RPIANO.scheduled || []).some(s => s.teacherId === 'T2'));
+  ok('multi-teacher view ids saved',
+    Array.isArray(api.LAST_RPIANO.viewTeacherIds)
+    && api.LAST_RPIANO.viewTeacherIds.includes('T1')
+    && api.LAST_RPIANO.viewTeacherIds.includes('T2'));
 
   console.log(`\n${passed} passed, ${failed} failed`);
   if(failures.length){

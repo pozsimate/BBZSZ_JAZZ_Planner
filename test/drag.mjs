@@ -296,7 +296,7 @@ function testCalendarHtml(api){
   api.renderCalendar(container, items, true);
   const html = container.innerHTML;
   ok('renders both lesson ids', html.includes('data-lesson-id="L1"') && html.includes('data-lesson-id="L2"'));
-  ok('conflict class on overlapping blocks', (html.match(/cal-block has-conflict/g) || []).length === 2, html.slice(0, 400));
+  ok('conflict class on overlapping blocks', (html.match(/has-conflict/g) || []).length === 2, html.slice(0, 400));
   ok('five day columns', (html.match(/cal-day-body/g) || []).length === 5);
   ok('times shown', html.includes('08:00') && html.includes('09:00'));
 }
@@ -517,7 +517,8 @@ function testDropHandler(api){
   seedDrag({active:true, hover:{day:'FRI', start:15*60}});
   api.endCalendarDrag(true);
   api.resetVariantDrags();
-  ok('reset restores generated Monday 08:00 after two drags', scheduled[0].day === 'MON' && scheduled[0].start === 8*60 && scheduled[0].end === 9*60);
+  ok('reset restores generated Monday 08:00 after two drags',
+    scheduled[0].day === 'MON' && scheduled[0].start === 8*60 && scheduled[0].end === 9*60);
   ok('reset clears undo stack', api.LAST_RESULT.dragUndo.length === 0);
 
   const other = {scheduled: clone(scheduled), unresolved: []};
@@ -527,6 +528,66 @@ function testDropHandler(api){
   api.LAST_VARIANTS = [api.LAST_RESULT, other];
   api.resetVariantDrags();
   ok('reset only touches the active variant', other.scheduled[0].day === 'TUE' && other.scheduled[0].start === 10*60);
+
+  console.log('\n== right-click delete removes group lesson from layout ==');
+  installFixture(api);
+  const delA = place({lessonId:'L1', name:'Piano', groupId:'G1', teacherId:'T1', teacher:'Tea', day:'MON', start:8*60, end:9*60});
+  const delB = place({lessonId:'L2', name:'Theory', groupId:'G2', teacherId:'T1', teacher:'Tea', day:'MON', start:8*60, end:9*60});
+  api.LAST_RESULT = {scheduled: [delA, delB], unresolved: [], dragUndo: []};
+  api.ensureDragBaseline(api.LAST_RESULT);
+  const clashBefore = api.auditTimetable(api.LAST_RESULT.scheduled);
+  ok('two overlapping same-teacher lessons clash before delete',
+    (clashBefore.entries || []).some(e => e.level !== 'warning') || clashBefore.conflictIds.size > 0,
+    clashBefore.issues && clashBefore.issues.slice(0, 3).join(' | '));
+  ok('group lesson is deletable', api.groupCalendarLessonDeletable(delA));
+  ok('delete removes lesson from layout', api.removeGroupLessonsFromLayout(['L2']) === true);
+  ok('deleted lesson gone from scheduled',
+    api.LAST_RESULT.scheduled.length === 1 && api.LAST_RESULT.scheduled[0].lessonId === 'L1');
+  ok('delete clears the teacher overlap',
+    !(api.auditTimetable(api.LAST_RESULT.scheduled).entries || []).some(e => e.level !== 'warning'
+      && /overlap|teacher/i.test(String(e.html || ''))));
+  ok('delete needs Accept again', api.LAST_RESULT.accepted === false);
+  ok('delete is on the undo stack', (api.LAST_RESULT.dragUndo || []).some(s => s.type === 'delete'));
+  api.undoLastDrag();
+  ok('undo restores deleted lesson',
+    api.LAST_RESULT.scheduled.length === 2
+    && api.LAST_RESULT.scheduled.some(s => s.lessonId === 'L2'));
+  api.removeGroupLessonsFromLayout(['L2']);
+  api.resetVariantDrags();
+  ok('reset restores deleted lesson from baseline',
+    api.LAST_RESULT.scheduled.length === 2
+    && api.LAST_RESULT.scheduled.some(s => s.lessonId === 'L2'));
+}
+
+function testVariantSwitchAccept(api){
+  console.log('\n== switching group variant re-opens Accept and Accept replaces the freeze ==');
+  installFixture(api);
+  const v0 = {
+    scheduled: [place({lessonId:'L1', name:'Piano', groupId:'G1', teacherId:'T1', teacher:'Tea', day:'MON', start:8*60, end:9*60})],
+    unresolved: []
+  };
+  const v1 = {
+    scheduled: [place({lessonId:'L1', name:'Piano', groupId:'G1', teacherId:'T1', teacher:'Tea', day:'TUE', start:10*60, end:11*60})],
+    unresolved: []
+  };
+  api.LAST_VARIANTS = [v0, v1];
+  api.LAST_RESULT = v0;
+  api.acceptTimetableSchedule();
+  ok('variant 0 is accepted', api.timetableVariantShowsAccepted(v0));
+  ok('1/1 opens on accepted variant 0', api.canOpenOneOne() === true);
+
+  api.selectGroupVariant(1);
+  ok('switch selects variant 1', api.LAST_RESULT === v1);
+  ok('variant 1 is not accepted yet', api.timetableVariantShowsAccepted(v1) === false);
+  ok('Accept is needed after switching variant', api.layoutNeedsAccept('timetable') === true);
+  ok('1/1 locks until the new variant is accepted', api.canOpenOneOne() === false);
+
+  api.acceptTimetableSchedule();
+  ok('variant 1 is accepted after Accept', api.timetableVariantShowsAccepted(v1));
+  ok('accepted table follows variant 1 Tuesday slot',
+    (api.DB.acceptedSchedule || []).some(r => r.lessonId === 'L1' && r.day === 'TUE' && r.start === '10:00'));
+  ok('variant 0 is no longer marked accepted', api.timetableVariantShowsAccepted(v0) === false);
+  ok('1/1 opens on newly accepted variant', api.canOpenOneOne() === true);
 }
 
 function testDragReopensAccept(api){
@@ -537,7 +598,7 @@ function testDragReopensAccept(api){
   ];
   api.LAST_RESULT = {scheduled, unresolved: []};
   api.acceptTimetableSchedule();
-  ok('Accept this schedule flags the grid as accepted', api.LAST_RESULT.accepted === true);
+  ok('Accept this schedule flags the grid as accepted', api.timetableVariantShowsAccepted(api.LAST_RESULT));
   ok('accepted table is Monday 08:00',
     (api.DB.acceptedSchedule || []).some(r => r.lessonId === 'L1' && r.day === 'MON' && r.start === '08:00'));
 
@@ -559,7 +620,7 @@ function testDragReopensAccept(api){
 
   api.acceptTimetableSchedule();
   ok('re-accept freezes Thursday 11:00',
-    api.LAST_RESULT.accepted === true
+    api.timetableVariantShowsAccepted(api.LAST_RESULT)
     && (api.DB.acceptedSchedule || []).some(r => r.lessonId === 'L1' && r.day === 'THU' && r.start === '11:00'));
   ok('re-accept unlocks 1/1 tab', api.canOpenOneOne() === true);
 
@@ -688,7 +749,7 @@ function testFrozenTimetableAudit(api){
   api.renderCalendar(container, [group], true);
   ok('Timetable grid does not draw the 1/1 block', !container.innerHTML.includes('O2O-T2-S1'));
   ok('group lesson is still draggable', /data-lesson-id="L1"[^>]*data-draggable="1"/.test(container.innerHTML));
-  ok('group still highlights from the frozen 1/1 clash', /cal-block has-conflict/.test(container.innerHTML));
+  ok('group still highlights from the frozen 1/1 clash', /has-conflict/.test(container.innerHTML));
 }
 
 function testSmallGroupMemberLookup(api){
@@ -713,10 +774,74 @@ function testSmallGroupMemberLookup(api){
   ok('piano vs small group sharing Anna is a student overlap', auditKinds(audit).has('studentOverlap'), audit.issues.join(' | '));
 }
 
+function testRefreshPlacedLessonContent(api){
+  console.log('\n== refresh copies roster/teacher/room onto placed group lessons without moving times ==');
+  installFixture(api);
+  const placed = place({
+    lessonId:'L1', name:'Piano', group:'imprA', groupId:'G1', teacherId:'T1', teacher:'Tea',
+    day:'WED', start:14*60, end:15*60, roomId:'ROOM1', room:'321',
+    studentCount:1, studentNames:['Anna A']
+  });
+  api.LAST_RESULT = {scheduled:[placed], unresolved:[], accepted:true, dragUndo:[], dragBaseline:[clone(placed)]};
+  api.LAST_VARIANTS = [api.LAST_RESULT];
+  api.DB.lessons[0].name = 'Improv 9';
+  api.DB.lessons[0].teacherId = 'T2';
+  api.DB.lessons[0].teacher = 'Two';
+  api.DB.lessons[0].roomId = '';
+  api.DB.lessons[0].room = '';
+  api.DB.lessons[0].duration = 90;
+  api.DB.students[1].IMPR_ID = 'G1';
+  const n = api.refreshPlacedGroupLessonContent();
+  ok('refresh reports the placed block', n.updated === 1, JSON.stringify(n));
+  ok('day did not change', placed.day === 'WED');
+  ok('start did not change', placed.start === 14*60);
+  ok('end did not change even if duration changed', placed.end === 15*60);
+  ok('title came from Lesson groups', placed.name === 'Improv 9');
+  ok('teacher came from Lesson groups', placed.teacherId === 'T2' && placed.teacher === 'Two');
+  ok('room cleared from Lesson groups', !placed.roomId);
+  ok('roster picked up the extra student', placed.studentCount === 2 && placed.studentNames.includes('Bela B'), JSON.stringify(placed.studentNames));
+  ok('refresh needs Accept again', api.LAST_RESULT.accepted === false);
+  ok('drag baseline names also refreshed so Reset keeps the new roster',
+    api.LAST_RESULT.dragBaseline[0].name === 'Improv 9' && api.LAST_RESULT.dragBaseline[0].day === 'WED');
+
+  const again = api.refreshPlacedGroupLessonContent();
+  ok('second refresh is a no-op', again.updated === 0);
+
+  api.LAST_SMALL_GROUPS = {
+    smallGroups: [{
+      id:'SG1',
+      bass: [{ID:'S1', NAME1:'Anna', NAME2:'A', CLASS_ID:'C1', CLASS:'9a'}],
+      drum: [], acc: [], sol: [],
+      teacherId:'', duration:90, roomId:'ROOM1', room:'321',
+      fixedDay:'', fixedStart:'', fixedEnd:'',
+    }],
+    excluded: [], appearances: {}, eligibleCount: 1,
+  };
+  const sgPlaced = place({
+    lessonId:'SG1', name:'Small Group 1 rehearsal', group:'SMALLGROUP', teacherId:'T2', teacher:'Two',
+    day:'FRI', start:16*60, end:17*60+30, roomId:'', room:'',
+    studentCount:1, studentNames:['Anna A']
+  });
+  api.LAST_RESULT = {scheduled:[sgPlaced], unresolved:[], accepted:true};
+  api.LAST_VARIANTS = [api.LAST_RESULT];
+  api.LAST_SMALL_GROUPS.smallGroups[0].bass.push({ID:'S2', NAME1:'Bela', NAME2:'B', CLASS_ID:'C1', CLASS:'9a'});
+  api.LAST_SMALL_GROUPS.smallGroups[0].teacherId = '';
+  api.refreshPlacedGroupLessonContent();
+  ok('auto-matched small group keeps the scheduler teacher', sgPlaced.teacherId === 'T2' && sgPlaced.teacher === 'Two');
+  ok('small group slot stayed put', sgPlaced.day === 'FRI' && sgPlaced.start === 16*60 && sgPlaced.end === 17*60+30);
+  ok('small group roster refreshed', sgPlaced.studentCount === 2 && sgPlaced.studentNames.includes('Bela B'), JSON.stringify(sgPlaced.studentNames));
+  ok('small group room refreshed', sgPlaced.roomId === 'ROOM1');
+
+  api.LAST_SMALL_GROUPS.smallGroups[0].teacherId = 'T1';
+  api.refreshPlacedGroupLessonContent();
+  ok('teacher override on the Small Groups card replaces the placed teacher', sgPlaced.teacherId === 'T1' && sgPlaced.teacher === 'Tea');
+  ok('override still does not move the block', sgPlaced.day === 'FRI' && sgPlaced.start === 16*60);
+}
+
 function main(){
   console.log('Loading app into harness…');
   const {api, seed} = loadApp();
-  const needed = ['auditTimetable','snapMinutes','clampLessonStart','startFromPointerY','hitCalendarDay','renderCalendar','buildFullExportObject','buildTimetableIcs','timetableAuditItems','frozenIndividualItems','studentsForScheduledItem'];
+  const needed = ['auditTimetable','snapMinutes','clampLessonStart','startFromPointerY','hitCalendarDay','renderCalendar','buildFullExportObject','buildTimetableIcs','timetableAuditItems','frozenIndividualItems','studentsForScheduledItem','refreshPlacedGroupLessonContent'];
   needed.forEach(name => {
     if(typeof api[name] !== 'function'){
       failed++;
@@ -735,8 +860,10 @@ function main(){
   testSavePaths(api);
   testDropHandler(api);
   testDragReopensAccept(api);
+  testVariantSwitchAccept(api);
   testFrozenTimetableAudit(api);
   testSmallGroupMemberLookup(api);
+  testRefreshPlacedLessonContent(api);
   testSeedGenerateAndFuzz(api, seed);
 
   console.log(`\n${passed} passed, ${failed} failed`);

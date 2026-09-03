@@ -563,12 +563,11 @@ function main(){
       for(let j = i + 1; j < list.length; j++){
         const a = list[i], b = list[j];
         if(a.day !== b.day) continue;
-        const flush = a.end === b.start || b.end === a.start;
-        if(!flush) splitSameDay.push(`${a.studentId}×${teacherName(api.DB, a.teacherId)} ${a.day}`);
+        splitSameDay.push(`${a.studentId}×${teacherName(api.DB, a.teacherId)} ${a.day}`);
       }
     }
   });
-  ok('split sessions for the same cell are on different days (or flush as one lesson)',
+  ok('split sessions for the same cell are on different days (flush slices fuse into one lesson)',
     splitSameDay.length === 0, splitSameDay.slice(0, 6).join(' | '));
 
   const validErr = checkScheduledValid(api.DB, accepted, result.scheduled);
@@ -649,7 +648,7 @@ function main(){
   const ids = result.scheduled.map(s => s.lessonId);
   ok('1/1 lesson ids are unique', new Set(ids).size === ids.length);
 
-  api.LAST_ONEONE = {viewTeacherId: result.scheduled[0] && result.scheduled[0].teacherId, scheduled: result.scheduled, unresolved: result.unresolved};
+  api.LAST_ONEONE = {viewTeacherIds: [result.scheduled[0] && result.scheduled[0].teacherId].filter(Boolean), scheduled: result.scheduled, unresolved: result.unresolved};
   const dumped = api.buildFullExportObject();
   ok('full JSON export keeps placed 1/1',
     dumped.oneToOneState && dumped.oneToOneState.scheduled.length === result.scheduled.length);

@@ -92,6 +92,23 @@ async function main(){
   ok('1.5 cell becomes 90-minute job',
     jobs.some(j => j.studentId==='S1' && j.teacherId==='TEAC3' && j.duration===90));
 
+  console.log('\n== matrix header lists every ref teacher ==');
+  api.DB.refTeachers = [
+    {id:'TEAC1', name:'Csuhaj'},
+    {id:'TEAC2', name:'Pozsar'},
+    {id:'TEAC3', name:'Pal'}
+  ];
+  api.DB.oneToOne = {
+    columns: [{id:'TEAC1', name:'Csuhaj'}],
+    hours: {S1: {TEAC1: 1}}
+  };
+  api.setOneOneHours('S1', 'TEAC1', '1');
+  ok('columns keep Drive order then append teachers with no hours',
+    api.DB.oneToOne.columns.map(c => c.id).join(',') === 'TEAC1,TEAC2,TEAC3',
+    api.DB.oneToOne.columns.map(c => c.id).join(','));
+  ok('empty teacher column has no filled cells',
+    !api.collectOneOneAssignments(api.DB.oneToOne).some(j => j.teacherId === 'TEAC2'));
+
   const rooms = [{id:'ROOM1', name:'321'}, {id:'ROOM2', name:'Drum'}];
   const withLock = api.parseOneToOneTable([
     {STUDENT_ID:'ROOM_LOCK', CSUHAJ:'321', PAL:''},
@@ -506,11 +523,11 @@ async function main(){
       : 'no layouts');
 
   console.log('\n== JSON export keeps the 1/1 state ==');
-  api.LAST_ONEONE = {viewTeacherId: 'T1', scheduled: even.scheduled, unresolved: []};
+  api.LAST_ONEONE = {viewTeacherIds: ['T1'], scheduled: even.scheduled, unresolved: []};
   api.DB.oneToOne = {columns: [{id:'T1', name:'One'}], hours: {S1: {T1: 1}}};
   const dumped = api.buildFullExportObject();
   ok('oneToOneState is in the full export',
-    dumped.oneToOneState && dumped.oneToOneState.viewTeacherId === 'T1',
+    dumped.oneToOneState && dumped.oneToOneState.viewTeacherIds && dumped.oneToOneState.viewTeacherIds[0] === 'T1',
     dumped.oneToOneState ? JSON.stringify(dumped.oneToOneState) : 'missing');
   ok('oneToOne matrix is in the full export',
     dumped.oneToOne && dumped.oneToOne.hours && dumped.oneToOne.hours.S1 && dumped.oneToOne.hours.S1.T1 === 1);
@@ -532,21 +549,22 @@ async function main(){
   api.LAST_RESULT.accepted = false;
   ok('unaccepted grid locks 1/1 even if freeze exists', api.hasAcceptedRecord() && api.canOpenOneOne() === false);
 
-  console.log('\n== split catalog: 60 → 2×30, 90 → 2×45 or 60+30, 120 → 2×60, 30 stays ==');
-  ok('90 splits to 45+45 then 60+30',
-    api.oneOneSplitPlans(90).map(p => p.join('+')).join('|') === '45+45|60+30|30+60',
-    JSON.stringify(api.oneOneSplitPlans(90)));
+  console.log('\n== split catalog: 120 → 2×60; 60/90 stay; piano 90 may split ==');
+  ok('1/1 90 does not split', api.oneOneSplitPlans(90).length === 0);
+  ok('piano 90 may also use 60+30',
+    api.oneOneSplitPlans(90, 'rpiano').map(p => p.join('+')).join('|') === '45+45|60+30|30+60',
+    JSON.stringify(api.oneOneSplitPlans(90, 'rpiano')));
   ok('120 splits to 60+60',
     api.oneOneSplitPlans(120).length === 1 && api.oneOneSplitPlans(120)[0].join('+') === '60+60',
     JSON.stringify(api.oneOneSplitPlans(120)));
-  ok('60 splits to 30+30',
-    api.oneOneSplitPlans(60).length === 1 && api.oneOneSplitPlans(60)[0].join('+') === '30+30',
-    JSON.stringify(api.oneOneSplitPlans(60)));
+  ok('1/1 60 does not split', api.oneOneSplitPlans(60).length === 0);
+  ok('Required Piano 60 does not split', api.oneOneSplitPlans(60, 'rpiano').length === 0);
   ok('30 does not split', api.oneOneSplitPlans(30).length === 0);
   ok('180 does not split', api.oneOneSplitPlans(180).length === 0);
   ok('45 does not split', api.oneOneSplitPlans(45).length === 0);
-  ok('halves 60 → 30+30', api.oneOneHalves(60).join('+') === '30+30');
-  ok('halves 90 → 45+45', api.oneOneHalves(90).join('+') === '45+45');
+  ok('halves 1/1 60 is none', api.oneOneHalves(60) == null);
+  ok('halves piano 60 is none', api.oneOneHalves(60, 'rpiano') == null);
+  ok('halves 1/1 90 is none', api.oneOneHalves(90) == null);
   ok('halves 120 → 60+60', api.oneOneHalves(120).join('+') === '60+60');
   ok('halves 180 is none', api.oneOneHalves(180) == null);
   ok('halves 30 is none', api.oneOneHalves(30) == null);
@@ -598,7 +616,7 @@ async function main(){
     && (split2.scheduled[0].day !== split2.scheduled[1].day
       || !overlaps(split2.scheduled[0], split2.scheduled[1])));
 
-  console.log('\n== 1.5-hour cell splits into two 45s when no 90 hole exists ==');
+  console.log('\n== 1.5-hour 1/1 stays unsplit when no 90 hole exists ==');
   installToy(api, seed, {
     teacherAvail: [
       {teacherId: 'T1', day: 'MON', start: '08:00', end: '16:00', type: 'AVAILABLE'},
@@ -615,14 +633,13 @@ async function main(){
     hours: {S1: {T1: 1.5}}
   };
   const split15 = api.scheduleAllOneToOne({matrix: api.DB.oneToOne, acceptedRows: []});
-  ok('places 1.5 hours as two 45-min leftover sessions on different days',
-    split15.unresolved.length === 0 && api.oneOneCoverageCount(split15) === 1 && split15.scheduled.length === 2
-    && split15.scheduled.every(s => (s.end - s.start) === 45)
-    && split15.scheduled[0].day !== split15.scheduled[1].day,
+  ok('1.5-hour 1/1 stays unresolved when only 45-min holes exist',
+    split15.unresolved.length === 1 && split15.scheduled.length === 0
+    && split15.unresolved.some(u => u.studentId === 'S1'),
     split15.scheduled.map(s => `${s.day} ${api.toHHMM(s.start)}–${api.toHHMM(s.end)}`).join('; ')
     + ` unresolved=${split15.unresolved.length}`);
 
-  console.log('\n== 1-hour leftover splits to 2×30; 3-hour does not split ==');
+  console.log('\n== 1/1 60 does not split to 2×30; 3-hour does not split ==');
   installToy(api, seed, {
     teacherAvail: [
       {teacherId: 'T1', day: 'MON', start: '08:00', end: '16:00', type: 'AVAILABLE'},
@@ -637,7 +654,7 @@ async function main(){
     hours: {S1: {T1: 1}, S2: {T1: 3}}
   };
   const noSplit = api.scheduleAllOneToOne({matrix: api.DB.oneToOne, acceptedRows: []});
-  ok('1-hour cell is left out when no 60-min hole and 30s cannot sit flush',
+  ok('1/1 60 is left out when no 60-min hole (no 2×30 fallback)',
     noSplit.unresolved.some(u => u.studentId === 'S1')
     && !noSplit.scheduled.some(s => s.studentId === 'S1'),
     noSplit.scheduled.map(s => `${s.studentId} ${s.end-s.start}`).join('; ')
@@ -684,12 +701,20 @@ async function main(){
   });
   api.DB.oneToOne = {columns: [{id:'T1', name:'One'}], hours: {S1: {T1: 1}}};
   const half60 = api.scheduleAllOneToOne({matrix: api.DB.oneToOne, acceptedRows: []});
-  ok('unplaced 60 is split to 30+30 on different days',
-    half60.unresolved.length === 0 && half60.scheduled.length === 2
-    && half60.scheduled.every(s => (s.end - s.start) === 30)
-    && half60.scheduled[0].day !== half60.scheduled[1].day,
+  ok('unplaced 1/1 60 stays unresolved instead of 30+30',
+    half60.unresolved.length === 1 && half60.scheduled.length === 0
+    && half60.unresolved[0].studentId === 'S1',
     half60.scheduled.map(s => `${s.day} ${api.toHHMM(s.start)}–${api.toHHMM(s.end)}`).join('; ')
     + ` unresolved=${half60.unresolved.length}`);
+  api.DB.rpiano = {columns: [{id:'T1', name:'One'}], hours: {S1: {T1: 1}}};
+  const pianoHalf60 = api.scheduleAllOneToOne({
+    matrix: api.DB.rpiano, acceptedRows: [], source: 'rpiano', lessonLabel: 'piano', idPrefix: 'RP'
+  });
+  ok('unplaced Required Piano 60 stays unresolved instead of 30+30',
+    pianoHalf60.unresolved.length === 1 && pianoHalf60.scheduled.length === 0
+    && pianoHalf60.unresolved[0].studentId === 'S1',
+    pianoHalf60.scheduled.map(s => `${s.day} ${api.toHHMM(s.start)}–${api.toHHMM(s.end)}`).join('; ')
+    + ` unresolved=${pianoHalf60.unresolved.length}`);
 
   installToy(api, seed, {
     teacherAvail: [
@@ -733,13 +758,14 @@ async function main(){
       }
     }
   });
-  ok('round 2 keeps placed 90s and only splits the leftover 60',
-    halfPool.unresolved.length === 0 && api.oneOneCoverageCount(halfPool) === 3
+  ok('round 2 keeps placed 90s and leaves the leftover 1/1 60 unsplit',
+    halfPool.unresolved.length === 1 && api.oneOneCoverageCount(halfPool) === 2
     && (halfByStu.S1 || []).length === 1 && (halfByStu.S1 || [])[0].duration === 90
     && (halfByStu.S2 || []).length === 1 && (halfByStu.S2 || [])[0].duration === 90
-    && (halfByStu.S3 || []).length === 2 && (halfByStu.S3 || []).every(s => s.duration === 30),
+    && !(halfByStu.S3 || []).length
+    && halfPool.unresolved.some(u => u.studentId === 'S3'),
     halfPool.scheduled.map(s => `${s.studentId} ${s.day} ${api.toHHMM(s.start)}–${api.toHHMM(s.end)}`).join('; ')
-    + ` unresolved=${halfPool.unresolved.length}`);
+    + ` unresolved=${halfPool.unresolved.map(u => u.studentId).join(',')}`);
   ok('split pieces share a day only when flush',
     sameDayGap.length === 0, sameDayGap.join(', '));
 
@@ -753,9 +779,8 @@ async function main(){
   });
   api.DB.oneToOne = {columns: [{id:'T1', name:'One'}], hours: {S1: {T1: 1.5}}};
   const split60_30 = api.scheduleAllOneToOne({matrix: api.DB.oneToOne, acceptedRows: []});
-  const durs6030 = split60_30.scheduled.map(s => s.end - s.start).sort((a,b) => b - a);
-  ok('90 that cannot be 45+45 lands as 60+30',
-    split60_30.unresolved.length === 0 && durs6030.join('+') === '60+30',
+  ok('1/1 90 stays unresolved when no 90-min hole fits',
+    split60_30.unresolved.length === 1 && split60_30.scheduled.length === 0,
     split60_30.scheduled.map(s => `${s.day} ${api.toHHMM(s.start)}–${api.toHHMM(s.end)}`).join('; ')
     + ` unresolved=${split60_30.unresolved.length}`);
 
@@ -787,12 +812,24 @@ async function main(){
   const round3 = api.scheduleAllOneToOne({matrix: api.DB.oneToOne, acceptedRows: []});
   const r3by = {};
   round3.scheduled.forEach(s => { (r3by[s.studentId] = r3by[s.studentId] || []).push(s.end - s.start); });
-  ok('when leftover 120 cannot sit beside a placed 60, everyone is split from one pool',
-    round3.unresolved.length === 0 && api.oneOneCoverageCount(round3) === 2
-    && (r3by.S1 || []).slice().sort((a,b)=>a-b).join('+') === '30+30'
-    && (r3by.S2 || []).slice().sort((a,b)=>a-b).join('+') === '60+60',
+  ok('1/1 does not split a 60 to make a leftover 120 fit',
+    round3.unresolved.length >= 1
+    && !(r3by.S1 || []).includes(30)
+    && !(round3.scheduled || []).some(s => s.studentId === 'S1' && (s.end - s.start) === 30),
     round3.scheduled.map(s => `${s.studentId} ${s.day} ${api.toHHMM(s.start)}–${api.toHHMM(s.end)}`).join('; ')
-    + ` unresolved=${round3.unresolved.length}`);
+    + ` unresolved=${round3.unresolved.map(u => u.studentId).join(',')}`);
+  api.DB.rpiano = {columns: [{id:'T1', name:'One'}], hours: {S1: {T1: 1}, S2: {T1: 2}}};
+  const pianoRound3 = api.scheduleAllOneToOne({
+    matrix: api.DB.rpiano, acceptedRows: [], source: 'rpiano', lessonLabel: 'piano', idPrefix: 'RP'
+  });
+  const pr3by = {};
+  pianoRound3.scheduled.forEach(s => { (pr3by[s.studentId] = pr3by[s.studentId] || []).push(s.end - s.start); });
+  ok('Required Piano does not split a 60 to make a leftover 120 fit',
+    pianoRound3.unresolved.length >= 1
+    && !(pr3by.S1 || []).includes(30)
+    && !(pianoRound3.scheduled || []).some(s => s.studentId === 'S1' && (s.end - s.start) === 30),
+    pianoRound3.scheduled.map(s => `${s.studentId} ${s.day} ${api.toHHMM(s.start)}–${api.toHHMM(s.end)}`).join('; ')
+    + ` unresolved=${pianoRound3.unresolved.map(u => u.studentId).join(',')}`);
 
   console.log('\n== generate one teacher keeps the other ==');
   installToy(api, seed, {
@@ -838,6 +875,136 @@ async function main(){
   ok('All teachers still places both',
     (api.LAST_ONEONE.scheduled || []).some(s => s.teacherId === 'T1')
     && (api.LAST_ONEONE.scheduled || []).some(s => s.teacherId === 'T2'));
+
+  console.log('\n== scoped regen after avail change does not resurrect old slots ==');
+  installToy(api, seed, {
+    teacherAvail: [
+      {teacherId: 'T1', day: 'MON', start: '08:00', end: '16:00', type: 'AVAILABLE'},
+      {teacherId: 'T2', day: 'TUE', start: '08:00', end: '16:00', type: 'AVAILABLE'},
+    ],
+    classAvail: [],
+    accepted: [{lessonId: 'G1', name: 'Group', kind: 'group', teacherId: 'T9', teacher: 'X', day: 'THU', start: '10:00', end: '11:00', status: 'scheduled'}],
+  });
+  api.DB.refTeachers = (api.DB.refTeachers || []).concat([{id:'T2', name:'Two'}]);
+  api.DB.oneToOne = {
+    columns: [{id:'T1', name:'One'}, {id:'T2', name:'Two'}],
+    hours: {S1: {T1: 1}, S2: {T2: 1}}
+  };
+  api.LAST_ONEONE = null;
+  const both = api.generateIndividualScoped('oneone', '');
+  api.applyIndividualSearch('oneone', both.variants, '', '');
+  api.acceptOneOneSchedule();
+  const oldT1 = clone((api.LAST_ONEONE.scheduled || []).find(s => s.teacherId === 'T1'));
+  const t2Kept2 = clone((api.LAST_ONEONE.scheduled || []).find(s => s.teacherId === 'T2'));
+  ok('accepted 1/1 before scoped redo', api.hasAcceptedOneOne() && oldT1 && t2Kept2);
+  const fpMon = api.individualSearchFingerprint('oneone', 'T1');
+  api.DB.teacherAvail = [
+    {teacherId: 'T1', day: 'WED', start: '08:00', end: '16:00', type: 'AVAILABLE'},
+    {teacherId: 'T2', day: 'TUE', start: '08:00', end: '16:00', type: 'AVAILABLE'},
+  ];
+  ok('avail change bumps scoped fingerprint', fpMon !== api.individualSearchFingerprint('oneone', 'T1'));
+  const redoAvail = api.generateIndividualScoped('oneone', 'T1');
+  api.applyIndividualSearch('oneone', redoAvail.variants, 'T1', 'T1');
+  const newT1 = (api.LAST_ONEONE.scheduled || []).find(s => s.teacherId === 'T1');
+  ok('scoped regen moves T1 off the old day',
+    newT1 && newT1.day === 'WED' && newT1.day !== oldT1.day,
+    newT1 ? `${newT1.day} was ${oldT1.day}` : 'missing T1');
+  ok('scoped regen keeps T2 slot',
+    t2Kept2 && (api.LAST_ONEONE.scheduled || []).some(s =>
+      s.teacherId === 'T2' && s.day === t2Kept2.day && s.start === t2Kept2.start && s.studentId === t2Kept2.studentId));
+  api.acceptOneOneSchedule();
+  const bundle = api.buildFullExportObject();
+  const restoredT1 = ((bundle.oneToOneState && bundle.oneToOneState.scheduled) || []).find(s => s.teacherId === 'T1');
+  ok('export after re-accept keeps new T1 day',
+    restoredT1 && restoredT1.day === 'WED',
+    restoredT1 ? `${restoredT1.day}` : 'missing');
+  bundle.oneToOneState.acceptedSchedule = [{
+    teacherId: 'T1', day: 'MON', start: '08:00', end: '09:00', status: 'scheduled', kind: '1/1', name: 'stale'
+  }];
+  api.LAST_ONEONE = bundle.oneToOneState;
+  api.refreshIndividualAcceptedSnapshot(api.LAST_ONEONE, 'oneone');
+  const snapT1 = (api.LAST_ONEONE.acceptedSchedule || []).find(r => r.teacherId === 'T1');
+  ok('accepted snapshot follows scheduled after stale row injected',
+    snapT1 && snapT1.day === 'WED',
+    snapT1 ? `${snapT1.day}` : 'missing');
+  const hadT1 = (api.LAST_ONEONE.scheduled || []).filter(s => s.teacherId === 'T1').length;
+  api.setOneOneHours('S1', 'T1', '');
+  ok('clearing matrix hours drops that teacher/student slot',
+    !(api.LAST_ONEONE.scheduled || []).some(s => s.teacherId === 'T1' && s.studentId === 'S1'),
+    `had ${hadT1}, now ${(api.LAST_ONEONE.scheduled || []).filter(s => s.teacherId === 'T1').length}`);
+  ok('matrix edit re-opens Accept', !api.LAST_ONEONE.accepted);
+
+  console.log('\n== missing Students still show 1/1 / piano orphans ==');
+  installToy(api, seed, {
+    teacherAvail: [{teacherId: 'T1', day: 'MON', start: '08:00', end: '16:00', type: 'AVAILABLE'}],
+    acceptedSchedule: []
+  });
+  api.DB.oneToOne = {columns: [{id:'T1', name:'One'}], hours: {S1: {T1: 1}, GONE: {T1: 1}}};
+  api.DB.rpiano = {columns: [{id:'T1', name:'One'}], hours: {GONE: {T1: 0.5}}};
+  api.LAST_ONEONE = {
+    accepted: true,
+    scheduled: [{
+      lessonId: 'O2O-T1-GONE', name: 'Ghost 1/1', teacherId: 'T1', studentId: 'GONE', studentIds: 'GONE',
+      day: 'MON', start: 8*60, end: 9*60, source: 'oneone'
+    }],
+    unresolved: []
+  };
+  api.LAST_RPIANO = {
+    accepted: true,
+    scheduled: [{
+      lessonId: 'RP-T1-GONE', name: 'Ghost piano', teacherId: 'T1', studentId: 'GONE', studentIds: 'GONE',
+      day: 'MON', start: 10*60, end: 10*60+30, source: 'rpiano'
+    }],
+    unresolved: []
+  };
+  ok('orphan 1/1 student is listed', api.orphanIndividualStudentIds('oneone').includes('GONE'));
+  ok('orphan piano student is listed', api.orphanIndividualStudentIds('rpiano').includes('GONE'));
+  const rows = api.matrixStudentRowsForPanel(api.DB.oneToOne, 'oneone', '');
+  ok('matrix panel keeps missing student row',
+    rows.some(s => s.ID === 'GONE' && s.missing));
+  const purged = api.purgeStudentIndividualWork('GONE');
+  ok('purge clears missing student from both matrices',
+    purged.oneone && purged.rpiano
+    && !(((api.DB.oneToOne.hours || {}).GONE))
+    && !(((api.DB.rpiano.hours || {}).GONE)));
+  ok('purge drops scheduled 1/1 and piano for missing student',
+    !(api.LAST_ONEONE.scheduled || []).some(s => s.studentId === 'GONE')
+    && !(api.LAST_RPIANO.scheduled || []).some(s => s.studentId === 'GONE'));
+
+  console.log('\n== scoped regen with extra empty columns does not treat as full regen ==');
+  installToy(api, seed, {
+    teacherAvail: [
+      {teacherId: 'T1', day: 'MON', start: '08:00', end: '16:00', type: 'AVAILABLE'},
+      {teacherId: 'T2', day: 'TUE', start: '08:00', end: '16:00', type: 'AVAILABLE'},
+    ],
+    classAvail: [],
+    accepted: [],
+  });
+  api.DB.refTeachers = (api.DB.refTeachers || []).concat([
+    {id:'T2', name:'Two'},
+    {id:'T3', name:'Three'},
+  ]);
+  api.DB.oneToOne = {
+    columns: [{id:'T1', name:'One'}, {id:'T2', name:'Two'}, {id:'T3', name:'Three'}],
+    hours: {S1: {T1: 1}, S2: {T2: 1}}
+  };
+  const all3 = api.generateIndividualScoped('oneone', ['T1', 'T2', 'T3']);
+  api.applyIndividualSearch('oneone', all3.variants, ['T1', 'T2', 'T3'], ['T1', 'T2', 'T3']);
+  api.acceptOneOneSchedule();
+  const t2slot = clone((api.LAST_ONEONE.scheduled || []).find(s => s.teacherId === 'T2'));
+  ok('three columns but only two with hours', !api.isAllMatrixColumnsScope(api.DB.oneToOne, 'T1'));
+  api.DB.teacherAvail = [
+    {teacherId: 'T1', day: 'WED', start: '08:00', end: '16:00', type: 'AVAILABLE'},
+    {teacherId: 'T2', day: 'TUE', start: '08:00', end: '16:00', type: 'AVAILABLE'},
+  ];
+  const onlyT1b = api.generateIndividualScoped('oneone', 'T1');
+  api.applyIndividualSearch('oneone', onlyT1b.variants, 'T1', 'T1');
+  api.applyIndividualStarLayout(api.LAST_ONEONE, api.DB.oneToOne, 'T1', api.LAST_ONEONE.variants, 0, onlyT1b.keep);
+  const t1w = (api.LAST_ONEONE.scheduled || []).find(s => s.teacherId === 'T1');
+  ok('scoped T1 among 3 columns lands on WED', t1w && t1w.day === 'WED', t1w ? t1w.day : 'missing');
+  ok('scoped T1 regen keeps T2', t2slot && (api.LAST_ONEONE.scheduled || []).some(s =>
+    s.teacherId === 'T2' && s.day === t2slot.day && s.start === t2slot.start));
+  ok('variants compacted to current grid', (api.LAST_ONEONE.variants || []).length === 1);
 
   console.log('\n== per-teacher room lock on 1/1 ==');
   installToy(api, seed, {

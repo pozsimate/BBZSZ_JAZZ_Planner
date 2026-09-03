@@ -92,7 +92,10 @@ function main(){
   const written = api.writeAcceptedToSourceTables(result);
 
   ok('Accept wrote lesson SCHEDULED slots', written.lessonsWritten > 0, 'lessonsWritten=' + written.lessonsWritten);
-  ok('Accept wrote small group SCHEDULED slots', written.smallGroupsWritten > 0, 'smallGroupsWritten=' + written.smallGroupsWritten);
+  const placedSmallGroup = result.scheduled.find(s => isSmallGroupId(s.lessonId));
+  ok('Accept wrote small group SCHEDULED slots only when Generate placed any',
+    placedSmallGroup ? written.smallGroupsWritten > 0 : written.smallGroupsWritten === 0,
+    'smallGroupsWritten=' + written.smallGroupsWritten + ' placedSG=' + !!placedSmallGroup);
   ok('accepted table has one row per scheduled + unresolved',
     rows.length === result.scheduled.length + result.unresolved.length,
     `rows=${rows.length} scheduled=${result.scheduled.length} unresolved=${result.unresolved.length}`);
@@ -109,7 +112,6 @@ function main(){
   ok('sample lesson FIXED day stayed empty (or original pin)',
     lesson && (lesson.fixedDay || '') === (beforeFixed.lessons.find(l => l.id === lesson.id).fixedDay || ''));
 
-  const placedSmallGroup = result.scheduled.find(s => isSmallGroupId(s.lessonId));
   if(placedSmallGroup){
     const sg = api.LAST_SMALL_GROUPS.smallGroups.find(b => b.id === placedSmallGroup.lessonId);
     const beforeSmallGroup = beforeFixed.smallGroups.find(b => b.id === placedSmallGroup.lessonId) || beforeFixed.smallGroups[0];
@@ -118,7 +120,9 @@ function main(){
     ok('sample small group Teacher override (teacherId) unchanged',
       sg && sg.teacherId === beforeSmallGroup.teacherId);
   } else {
-    ok('at least one small group was placed (skip small group SCHEDULED checks)', false);
+    ok('no auto small group placed while subject lessons are still unresolved',
+      result.unresolved.some(u => u.lesson && u.lesson.id && !isSmallGroupId(u.lesson.id)),
+      result.unresolved.map(u => u.lesson && u.lesson.id).join(','));
   }
 
   ok('FIXED / teacherId columns unchanged after Accept', sameFixed(beforeFixed, snapshotFixed(api)));

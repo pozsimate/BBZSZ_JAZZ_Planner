@@ -13,6 +13,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const SUITES = [
   ['test/logic.mjs'],
+  ['test/consistency.mjs'],
   ['test/accept.mjs'],
   ['test/drag.mjs'],
   ['test/oneone.mjs'],

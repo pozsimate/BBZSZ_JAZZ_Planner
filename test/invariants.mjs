@@ -121,7 +121,7 @@ function breakSettings(db, teacherId){
     return { minutes: 0, count: 0, unconstrained: true };
   }
   const b = (db.breaks || []).find(r => r.teacherId === teacherId);
-  if(!b) return { minutes: 0, count: 0, unconstrained: false };
+  if(!b) return { minutes: 0, count: 0, unconstrained: true };
   return {
     minutes: Math.max(0, parseInt(b.breakMinutes, 10) || 0),
     count: Math.max(0, parseInt(b.breakCount, 10) || 0),

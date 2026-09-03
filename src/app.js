@@ -309,7 +309,22 @@ function renderTable(tableEl, rows, colDefs, onChange){
   tableEl.querySelectorAll('[data-del]').forEach(btn => {
     btn.addEventListener('click', e => {
       const idx = parseInt(e.target.dataset.del,10);
+      const removed = rows[idx];
       rows.splice(idx,1);
+      if(tableEl.id === 'studentsTable' && removed && removed.ID){
+        const purged = purgeStudentIndividualWork(removed.ID);
+        const fromBands = removeStudentFromAllSmallGroups(removed.ID);
+        if(fromBands){
+          try { renderSmallGroupsResults(LAST_SMALL_GROUPS); } catch(err){}
+          if(isSmallGroupStudentsEditorOpen()){
+            try { renderSmallGroupStudentsEditor(); } catch(err){}
+          }
+        }
+        if(purged.oneone || purged.rpiano){
+          try { renderOneOneTab(); } catch(err){}
+          try { renderRpianoTab(); } catch(err){}
+        }
+      }
       markWorkDirty();
       updateFixedPinsBanner();
       renderTable(tableEl, rows, colDefs, onChange);
@@ -318,6 +333,9 @@ function renderTable(tableEl, rows, colDefs, onChange){
 }
 function escapeAttr(s){
   return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+function escapeHtml(s){
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 // ---------- Column definitions ----------
@@ -572,9 +590,29 @@ let SEARCH_UI_LOCK = false;
 function isSearchUiLocked(){
   return !!SEARCH_UI_LOCK;
 }
+function acceptedTimetableSignature(){
+  const snap = DB.acceptedTimetable && DB.acceptedTimetable.scheduled;
+  if(!snap || !snap.length) return null;
+  return resultSignature({scheduled: snap, unresolved: []});
+}
+function syncTimetableVariantAcceptedFlags(){
+  const frozenSig = acceptedTimetableSignature();
+  const mark = v => {
+    if(!v) return;
+    v.accepted = !!(frozenSig && resultSignature(v) === frozenSig);
+  };
+  (LAST_VARIANTS || []).forEach(mark);
+  if(LAST_RESULT && !(LAST_VARIANTS || []).includes(LAST_RESULT)) mark(LAST_RESULT);
+}
+function timetableVariantShowsAccepted(v){
+  if(!v || !(v.scheduled || []).length) return false;
+  const frozenSig = acceptedTimetableSignature();
+  if(frozenSig) return resultSignature(v) === frozenSig;
+  return !!v.accepted;
+}
 function layoutNeedsAccept(kind){
   if(kind === 'timetable'){
-    return !!(LAST_RESULT && (LAST_RESULT.scheduled || []).length && !LAST_RESULT.accepted);
+    return !!(LAST_RESULT && (LAST_RESULT.scheduled || []).length && !timetableVariantShowsAccepted(LAST_RESULT));
   }
   if(kind === 'oneone'){
     return !!(LAST_ONEONE && (LAST_ONEONE.scheduled || []).length && !LAST_ONEONE.accepted);
@@ -930,10 +968,9 @@ function subtractBusyFromIntervals(intervals, busy){
   return cur;
 }
 
-// Gap-optimize mode (checkbox off) ignores Break Management entirely: any teacher
-// may gap, like 1/1, and Generate ranks by least total idle time.
-// "No gaps without Break Management" (checkbox on) restores the old hard budget:
-// listed row = BREAK MIN units up to BREAK COUNT; no row = no gap.
+// Breaks mode (checkbox on): listed teachers use BREAK MIN × COUNT; teachers
+// without a row may gap freely and Generate ranks by least idle time (like 1/1).
+// Idle mode (checkbox off) ignores Break Management entirely for every teacher.
 function forbidUnlistedGroupGapsEnabled(){
   return !!DB.forbidUnlistedGroupGaps;
 }
@@ -948,7 +985,7 @@ function teacherBreakSettings(teacherId){
     return { minutes: 0, count: 0, unconstrained: true };
   }
   const b = (DB.breaks || []).find(r => r.teacherId === teacherId);
-  if(!b) return { minutes: 0, count: 0, unconstrained: false };
+  if(!b) return { minutes: 0, count: 0, unconstrained: true };
   return {
     minutes: Math.max(0, parseInt(b.breakMinutes, 10) || 0),
     count: Math.max(0, parseInt(b.breakCount, 10) || 0),
@@ -1501,10 +1538,17 @@ function variantLogHeader(result){
   const label = n
     ? `Search log — ${who} · attempt ${n}${kind ? ' ('+kind+')' : ''}`
     : `Search log — ${who}`;
-  return [
+  const lines = [
     {type:'section', text: label},
     {type:'info', text: resultLogLine(result)}
   ];
+  if(result && result.lookahead && layoutReadyForForecast(result)){
+    lines.push({
+      type: result.suggested ? 'ok' : 'info',
+      text: `1/1 forecast: ${formatLookaheadForecast(result.lookahead, 'group')}`
+    });
+  }
+  return lines;
 }
 
 function logLinesForResult(result){
@@ -1525,10 +1569,78 @@ function showLogForSelected(){
 }
 
 function resultLogLine(result){
-  const smallGroups = result.unresolved.filter(u => u.lesson.id && isSmallGroupId(u.lesson.id)).length;
+  const unresolved = (result && result.unresolved) || [];
+  const smallGroups = unresolved.filter(u => u.lesson && u.lesson.id && isSmallGroupId(u.lesson.id)).length;
   const extra = smallGroups ? `, ${smallGroups} small group${smallGroups===1?'':'s'} stuck` : '';
   const idle = Number.isFinite(result.idleGapMinutes) ? `, ${result.idleGapMinutes} min idle` : '';
-  return `${result.scheduled.length} scheduled, ${result.unresolved.length} unresolved${extra}${idle}`;
+  return `${(result.scheduled || []).length} scheduled, ${unresolved.length} unresolved${extra}${idle}`;
+}
+function resultSearchLiveLine(result){
+  const unresolved = (result && result.unresolved) || [];
+  const smallGroups = unresolved.filter(u => u.lesson && u.lesson.id && isSmallGroupId(u.lesson.id)).length;
+  const extra = smallGroups ? ` (${smallGroups} SG stuck)` : '';
+  return `${(result.scheduled || []).length} placed, ${unresolved.length} left out${extra}`;
+}
+function searchLivePackLine(v){
+  return v ? resultSearchLiveLine(v) : '—';
+}
+function variantIndexInPool(v, variants){
+  const list = variants || LAST_VARIANTS || [];
+  const i = list.indexOf(v);
+  return i >= 0 ? i : 0;
+}
+function layoutLeftOutCount(v){
+  return ((v && v.unresolved) || []).length;
+}
+function layoutReadyForForecast(v){
+  return layoutLeftOutCount(v) === 0;
+}
+function bestCompletePackLayout(variants){
+  const list = (variants || []).filter(v => v && layoutReadyForForecast(v));
+  if(!list.length) return null;
+  return list.slice().sort((a, b) => compareGroupResults(a, b))[0];
+}
+function forecastPreviewLayouts(variants){
+  const list = variants || [];
+  return list.filter(layoutReadyForForecast);
+}
+function forecastMoveTargetLayout(variants){
+  const preview = forecastPreviewLayouts(variants);
+  return bestForecastLayout(preview) || preview[0] || null;
+}
+function clearLayoutLookahead(layouts, keep){
+  const keepSet = new Set(keep || []);
+  (layouts || []).forEach(v => {
+    if(!v || keepSet.has(v)) return;
+    v.lookahead = null;
+    v.suggested = false;
+  });
+}
+function searchLiveLayoutLine(v){
+  if(!v) return '—';
+  const base = resultSearchLiveLine(v);
+  if(!layoutReadyForForecast(v) || !v.lookahead) return base;
+  const fc = formatLookaheadForecast(v.lookahead, 'group');
+  return fc ? `${base} · ${fc}` : base;
+}
+function fillLayoutsForecast(layouts){
+  const list = (layouts || []).filter(v => v && layoutReadyForForecast(v));
+  if(!list.length) return null;
+  const prep = beginGroupLookahead(list);
+  if(!prep) return null;
+  const {list: prepList, oneJobs, pianoJobs} = prep;
+  prepList.forEach(item => { if(item) fillGroupLookahead(item, oneJobs, pianoJobs); });
+  return prepList.slice().sort((a, b) => compareScoreTuple(groupLookaheadScore(a), groupLookaheadScore(b)))[0] || null;
+}
+function deepSearchPackLeader(state, fallback){
+  if(state && state.beam && state.beam.length) return state.beam[0];
+  return fallback || null;
+}
+function deepSearchLiveHeadline(n, attempts, leader){
+  const cap = Math.max(1, attempts || 1);
+  const shown = Math.max(1, Math.min(n || 1, cap));
+  const best = leader ? searchLivePackLine(leader) : '—';
+  return `Attempt ${shown} / ${cap} — ${best}`;
 }
 
 function logQuotaLedger(scheduled, heading){
@@ -1595,8 +1707,8 @@ function runScheduler(randomize, opts){
     const br = (DB.breaks || []).filter(b => (parseInt(b.breakMinutes,10)||0) > 0);
     SearchLog.info(forbidUnlistedGroupGapsEnabled()
       ? (br.length
-        ? `Week break budget: ${br.map(b => `${b.teacher || teacherName(b.teacherId)} ${b.breakMinutes} min × ${b.breakCount}`).join(', ')} — unlisted teachers cannot gap`
-        : 'Week break budget: none listed — no gaps (No gaps without Break Management)')
+        ? `Week break budget: ${br.map(b => `${b.teacher || teacherName(b.teacherId)} ${b.breakMinutes} min × ${b.breakCount}`).join(', ')} — unlisted teachers gap freely (idle)`
+        : 'Break Management: no listed teachers — everyone gaps freely (idle)')
       : 'Break Management ignored this search — any gap is allowed; Generate prefers the least total idle time');
     SearchLog.info('Hard checks: teacher availability, room overlap, no student/teacher double-book. Pinned slots that overlap a class reservation or open an illegal teacher gap are placed with a warning.');
   }
@@ -1802,7 +1914,7 @@ function runScheduler(randomize, opts){
     SearchLog.section('Phase 1 — teacher-first (subjects + override small groups)');
     const names = packOrder.map(id => teacherName(id) || id).join(' → ');
     const tail = forbidUnlistedGroupGapsEnabled()
-      ? 'Days used by rank (PREFERRED/AVAILABLE → FALLBACK → CANDIDATE); listed Break Management teachers stay on BREAK MIN × COUNT, unlisted teachers cannot gap.'
+      ? 'Days used by rank (PREFERRED/AVAILABLE → FALLBACK → CANDIDATE); listed Break Management teachers stay on BREAK MIN × COUNT; unlisted teachers gap freely (idle).'
       : 'Days used by rank (PREFERRED/AVAILABLE → FALLBACK → CANDIDATE); Break Management is off — any teacher may gap like 1/1.';
     if(randomize){
       SearchLog.info(`Shuffled teacher order this attempt: ${names}. ${tail}`);
@@ -1841,6 +1953,29 @@ function runScheduler(randomize, opts){
       unresolved.push({lesson: it.lesson, students: it.students, dayWin: teacherDayWindows(teacherId, 'group')});
     });
   });
+
+  const subjectLessonsPending = unresolved.some(u => u.lesson && u.lesson.id && !isSmallGroupId(u.lesson.id));
+
+  if(subjectLessonsPending){
+    const pendingNames = unresolved.filter(u => u.lesson && !isSmallGroupId(u.lesson.id)).map(u => u.lesson.name);
+    if(!SearchLog.quiet){
+      SearchLog.section('Phase 2 — auto-match small groups');
+      SearchLog.warn(`Skipped — ${pendingNames.length} subject lesson(s) still unresolved (${pendingNames.join(', ')}). Auto-match waits until every lesson group is placed.`);
+    }
+    autoSmallGroupLessons.filter(l => !fixedIds.has(l.id)).forEach(l => {
+      const students = lessonStudents(l);
+      if(students.length === 0){
+        if(!SearchLog.quiet) SearchLog.warn(`${l.name}: no members`);
+        unresolved.push({lesson:l, students, dayWin:{}, customReason:'this small group has no members.'});
+      } else {
+        if(!SearchLog.quiet) SearchLog.warn(`${l.name}: not attempted — subject lessons still unresolved`);
+        unresolved.push({
+          lesson:l, students, dayWin:{},
+          customReason:'not scheduled — every subject lesson must be placed before auto-matching small groups.'
+        });
+      }
+    });
+  } else {
 
   // ---------- PHASE 2+3 (merged + local search): place teacher-less small groups where BOTH
   // their members and a quota-holding teacher are simultaneously free, treating "which
@@ -2251,6 +2386,8 @@ function runScheduler(randomize, opts){
     }
   });
 
+  } // subjectLessonsPending — else Phase 2
+
   scheduled.sort((a,b)=> DAYS.indexOf(a.day)-DAYS.indexOf(b.day) || a.start-b.start);
   if(!SearchLog.quiet) logQuotaLedger(scheduled, 'Small group quota ledger (this attempt)');
   const attemptLog = SearchLog.lines.slice();
@@ -2294,9 +2431,12 @@ function computeScheduleFingerprint(){
 let SCHEDULE_SEARCH_ATTEMPTS = 100;
 const SCHEDULE_SEARCH_ATTEMPTS_MAX = 50000;
 const DEEP_SEARCH_AFTER = 1000;
-const DEEP_SEARCH_YIELD_EVERY = 25;
-const DEEP_SEARCH_LIVE_EVERY = 100;
+const DEEP_SEARCH_YIELD_EVERY = 1;
+const SEARCH_LIVE_PACK_UI_MS = 100;
+const FORECAST_MOVE_YIELD_EVERY = 2;
 const SCHEDULE_VARIANT_KEEP = 10;
+const FORECAST_SLOT_MOVE_ROUNDS = 3;
+const FORECAST_SLOT_MOVE_MAX_CANDIDATES = 24;
 const TEACHER_SWAP_EVAL_MAX = 48;
 const TEACHER_SWAP_KEEP = 5;
 const TEACHER_SWAP_SEARCH_ATTEMPTS = 8;
@@ -2321,6 +2461,8 @@ function isSearchCancelled(){
 }
 function beginScheduleSearch(attempts){
   attempts = clampScheduleSearchAttempts(attempts);
+  const oneJobs = collectOneOneAssignments(DB.oneToOne);
+  const pianoJobs = collectOneOneAssignments(DB.rpiano);
   return {
     attempts,
     deep: isDeepScheduleSearch(attempts),
@@ -2333,8 +2475,37 @@ function beginScheduleSearch(attempts){
     distinct: 0,
     first: null,
     lastN: 0,
-    cancelled: false
+    cancelled: false,
+    oneJobs,
+    pianoJobs,
+    forecastReady: oneJobs.length > 0 || pianoJobs.length > 0
   };
+}
+function needsAttemptLookahead(attempt, state){
+  if(!state || !state.forecastReady || !layoutReadyForForecast(attempt)) return false;
+  if(!state.deep) return false;
+  const attemptLeft = layoutLeftOutCount(attempt);
+  if(!state.beam.length) return true;
+  state.beam.sort((a, b) => compareGroupResults(a, b));
+  const bestLeft = layoutLeftOutCount(state.beam[0]);
+  if(attemptLeft < bestLeft) return true;
+  if(attemptLeft > layoutLeftOutCount(state.beam[state.beam.length - 1])) return false;
+  if(state.beam.length < state.keep) return attemptLeft === bestLeft;
+  return attemptLeft === layoutLeftOutCount(state.beam[state.beam.length - 1]);
+}
+function ensureAttemptLookahead(attempt, state){
+  if(!needsAttemptLookahead(attempt, state)) return;
+  if(attempt.lookahead) return;
+  fillGroupLookahead(attempt, state.oneJobs, state.pianoJobs);
+}
+function ensureVariantsLookahead(variants){
+  const list = (variants || []).filter(Boolean);
+  const oneJobs = collectOneOneAssignments(DB.oneToOne);
+  const pianoJobs = collectOneOneAssignments(DB.rpiano);
+  if(!oneJobs.length && !pianoJobs.length) return;
+  list.forEach(v => {
+    if(v && layoutReadyForForecast(v) && !v.lookahead) fillGroupLookahead(v, oneJobs, pianoJobs);
+  });
 }
 function recordScheduleAttempt(state, attempt, n){
   state.lastN = n;
@@ -2345,6 +2516,7 @@ function recordScheduleAttempt(state, attempt, n){
   }
   state.seen.add(sig);
   state.distinct++;
+  ensureAttemptLookahead(attempt, state);
   if(!state.deep){
     state.all.push(attempt);
     state.foundOnAttempt.set(sig, n);
@@ -2353,25 +2525,42 @@ function recordScheduleAttempt(state, attempt, n){
   if(state.deep && n > 1){
     attempt.searchLog = [{type:'info', text:`Attempt ${n} (random): ${resultLogLine(attempt)}`}];
   }
+  const rank = (a, b) => compareScheduleBeam(a, b);
   if(state.beam.length < state.keep){
     state.beam.push(attempt);
-    state.beam.sort((a, b) => compareGroupResults(a, b));
+    state.beam.sort(rank);
     state.foundOnAttempt.set(sig, n);
     return 'kept';
   }
+  state.beam.sort(rank);
   const worst = state.beam[state.beam.length - 1];
-  if(compareGroupResults(attempt, worst) < 0){
+  const beamCmp = compareScheduleBeam(attempt, worst);
+  if(beamCmp < 0){
     const evicted = state.beam.pop();
     if(evicted) state.foundOnAttempt.delete(resultSignature(evicted));
     state.beam.push(attempt);
-    state.beam.sort((a, b) => compareGroupResults(a, b));
+    state.beam.sort(rank);
     state.foundOnAttempt.set(sig, n);
     return 'kept';
+  }
+  if(beamCmp === 0){
+    const evicted = state.beam.pop();
+    if(evicted) state.foundOnAttempt.delete(resultSignature(evicted));
+    state.beam.push(attempt);
+    state.beam.sort(rank);
+    state.foundOnAttempt.set(sig, n);
+    return 'kept-rotate';
   }
   return 'skip';
 }
 function finishScheduleSearch(state){
-  return (state.deep ? state.beam : state.all).slice().sort((a, b) => compareGroupResults(a, b));
+  const list = (state.deep ? state.beam : state.all).slice();
+  if(state.deep){
+    list.forEach(v => ensureAttemptLookahead(v, state));
+  } else {
+    ensureVariantsLookahead(list);
+  }
+  return list.sort((a, b) => compareScheduleBeam(a, b));
 }
 function finalizeScheduleSearch(state){
   const variants = finishScheduleSearch(state);
@@ -2386,7 +2575,7 @@ function finalizeScheduleSearch(state){
     SearchLog.always('warn', `Stopped after attempt ${state.lastN} of ${state.attempts}`);
   }
   SearchLog.section('Pick');
-  SearchLog.info(`Ranking: fewest unresolved small groups, then fewest unresolved items, then least idle gap (like 1/1). ${state.distinct} distinct layout(s) this click; the Solution list keeps the best ${SCHEDULE_VARIANT_KEEP}.`);
+  SearchLog.info(`Ranking during search: fewest left out; at the same left-out tier complete layouts compare 1/1 + piano forecast. Deep search rotates only exact ties. After search, ★ follows the best forecast. ${state.distinct} distinct layout(s); pool keeps ${SCHEDULE_VARIANT_KEEP}.`);
   if(best){
     SearchLog.ok(`Best this click is attempt ${bestN}: ${resultLogLine(best)}. Search log opens on the ★ layout.`);
   }
@@ -2433,11 +2622,7 @@ function leftoverOneOneHoleMinutes(scheduled){
   return total;
 }
 function resultScore(result){
-  const idle = result && Number.isFinite(result.idleGapMinutes)
-    ? result.idleGapMinutes
-    : scheduledIdleGapMinutes(result && result.scheduled);
-  const holes = result && Number.isFinite(result.oneOneHoleMinutes) ? result.oneOneHoleMinutes : 0;
-  return [((result && result.unresolved) || []).length, -holes, idle];
+  return [((result && result.unresolved) || []).length];
 }
 function compareGroupResults(a, b){
   const sa = resultScore(a), sb = resultScore(b);
@@ -2445,6 +2630,25 @@ function compareGroupResults(a, b){
     if(sa[i] !== sb[i]) return sa[i] - sb[i];
   }
   return 0;
+}
+function compareScheduleBeam(a, b){
+  const left = compareGroupResults(a, b);
+  if(left !== 0) return left;
+  if(layoutReadyForForecast(a) && layoutReadyForForecast(b) && a.lookahead && b.lookahead){
+    return compareScoreTuple(groupLookaheadScore(a), groupLookaheadScore(b));
+  }
+  return 0;
+}
+function trimVariantPool(variants, keep){
+  const list = (variants || []).filter(Boolean);
+  ensureVariantsLookahead(list);
+  if(list.length <= keep) return list.slice().sort((a, b) => compareScheduleBeam(a, b));
+  const sorted = list.slice().sort((a, b) => compareScheduleBeam(a, b));
+  const bestLeft = layoutLeftOutCount(sorted[0]);
+  const bestTier = sorted.filter(v => layoutLeftOutCount(v) === bestLeft);
+  const rest = sorted.filter(v => layoutLeftOutCount(v) > bestLeft);
+  if(bestTier.length >= keep) return bestTier.slice(0, keep);
+  return bestTier.concat(rest).slice(0, keep);
 }
 function resultSignature(result){
   return result.scheduled.map(s => `${s.lessonId}|${s.day}|${s.start}|${s.teacherId}`).sort().join(';');
@@ -2565,7 +2769,7 @@ function collectSchedulerSearch(attempts, onTick){
   if(onTick) onTick(1, attempts, `Layout 1 / ${attempts}`);
   SearchLog.always('section', 'Further attempts');
   SearchLog.always('info', state.deep
-    ? `${Math.max(0, attempts - 1)} more tries — deep search keeps only the best ${state.keep} layouts and skips per-attempt logs`
+    ? `${Math.max(0, attempts - 1)} more tries — deep search keeps ${state.keep} distinct layouts and rotates packings at the same left-out tier`
     : `${Math.max(0, attempts - 1)} more tries with shuffled teacher order / day order / lesson order — looking for a layout that unblocks a stuck small group`);
   for(let i = 0; i < attempts - 1; i++){
     const n = i + 2;
@@ -2581,76 +2785,90 @@ function collectSchedulerSearch(attempts, onTick){
   return finalizeScheduleSearch(state);
 }
 function yieldUi(){
-  return new Promise(resolve => setTimeout(resolve, 0));
+  if(typeof scheduler !== 'undefined' && typeof scheduler.yield === 'function'){
+    return scheduler.yield();
+  }
+  return new Promise(resolve => {
+    const done = () => setTimeout(resolve, 0);
+    if(typeof requestAnimationFrame === 'function'){
+      requestAnimationFrame(() => requestAnimationFrame(done));
+    } else {
+      done();
+    }
+  });
+}
+async function runSchedulerAsync(randomize, opts){
+  await yieldUi();
+  const result = runScheduler(randomize, opts);
+  await yieldUi();
+  return result;
 }
 async function collectSchedulerSearchAsync(attempts, onTick){
   const state = beginScheduleSearch(attempts);
   attempts = state.attempts;
   SearchLog.quiet = false;
-  setSearchLiveHeadline(searchLiveAttemptHeadline(1, attempts, false));
-  searchLiveSay(state.deep
-    ? `Deep search: ${attempts} tries, keep the best ${state.keep}. Quiet logs, beam only, yield every ${DEEP_SEARCH_YIELD_EVERY}.`
-    : 'Packing pinned slots, then subjects teacher-first, then auto-match small groups…', 'info');
+  syncPackSearchLiveStatus(0, attempts, null, state);
   if(onTick) onTick(0, attempts, `Starting 1 / ${attempts}`);
   await yieldUi();
   if(SEARCH_CANCELLED){
     state.cancelled = true;
     return finalizeScheduleSearch(state);
   }
-  const first = runScheduler(false);
+  const first = await runSchedulerAsync(false);
   first.attemptNo = 1;
   first.attemptKind = 'deterministic';
   state.first = first;
   SearchLog.always('ok', `Attempt 1 (deterministic): ${resultLogLine(first)}`);
   recordScheduleAttempt(state, first, 1);
-  let bestSoFar = first;
-  searchLiveSay(`Attempt 1: ${resultLogLine(first)} — baseline kept.`, 'ok');
+  let fewestRedsSoFar = first;
+  searchLiveSay(`Attempt 1: ${searchLivePackLine(fewestRedsSoFar)} — baseline.`, 'ok');
+  syncPackSearchLiveStatus(1, attempts, fewestRedsSoFar, state, true);
   if(onTick) onTick(1, attempts, `Layout 1 / ${attempts}`);
   await yieldUi();
   SearchLog.always('section', 'Further attempts');
   SearchLog.always('info', state.deep
-    ? `${Math.max(0, attempts - 1)} more tries — deep search keeps only the best ${state.keep} layouts and skips per-attempt logs`
+    ? `${Math.max(0, attempts - 1)} more tries — deep search keeps ${state.keep} distinct layouts and rotates packings at the same left-out tier`
     : `${Math.max(0, attempts - 1)} more tries with shuffled teacher order / day order / lesson order — looking for a layout that unblocks a stuck small group`);
-  if(attempts > 1 && !state.deep){
-    searchLiveSay(`${attempts - 1} shuffled ${attempts - 1 === 1 ? 'try' : 'tries'} next — looking for a week that unblocks a stuck small group.`, 'info');
-  }
   for(let i = 0; i < attempts - 1; i++){
     if(SEARCH_CANCELLED){
       state.cancelled = true;
       break;
     }
     const n = i + 2;
-    if(!state.deep){
-      setSearchLiveHeadline(searchLiveAttemptHeadline(n, attempts, true));
-      searchLiveSay(`Mixing a new teacher / day / lesson order for attempt ${n}…`, 'info');
-      await yieldUi();
-    }
-    const attempt = runScheduler(true, state.deep ? {quiet: true} : null);
+    const attempt = await runSchedulerAsync(true, state.deep ? {quiet: true} : null);
     attempt.attemptNo = n;
     attempt.attemptKind = 'random';
     const kind = recordScheduleAttempt(state, attempt, n);
-    if(kind === 'kept' && compareGroupResults(attempt, bestSoFar) < 0){
-      bestSoFar = attempt;
-      searchLiveSay(`Attempt ${n}: ${resultLogLine(attempt)} — new best.`, 'ok');
+    if(state.deep){
+      const prevBest = fewestRedsSoFar;
+      const leader = deepSearchPackLeader(state, prevBest);
+      if(compareGroupResults(leader, prevBest) <= 0) fewestRedsSoFar = leader;
+      if(kind === 'kept' && compareGroupResults(attempt, prevBest) < 0){
+        fewestRedsSoFar = attempt;
+        searchLiveSay(`Attempt ${n}: ${searchLivePackLine(fewestRedsSoFar)} — fewer left out.`, 'ok');
+        syncPackSearchLiveStatus(n, attempts, fewestRedsSoFar, state, true);
+      }
+    } else if(kind === 'kept' && compareGroupResults(attempt, fewestRedsSoFar) < 0){
+      fewestRedsSoFar = attempt;
+      searchLiveSay(`Attempt ${n}: ${searchLivePackLine(fewestRedsSoFar)} — fewer left out.`, 'ok');
+      syncPackSearchLiveStatus(n, attempts, fewestRedsSoFar, state, true);
     } else if(!state.deep){
       if(kind === 'dup') searchLiveSay(`Attempt ${n}: same week as an earlier try — discarded.`, 'info');
       else if(kind === 'kept'){
         SearchLog.always('ok', `Attempt ${n} (random): ${resultLogLine(attempt)} — kept`);
-        searchLiveSay(`Attempt ${n}: ${resultLogLine(attempt)} — distinct, kept.`, 'ok');
+        searchLiveSay(`Attempt ${n}: ${resultSearchLiveLine(attempt)} — distinct, kept.`, 'ok');
       }
-    } else if(n % DEEP_SEARCH_LIVE_EVERY === 0){
-      setSearchLiveHeadline(`Attempt ${n} / ${attempts} — deep search`);
-      searchLiveSay(`Checked ${n}. Best so far: ${resultLogLine(bestSoFar)}. ${state.distinct} distinct, ${state.beam.length} kept.`, 'info');
     }
+    syncPackSearchLiveStatus(n, attempts, fewestRedsSoFar, state, false);
     if(onTick) onTick(n, attempts, `Layout ${n} / ${attempts}`);
-    if(!state.deep || n % DEEP_SEARCH_YIELD_EVERY === 0) await yieldUi();
+    await yieldUi();
   }
-  setSearchLiveHeadline('Ranking layouts');
+  setSearchLivePhase('pack', 'Ranking kept layouts…');
+  updateSearchLiveStatus({now: 'Ranking layouts…', best: fewestRedsSoFar ? searchLivePackLine(fewestRedsSoFar) : '—'});
   const variants = finalizeScheduleSearch(state);
-  const best = variants[0];
   searchLiveSay(state.cancelled
-    ? `Stopped at attempt ${state.lastN}. Kept ${variants.length} layout(s); best: ${best ? resultLogLine(best) : '—'}.`
-    : `${state.discarded} duplicate ${state.discarded === 1 ? 'try' : 'tries'} thrown away. ${state.distinct} distinct; best this click is ${best ? resultLogLine(best) : '—'}.`,
+    ? `Stopped at attempt ${state.lastN}. Kept ${variants.length} layout(s) — forecast next.`
+    : `${state.discarded} duplicate ${state.discarded === 1 ? 'try' : 'tries'} discarded · ${variants.length} kept — forecast next.`,
     state.cancelled ? 'warn' : 'ok');
   return variants;
 }
@@ -2659,7 +2877,7 @@ function discardVariantDragEdits(){
   const list = LAST_VARIANTS && LAST_VARIANTS.length ? LAST_VARIANTS : (LAST_RESULT ? [LAST_RESULT] : []);
   list.forEach(v => {
     if(!v) return;
-    if(v.dragBaseline) applyLessonSlots(v.scheduled, v.dragBaseline);
+    if(v.dragBaseline) restoreScheduledFromBaseline(v);
     v.dragUndo = [];
     v.dragBaseline = null;
   });
@@ -2713,6 +2931,99 @@ function setSearchLiveHeadline(text){
   if(el) el.textContent = text || '';
 }
 let SEARCH_LIVE_STARTED_AT = 0;
+let SEARCH_LIVE_PHASE_IDS = [];
+let SEARCH_LIVE_ACTIVE_PHASE = '';
+function renderSearchLivePhases(phases){
+  const el = document.getElementById('searchLivePhases');
+  if(!el) return;
+  const list = (phases || []).filter(Boolean);
+  SEARCH_LIVE_PHASE_IDS = list.map(p => p.id);
+  el.innerHTML = list.map(p =>
+    `<div class="search-live-phase" data-phase="${escapeAttr(p.id)}">` +
+    `<span class="search-live-phase-num">${escapeAttr(p.short || '')}</span>` +
+    `<span class="search-live-phase-label">${escapeAttr(p.label || p.id)}</span>` +
+    `</div>`
+  ).join('');
+}
+function setSearchLivePhase(phaseId, detail){
+  SEARCH_LIVE_ACTIVE_PHASE = phaseId || '';
+  const idx = SEARCH_LIVE_PHASE_IDS.indexOf(phaseId);
+  document.querySelectorAll('#searchLivePhases .search-live-phase').forEach(node => {
+    const id = node.getAttribute('data-phase');
+    const i = SEARCH_LIVE_PHASE_IDS.indexOf(id);
+    node.classList.toggle('is-active', id === phaseId);
+    node.classList.toggle('is-done', i >= 0 && idx >= 0 && i < idx);
+    node.classList.toggle('is-pending', i >= 0 && idx >= 0 && i > idx);
+  });
+  if(detail != null) setSearchLiveHeadline(detail);
+}
+function skipSearchLivePhase(phaseId, note){
+  const node = document.querySelector(`#searchLivePhases .search-live-phase[data-phase="${phaseId}"]`);
+  if(node){
+    node.classList.add('is-skipped');
+    node.classList.remove('is-active', 'is-pending');
+  }
+  if(note) searchLiveSay(note, 'info');
+}
+function updateSearchLiveStatus(opts){
+  opts = opts || {};
+  const nowEl = document.getElementById('searchLiveStatusNow');
+  const bestEl = document.getElementById('searchLiveStatusBest');
+  if(nowEl && opts.now != null) nowEl.textContent = opts.now;
+  if(bestEl && opts.best != null) bestEl.textContent = opts.best;
+  if(opts.progress) setSearchLiveProgress(opts.progress.done, opts.progress.total, opts.progress.label);
+}
+function setupGroupSearchLivePhases(opts){
+  opts = opts || {};
+  const phases = [
+    {id:'pack', label: opts.deep ? 'Deep repack' : 'Repack', short:'1'},
+    {id:'forecast', label:'1/1 forecast', short:'2'},
+    {id:'moves', label:'Teacher moves', short:'3'}
+  ];
+  if(opts.swaps) phases.push({id:'swaps', label:'Teacher swaps', short:String(phases.length + 1)});
+  phases.push({id:'finish', label:'Done', short:'✓'});
+  renderSearchLivePhases(phases);
+  setSearchLivePhase('pack', opts.deep ? 'Deep repack — shuffled full weeks' : 'Repack — trying distinct layouts');
+  updateSearchLiveStatus({
+    now: 'Starting…',
+    best: '—',
+    progress: {done: 0, total: Math.max(1, opts.attempts || 1), label: '0 / ' + Math.max(1, opts.attempts || 1)}
+  });
+}
+let SEARCH_LIVE_PACK_UI_AT = 0;
+function syncPackSearchLiveStatus(n, attempts, leader, state, force){
+  const deep = !!(state && state.deep);
+  const now = Date.now();
+  if(deep && !force && now - SEARCH_LIVE_PACK_UI_AT < SEARCH_LIVE_PACK_UI_MS) return;
+  SEARCH_LIVE_PACK_UI_AT = now;
+  const cap = Math.max(1, attempts || 1);
+  const shown = Math.max(0, Math.min(n || 0, cap));
+  const bestLine = leader ? searchLivePackLine(leader) : '—';
+  const progressLabel = deep && state
+    ? `${shown} / ${cap} · ${state.distinct} distinct`
+    : `${shown} / ${cap}`;
+  updateSearchLiveStatus({
+    now: deep
+      ? `Attempt ${shown} / ${cap} — shuffled repack`
+      : (shown <= 1 && !deep
+        ? (hasManualPhase1TeacherOrder() ? 'Attempt 1 — your teacher order' : 'Attempt 1 — fewest days first')
+        : `Attempt ${shown} / ${cap} — shuffled mix`),
+    best: bestLine,
+    progress: {done: shown, total: cap, label: progressLabel}
+  });
+  setSearchLivePhase('pack', deep ? `Deep repack ${shown} / ${cap}` : `Repack ${shown} / ${cap}`);
+}
+function searchLivePhaseIds(){
+  return SEARCH_LIVE_PHASE_IDS.slice();
+}
+function searchLiveActivePhase(){
+  return SEARCH_LIVE_ACTIVE_PHASE || '';
+}
+function searchLiveStatusText(kind){
+  const id = kind === 'best' ? 'searchLiveStatusBest' : 'searchLiveStatusNow';
+  const el = document.getElementById(id);
+  return el ? (el.textContent || '') : '';
+}
 function formatSearchLiveEta(ms){
   if(!Number.isFinite(ms) || ms < 0) return '';
   const sec = Math.max(0, Math.round(ms / 1000));
@@ -2728,14 +3039,16 @@ function setSearchLiveEta(text){
 function setSearchLiveProgress(done, total, label){
   const fill = document.getElementById('searchLiveFill');
   const count = document.getElementById('searchLiveCount');
-  const pct = total ? Math.max(0, Math.min(100, Math.round(100 * done / total))) : 0;
+  const cap = Math.max(0, total || 0);
+  const shown = Math.max(0, done || 0);
+  const pct = cap ? Math.max(0, Math.min(100, Math.round(100 * Math.min(shown, cap) / cap))) : 0;
   if(fill) fill.style.width = pct + '%';
-  if(count) count.textContent = label || (total ? `${done} / ${total}` : '');
-  if(!total){
+  if(count) count.textContent = label || (cap ? `${Math.min(shown, cap)} / ${cap}` : '');
+  if(!cap){
     setSearchLiveEta('');
     return;
   }
-  if(done >= total){
+  if(shown >= cap){
     setSearchLiveEta('finishing…');
     return;
   }
@@ -2765,8 +3078,13 @@ function openSearchLive(title){
   if(t) t.textContent = title || 'Search';
   const body = document.getElementById('searchLiveBody');
   if(body) body.innerHTML = '';
+  const phases = document.getElementById('searchLivePhases');
+  if(phases) phases.innerHTML = '';
+  SEARCH_LIVE_PHASE_IDS = [];
+  SEARCH_LIVE_ACTIVE_PHASE = '';
   SEARCH_LIVE_STARTED_AT = Date.now();
   setSearchLiveHeadline('Starting…');
+  updateSearchLiveStatus({now: 'Starting…', best: '—'});
   setSearchLiveEta('estimating…');
   setSearchLiveProgress(0, 1, '');
   const cancel = document.getElementById('searchLiveCancelBtn');
@@ -2782,12 +3100,33 @@ function closeSearchLive(){
   setModalOverlay('searchLiveOverlay', false);
 }
 function searchLiveAttemptHeadline(n, total, shuffled){
+  const cap = Math.max(1, total || 1);
+  const shown = Math.max(1, Math.min(n || 1, cap));
   if(!shuffled){
     return hasManualPhase1TeacherOrder()
-      ? `Attempt ${n} / ${total} — packing in your teacher order`
-      : `Attempt ${n} / ${total} — fewest available days first`;
+      ? `Attempt ${shown} / ${cap} — packing in your teacher order`
+      : `Attempt ${shown} / ${cap} — fewest available days first`;
   }
-  return `Attempt ${n} / ${total} — shuffled teacher / day / lesson mix`;
+  return `Attempt ${shown} / ${cap} — shuffled teacher / day / lesson mix`;
+}
+function searchLiveIndividualHeadline(n, maxTries, distinct, target, shuffled){
+  const tries = Math.max(1, maxTries || 1);
+  const shownTry = Math.max(0, Math.min(n || 0, tries));
+  const goal = Math.max(1, target || 1);
+  const shownDistinct = Math.max(0, Math.min(distinct || 0, goal));
+  const mode = shuffled ? 'shuffled mix' : 'fewest teacher days first';
+  if(goal <= 1 && tries <= 1) return `Packing — ${mode}`;
+  if(goal <= 1) return `Try ${shownTry || 1} / ${tries} — ${mode}`;
+  return `Try ${shownTry || 1} / ${tries} · ${shownDistinct} / ${goal} distinct — ${mode}`;
+}
+function searchLiveIndividualCount(distinct, target, tryN, maxTries){
+  const goal = Math.max(1, target || 1);
+  const tries = Math.max(1, maxTries || 1);
+  const d = Math.max(0, Math.min(distinct || 0, goal));
+  const t = Math.max(0, Math.min(tryN || 0, tries));
+  if(goal <= 1 && tries <= 1) return 'Packing…';
+  if(goal <= 1) return `Try ${t || 1} / ${tries}`;
+  return `Try ${t || 1} / ${tries} · ${d} / ${goal} distinct`;
 }
 function isGenerateConfirmOpen(){
   return overlayIsOpen(document.getElementById('generateConfirmOverlay'));
@@ -2797,6 +3136,7 @@ function showGenerateConfirm(kind){
   setModalOverlay('searchLogOverlay', false);
   setModalOverlay('smallGroupQuotasOverlay', false);
   setModalOverlay('phase1TeacherOrderOverlay', false);
+  hideIndividualTeachersModal(false);
   hideSmallGroupStudentsEditor();
   PENDING_GENERATE = kind === 'smallgroups' ? 'smallgroups' : 'timetable';
   const title = document.getElementById('generateConfirmTitle');
@@ -2843,6 +3183,7 @@ function setSearchUiLock(on){
     setModalOverlay('phase1TeacherOrderOverlay', false);
     hideSmallGroupStudentsEditor();
     hideGenerateConfirm();
+    hideIndividualTeachersModal(false);
   }
   updateAllTabLocks();
 }
@@ -2899,24 +3240,11 @@ function clearGeneratedTimetableGrid(){
 function queueGenerateTimetable(clearAccepted){
   hideGenerateConfirm();
   const attempts = readScheduleSearchAttempts();
+  const deep = isDeepScheduleSearch(attempts);
   resetSearchCancel();
   setGenerateBusy(true);
-  openSearchLive('Generate group lessons');
-  searchLiveSay(isDeepScheduleSearch(attempts)
-    ? `Deep search: ${attempts} tries, keep the best ${SCHEDULE_VARIANT_KEEP}. Quiet logs, beam only — Stop search keeps the best so far.`
-    : `${attempts} layout attempt(s); keep the best ${SCHEDULE_VARIANT_KEEP}.`, 'info');
-  if(hasManualPhase1TeacherOrder()){
-    searchLiveSay('First attempt follows your teacher order; shuffled attempts still permute that list.', 'info');
-  }
-  searchLiveSay(forbidUnlistedGroupGapsEnabled()
-    ? 'No gaps without Break Management — listed teachers use MIN × COUNT, everyone else flush only.'
-    : 'Optimizing idle — Break Management is ignored; any teacher may gap.', 'info');
-  searchLiveSay(lookaheadEveryLayoutEnabled()
-    ? '1/1 + piano preview: every distinct layout.'
-    : `1/1 + piano preview: only the best ${SCHEDULE_VARIANT_KEEP} layouts.`, 'info');
-  searchLiveSay(teacherSwapProbeEnabled()
-    ? 'Hypothetical teacher swaps: on — each same-duration pair re-runs the group search (shuffled packs + 1/1 preview) and keeps the better leftover week. The grid stays as packed.'
-    : 'Hypothetical teacher swaps: off.', 'info');
+  openSearchLive(deep ? 'Generate · deep search' : 'Generate group lessons');
+  setupGroupSearchLivePhases({deep, attempts, swaps: teacherSwapProbeEnabled()});
   setGenerateProgress(0, attempts, 'Starting…');
   (async () => {
     try {
@@ -2956,7 +3284,8 @@ function prepareGenerateTimetable(clearAccepted){
 }
 function mergeGenerateVariants(freshVariants, opts){
   freshVariants = freshVariants || [];
-  freshVariants.sort((a,b) => compareGroupResults(a, b));
+  ensureVariantsLookahead(freshVariants);
+  freshVariants.sort((a,b) => compareScheduleBeam(a, b));
   const freshBest = freshVariants[0] || null;
   const merged = new Map();
   freshVariants.forEach(v => merged.set(resultSignature(v), v));
@@ -2965,10 +3294,7 @@ function mergeGenerateVariants(freshVariants, opts){
     const sig = resultSignature(v);
     if(!merged.has(sig)) merged.set(sig, v);
   });
-  LAST_VARIANTS = [...merged.values()].sort((a,b) => compareGroupResults(a, b));
-  if(!(opts && opts.all) && LAST_VARIANTS.length > SCHEDULE_VARIANT_KEEP){
-    LAST_VARIANTS = LAST_VARIANTS.slice(0, SCHEDULE_VARIANT_KEEP);
-  }
+  LAST_VARIANTS = trimVariantPool([...merged.values()], SCHEDULE_VARIANT_KEEP);
   LAST_VARIANTS.forEach(v => {
     if(!v) return;
     v.accepted = false;
@@ -2988,6 +3314,7 @@ function paintGenerateTimetable(freshCount){
   logTeacherSwapSuggestions();
   const starI = suggestedVariantIndex(LAST_VARIANTS);
   LAST_RESULT = LAST_VARIANTS[starI] || LAST_VARIANTS[0] || null;
+  syncTimetableVariantAcceptedFlags();
   if(LAST_VARIANTS.length > freshCount){
     SearchLog.info(`Pool now has ${LAST_VARIANTS.length} distinct layouts (including ones from earlier clicks)`);
   }
@@ -2998,10 +3325,13 @@ function paintGenerateTimetable(freshCount){
   markWorkDirty();
 }
 function completeGenerateTimetable(freshVariants, onLookahead){
-  const previewAll = lookaheadEveryLayoutEnabled();
-  const {freshCount} = mergeGenerateVariants(freshVariants, previewAll ? {all:true} : null);
-  attachGroupLookahead(LAST_VARIANTS, onLookahead);
-  if(previewAll) keepLookaheadBestVariants();
+  const {freshCount} = mergeGenerateVariants(freshVariants);
+  const previewLayouts = forecastPreviewLayouts(LAST_VARIANTS);
+  clearLayoutLookahead(LAST_VARIANTS, previewLayouts);
+  attachGroupLookahead(previewLayouts, onLookahead);
+  const moveTarget = forecastMoveTargetLayout(LAST_VARIANTS);
+  if(moveTarget) optimizeLayoutForecastMoves(moveTarget);
+  keepLookaheadBestVariants();
   collectTeacherSwapSuggestionsForLayouts(LAST_VARIANTS);
   paintGenerateTimetable(freshCount);
 }
@@ -3012,48 +3342,145 @@ function runGenerateTimetable(clearAccepted){
 async function runGenerateTimetableAsync(clearAccepted){
   prepareGenerateTimetable(clearAccepted);
   const attempts = readScheduleSearchAttempts();
-  const previewAll = lookaheadEveryLayoutEnabled();
-  const previewBudget = previewAll ? Math.max(SCHEDULE_VARIANT_KEEP, attempts) : SCHEDULE_VARIANT_KEEP;
   const fresh = await collectSchedulerSearchAsync(attempts, (done, total, label) => {
-    setGenerateProgress(done, total + previewBudget, label);
+    const cap = Math.max(1, total || 1);
+    const text = label || `Layout ${done} / ${cap}`;
+    setGenerateProgress(done, total, text);
+    setSearchLiveProgress(done, total, text);
   });
   if(!(fresh || []).length){
     searchLiveSay(SEARCH_CANCELLED ? 'Stopped before a layout was kept.' : 'No layout produced.', 'warn');
     return;
   }
-  const {freshCount} = mergeGenerateVariants(fresh, previewAll ? {all:true} : null);
-  const previewN = LAST_VARIANTS.length || Math.min(SCHEDULE_VARIANT_KEEP, (fresh || []).length);
-  setSearchLiveHeadline('Previewing 1/1 and Required Piano');
-  searchLiveSay(previewAll
-    ? `Checking leftover 1/1 and piano on every distinct layout (${previewN}) — this picks ★.`
-    : `Checking leftover 1/1 and piano on the ${previewN} kept layout(s) — this picks ★.`, 'info');
-  await yieldUi();
-  await attachGroupLookaheadAsync(LAST_VARIANTS, (i, n) => {
-    setSearchLiveHeadline(`1/1 preview ${i} / ${n}`);
-    searchLiveSay(`Trying leftover 1/1 holes on layout ${i} of ${n}…`, 'info');
-    setGenerateProgress(attempts + i, attempts + n, `1/1 preview ${i} / ${n}`);
+  const {freshCount} = mergeGenerateVariants(fresh);
+  LAST_VARIANTS.forEach(v => { if(v && v.lookahead) v.lookahead = null; });
+  const previewLayouts = forecastPreviewLayouts(LAST_VARIANTS);
+  clearLayoutLookahead(LAST_VARIANTS, previewLayouts);
+  const previewN = previewLayouts.length;
+  const readyCount = previewLayouts.length;
+  const previewMode = previewLayouts.length === 1
+    ? '1 complete layout'
+    : `${previewLayouts.length} complete layout(s) in pool`;
+  setSearchLivePhase('forecast', readyCount ? `1/1 forecast — ${previewMode}` : '1/1 forecast skipped');
+  updateSearchLiveStatus({
+    now: readyCount
+      ? `Previewing ${readyCount} complete layout(s) for ★ ranking`
+      : `No complete layout — ${LAST_VARIANTS.length} kept with left out`,
+    best: readyCount ? 'Checking 1/1 + piano…' : (LAST_VARIANTS[0] ? searchLivePackLine(LAST_VARIANTS[0]) : '—'),
+    progress: {done: 0, total: Math.max(1, readyCount || 1), label: readyCount ? `0 / ${readyCount}` : '—'}
   });
-  if(previewAll) keepLookaheadBestVariants();
+  await yieldUi();
+  let bestForecastScore = null;
+  let bestForecastLine = '—';
+  await attachGroupLookaheadAsync(previewLayouts, (i, n) => {
+    const cap = Math.max(1, n || 1);
+    const v = previewLayouts[i - 1];
+    const poolI = v ? variantIndexInPool(v, LAST_VARIANTS) : i - 1;
+    const layoutLabel = v ? variantDisplayName(poolI) : (n === 1 ? 'complete layout' : `Layout ${i} / ${n}`);
+    setSearchLivePhase('forecast', n === 1 ? '1/1 forecast' : `1/1 forecast ${i} / ${n}`);
+    updateSearchLiveStatus({
+      now: `Previewing ${layoutLabel}`,
+      progress: {done: i, total: cap, label: `${i} / ${cap}`}
+    });
+    setGenerateProgress(i, n, n === 1 ? '1/1 preview' : `1/1 preview ${i} / ${n}`);
+    setSearchLiveProgress(i, n, n === 1 ? '1/1 preview' : `1/1 preview ${i} / ${n}`);
+  }, (v) => {
+    if(v && v.lookahead && layoutReadyForForecast(v)){
+      const poolI = variantIndexInPool(v, LAST_VARIANTS);
+      const score = groupLookaheadScore(v);
+      if(bestForecastScore === null || compareScoreTuple(score, bestForecastScore) < 0){
+        bestForecastScore = score;
+        bestForecastLine = groupForecastLiveLine(v, poolI, LAST_VARIANTS).replace(/^★ /, '');
+        updateSearchLiveStatus({best: bestForecastLine});
+      }
+    }
+  });
+  if(readyCount && !SEARCH_CANCELLED){
+    const moveTarget = forecastMoveTargetLayout(previewLayouts);
+    const teacherCount = moveTarget ? forecastMoveTeacherPlan(moveTarget.scheduled || []).length : 0;
+    setSearchLivePhase('moves', 'Teacher moves — ★ layout');
+    updateSearchLiveStatus({
+      now: teacherCount
+        ? `★ layout — moving ${teacherCount} teacher(s) one by one`
+        : '★ layout — no movable lessons',
+      best: bestForecastLine,
+      progress: {done: 0, total: Math.max(1, teacherCount), label: teacherCount ? `0 / ${teacherCount}` : '—'}
+    });
+    await yieldUi();
+    const moveCount = moveTarget
+      ? await optimizeLayoutForecastMovesAsync(moveTarget, (ti, tn, teacher) => {
+      setSearchLivePhase('moves', `Teacher moves ${ti} / ${tn} — ${teacher.label}`);
+      updateSearchLiveStatus({
+        now: `★ layout · ${teacher.label} — ${teacher.lessonIds.length} lesson(s)`,
+        progress: {done: ti, total: tn, label: `${ti} / ${tn}`}
+      });
+      setGenerateProgress(ti, tn, `${teacher.label} · ${ti}/${tn}`);
+      setSearchLiveProgress(ti, tn, `${teacher.label} · ${ti}/${tn}`);
+    }, (v, nMoves) => {
+      if(!v || !v.lookahead) return;
+      const poolI = variantIndexInPool(v, LAST_VARIANTS);
+      const score = groupLookaheadScore(v);
+      if(bestForecastScore === null || compareScoreTuple(score, bestForecastScore) < 0){
+        bestForecastScore = score;
+        bestForecastLine = groupForecastLiveLine(v, poolI, LAST_VARIANTS).replace(/^★ /, '');
+        updateSearchLiveStatus({best: bestForecastLine});
+      }
+    })
+      : 0;
+    if(moveCount) searchLiveSay(`${moveCount} slot move(s) kept on ★ layout.`, 'ok');
+  } else {
+    skipSearchLivePhase('moves', 'Teacher moves skipped — no complete layout (0 left out).');
+  }
+  keepLookaheadBestVariants();
+  announceGroupForecastLive(LAST_VARIANTS);
   if(teacherSwapProbeEnabled() && !SEARCH_CANCELLED){
     const layouts = LAST_VARIANTS || [];
     const swapCands = collectTeacherSwapCandidates();
     if(swapCands.length){
-      setSearchLiveHeadline('Hypothetical teacher swaps');
-      searchLiveSay(`${swapCands.length} same-duration swap(s); each re-runs the group search then a 1/1 preview. The timetable will not change.`, 'info');
+      setSearchLivePhase('swaps', `Teacher swaps — ${swapCands.length} candidate(s)`);
+      updateSearchLiveStatus({
+        now: 'Hypothetical swaps — grid stays as packed',
+        best: bestForecastLine,
+        progress: {done: 0, total: swapCands.length, label: `0 / ${swapCands.length}`}
+      });
       await collectTeacherSwapSuggestionsForLayoutsAsync(layouts, (done, total, label) => {
-        setSearchLiveHeadline(label || `Teacher swap check ${done} / ${total}`);
-        setGenerateProgress(attempts + previewN + done, attempts + previewN + total, label || `Teacher swap ${done} / ${total}`);
+        setSearchLivePhase('swaps', label || `Teacher swap ${done} / ${total}`);
+        updateSearchLiveStatus({
+          now: label || `Teacher swap ${done} / ${total}`,
+          progress: {done, total, label: `${done} / ${total}`}
+        });
+        setGenerateProgress(done, total, label || `Teacher swap ${done} / ${total}`);
+        setSearchLiveProgress(done, total, label || `Teacher swap ${done} / ${total}`);
       });
     } else {
+      skipSearchLivePhase('swaps', 'Teacher swaps skipped — no same-duration pairs.');
       clearTeacherSwapsOnLayouts(layouts);
     }
   } else {
+    if(SEARCH_LIVE_PHASE_IDS.includes('swaps')) skipSearchLivePhase('swaps');
     clearTeacherSwapsOnLayouts(LAST_VARIANTS);
   }
   paintGenerateTimetable(freshCount);
-  setSearchLiveHeadline('Done');
-  searchLiveSay('Search finished. The grid shows the ★ layout.', 'ok');
-  setGenerateProgress(attempts + previewN, attempts + previewN, 'Done');
+  const starI = suggestedVariantIndex(LAST_VARIANTS);
+  const starV = LAST_VARIANTS[starI];
+  const starLine = starV ? variantOptionText(starV, starI, 'group') : '—';
+  setSearchLivePhase('finish', 'Done — ★ layout on grid');
+  updateSearchLiveStatus({
+    now: 'Search finished',
+    best: starV ? `★ ${starLine.replace(/^★ /, '')}` : '—',
+    progress: {done: 1, total: 1, label: 'Done'}
+  });
+  if(starV && starV.lookahead && layoutReadyForForecast(starV)){
+    searchLiveSay(`★ ${starLine.replace(/^★ /, '')}`, 'ok');
+  } else if(LAST_VARIANTS.some(v => v && layoutReadyForForecast(v))){
+    searchLiveSay('★ picked by fewest left out — no complete layout for 1/1 forecast.', 'info');
+  } else if(starV){
+    searchLiveSay(`★ ${searchLivePackLine(starV)} — best group pack.`, 'ok');
+  }
+  searchLiveSay('The grid shows the ★ layout.', 'ok');
+  setGenerateProgress(1, 1, 'Done');
+  setSearchLiveProgress(1, 1, 'Done');
+  setSearchLiveEta('');
 }
 function requestGenerateTimetable(){
   if(SEARCH_UI_LOCK) return;
@@ -3164,12 +3591,12 @@ function renderSearchLogBody(){
   if(hint){
     if(LAST_RESULT && LAST_RESULT.suggested){
     hint.textContent = LAST_VARIANTS.length > 1
-        ? 'Walkthrough of the ★ layout after Generate — packing, attempt-1 reds, quota ledger, and 1/1 / piano preview. Switch the Solution list to see another log.'
-        : 'How the ★ layout was built, including unresolved (red) items, the quota ledger, and the 1/1 / piano preview.';
+        ? 'Walkthrough of the ★ layout — packing, unresolved items, quota ledger, and the 1/1 forecast that picked ★. Switch the Solution list to see another layout.'
+        : 'How the ★ layout was built, including unresolved (left-out) items, the quota ledger, and the 1/1 forecast.';
     } else if(LAST_VARIANTS.length > 1 && who){
-      hint.textContent = `Walkthrough of ${who} — packing, attempt-1 reds, quota ledger, and 1/1 / piano preview. ★ is selected after Generate; pick it in the Solution list to return.`;
+      hint.textContent = `Walkthrough of ${who} — packing, attempt-1 unresolved items, quota ledger, and 1/1 forecast. ★ follows the best forecast; pick it in the Solution list to return.`;
     } else {
-      hint.textContent = 'How this layout was built, including unresolved (red) items, the quota ledger, and the 1/1 / piano preview.';
+      hint.textContent = 'How this layout was built, including unresolved (left-out) items, the quota ledger, and the 1/1 forecast.';
     }
   }
   if(!LAST_SEARCH_LOG.length){
@@ -3199,7 +3626,7 @@ if(searchLiveCancelBtn){
     requestCancelSearch();
     searchLiveCancelBtn.disabled = true;
     searchLiveCancelBtn.textContent = 'Stopping…';
-    searchLiveSay('Stop requested — finishing the current attempt, then keeping the best so far.', 'warn');
+    searchLiveSay('Stop requested — finishing this step, then continuing with forecast on layouts kept so far.', 'warn');
   });
 }
 
@@ -3321,13 +3748,21 @@ if(phase1TeacherOrderOverlay){
 }
 updatePhase1TeacherOrderBtn();
 
-document.getElementById('variantSelect').addEventListener('change', (e) => {
+function selectGroupVariant(idx){
   if(SEARCH_UI_LOCK) return;
-  const idx = parseInt(e.target.value, 10) || 0;
-  LAST_RESULT = LAST_VARIANTS[idx];
+  if(!LAST_VARIANTS || !LAST_VARIANTS.length) return;
+  idx = Math.max(0, Math.min(LAST_VARIANTS.length - 1, parseInt(idx, 10) || 0));
+  const next = LAST_VARIANTS[idx];
+  if(!next) return;
+  LAST_RESULT = next;
+  syncTimetableVariantAcceptedFlags();
   showLogForSelected();
   populateVariantSelector();
   renderResults(LAST_RESULT);
+  markWorkDirty();
+}
+document.getElementById('variantSelect').addEventListener('change', (e) => {
+  selectGroupVariant(e.target.value);
 });
 
 function renderResults(result){
@@ -3446,17 +3881,43 @@ function attachHoverTooltips(container){
 }
 
 // ---------- Teacher colour coding (for the "all teachers" view) ----------
+function calTextForHsl(h, s, l){
+  if(l >= 82){
+    return {text: '#1a1d28', textDim: '#434963'};
+  }
+  const lk = l / 100;
+  const sk = s / 100;
+  const a = sk * Math.min(lk, 1 - lk);
+  const f = n => {
+    const k = (n + h / 30) % 12;
+    return lk - a * Math.max(-1, Math.min(k - 3, Math.min(9 - k, 1)));
+  };
+  const r = f(0), g = f(8), b = f(4);
+  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  if(lum > 0.55){
+    return {text: '#1a1d28', textDim: '#434963'};
+  }
+  return {text: '#f4f6fb', textDim: '#d4d9e6'};
+}
 function colorForTeacher(teacherId){
-  // Golden-angle hue stepping by stable teacher order — spreads colours evenly around
-  // the wheel regardless of how similar the IDs look (a hash of "TEAC1".."TEAC25" tends
-  // to cluster in one hue range, which is why everyone looked blue before).
-  const ids = DB.refTeachers.map(t => t.id).slice().sort();
+  // Light pastels like the original (≈90% lightness), golden-angle hues so neighbours
+  // stay well separated, plus a tiny sat/light wobble so no two tiles look identical.
+  const ids = ((DB && DB.refTeachers) || []).map(t => t.id).slice().sort();
   let idx = ids.indexOf(teacherId);
-  if(idx === -1) idx = 0;
+  if(idx < 0){
+    let h = 0;
+    String(teacherId || '').split('').forEach(ch => { h = (h * 33 + ch.charCodeAt(0)) >>> 0; });
+    idx = h;
+  }
   const hue = (idx * 137.508) % 360;
+  const sat = 62 + (idx % 3) * 3;
+  const light = 88 + (idx % 5);
+  const textColors = calTextForHsl(hue, sat, light);
   return {
-    bg: `hsl(${hue} 68% 90%)`,
-    border: `hsl(${hue} 58% 46%)`
+    bg: `hsl(${hue} ${sat}% ${light}%)`,
+    border: `hsl(${hue} ${Math.max(48, sat - 10)}% 44%)`,
+    text: textColors.text,
+    textDim: textColors.textDim
   };
 }
 function renderTeacherLegend(el, items){
@@ -3505,36 +3966,428 @@ function layoutColumns(dayItems){
   return items;
 }
 
-const CAL_DAY_START = 8*60, CAL_DAY_END = 20*60, CAL_PX_PER_MIN = 1.15;
+function stripSplitDurationLabel(name){
+  return String(name || '').replace(/\s·\s+\d+\s*′\s*$/u, '').trim();
+}
+function individualTileKey(i){
+  if(!i || (i.source !== 'oneone' && i.source !== 'rpiano')) return '';
+  return [i.source, i.teacherId || '', i.studentId || i.studentIds || '', i.day].join('\t');
+}
+function mergeFlushIndividualTiles(items){
+  const list = (items || []).slice();
+  const byKey = new Map();
+  list.forEach(i => {
+    const k = individualTileKey(i);
+    if(!k) return;
+    if(!byKey.has(k)) byKey.set(k, []);
+    byKey.get(k).push(i);
+  });
+  const used = new Set();
+  const merged = [];
+  byKey.forEach(group => {
+    const ordered = group.slice().sort((a,b) => a.start - b.start || a.end - b.end);
+    let chain = [];
+    function emit(){
+      if(chain.length >= 2){
+        const first = chain[0];
+        const last = chain[chain.length - 1];
+        chain.forEach(p => used.add(p));
+        merged.push(Object.assign({}, first, {
+          start: first.start,
+          end: last.end,
+          duration: last.end - first.start,
+          name: stripSplitDurationLabel(first.name),
+          mergedIds: chain.map(p => p.lessonId).filter(Boolean),
+          mergedDurations: chain.map(p => p.end - p.start)
+        }));
+      }
+      chain = [];
+    }
+    ordered.forEach(i => {
+      if(!chain.length){
+        chain = [i];
+        return;
+      }
+      const prev = chain[chain.length - 1];
+      if(prev.end === i.start) chain.push(i);
+      else {
+        emit();
+        chain = [i];
+      }
+    });
+    emit();
+  });
+  return merged.concat(list.filter(i => !used.has(i)));
+}
+function pickFusedLessonKeeper(chain){
+  return (chain || []).find(p => p && p.lessonId && !/-\d+$/.test(String(p.lessonId))) || (chain && chain[0]);
+}
+function applyFusedLessonTimes(keeper, chain){
+  if(!keeper || !chain || !chain.length) return keeper;
+  const first = chain[0];
+  const last = chain[chain.length - 1];
+  keeper.day = first.day;
+  keeper.start = first.start;
+  keeper.end = last.end;
+  keeper.duration = last.end - first.start;
+  keeper.name = stripSplitDurationLabel(first.name || keeper.name);
+  delete keeper.mergedIds;
+  delete keeper.mergedDurations;
+  return keeper;
+}
+function coalesceFlushIndividualLessons(list){
+  if(!Array.isArray(list) || list.length < 2) return list;
+  const byKey = new Map();
+  list.forEach(i => {
+    const k = individualTileKey(i);
+    if(!k) return;
+    if(!byKey.has(k)) byKey.set(k, []);
+    byKey.get(k).push(i);
+  });
+  const remove = new Set();
+  byKey.forEach(group => {
+    const ordered = group.slice().sort((a,b) => a.start - b.start || a.end - b.end);
+    let chain = [];
+    function emit(){
+      if(chain.length >= 2){
+        const keeper = pickFusedLessonKeeper(chain);
+        applyFusedLessonTimes(keeper, chain);
+        chain.forEach(p => { if(p !== keeper) remove.add(p); });
+      }
+      chain = [];
+    }
+    ordered.forEach(i => {
+      if(!chain.length){
+        chain = [i];
+        return;
+      }
+      if(chain[chain.length - 1].end === i.start) chain.push(i);
+      else {
+        emit();
+        chain = [i];
+      }
+    });
+    emit();
+  });
+  if(remove.size){
+    for(let i = list.length - 1; i >= 0; i--){
+      if(remove.has(list[i])) list.splice(i, 1);
+    }
+  }
+  return list;
+}
+function coalesceIndividualState(state){
+  if(!state) return state;
+  if(Array.isArray(state.scheduled)) coalesceFlushIndividualLessons(state.scheduled);
+  (state.variants || []).forEach(v => {
+    if(v && Array.isArray(v.scheduled)) coalesceFlushIndividualLessons(v.scheduled);
+  });
+  return state;
+}
+function assignIndividualState(kind, state){
+  if(kind === 'rpiano'){
+    LAST_RPIANO = state;
+    DB.rpianoState = state;
+  } else {
+    LAST_ONEONE = state;
+    DB.oneToOneState = state;
+  }
+}
+function individualScheduledClashReasons(a, b){
+  const reasons = [];
+  if(!individualScheduledItemsClash(a, b)) return reasons;
+  if(a.teacherId && b.teacherId && a.teacherId === b.teacherId){
+    reasons.push('teacher ' + (teacherName(a.teacherId) || a.teacherId));
+  }
+  const sa = studentsForScheduledItem(a).map(s => s.ID);
+  const sb = studentsForScheduledItem(b).map(s => s.ID);
+  const shared = sa.filter(id => sb.includes(id));
+  if(shared.length){
+    reasons.push('student ' + shared.map(id => {
+      const s = (DB.students || []).find(x => x.ID === id);
+      return s ? `${s.NAME1 || ''} ${s.NAME2 || ''}`.trim() || id : id;
+    }).join(', '));
+  }
+  const ra = itemRoomId(a), rb = itemRoomId(b);
+  if(ra && rb && ra === rb) reasons.push('room ' + (roomName(ra) || ra));
+  return reasons;
+}
+function collectOneOneRpianoClashes(oneScheduled, rpianoScheduled){
+  const ones = (oneScheduled || []).filter(i => i && i.day && i.start != null && i.end != null);
+  const pianos = (rpianoScheduled || []).filter(i => i && i.day && i.start != null && i.end != null);
+  if(!ones.length || !pianos.length) return [];
+  const out = [];
+  const seen = new Set();
+  for(const o of ones){
+    for(const p of pianos){
+      const reasons = individualScheduledClashReasons(o, p);
+      if(!reasons.length) continue;
+      const key = [o.lessonId, p.lessonId, o.day, o.start, p.start].join('|');
+      if(seen.has(key)) continue;
+      seen.add(key);
+      const oneLabel = o.name || o.lessonId || '1/1';
+      const pianoLabel = p.name || p.lessonId || 'piano';
+      out.push({
+        one: o,
+        piano: p,
+        reasons,
+        text: `${oneLabel} (${itemSlotLabel(o)}) ↔ ${pianoLabel} (${itemSlotLabel(p)}) — ${reasons.join(', ')}`
+      });
+    }
+  }
+  return out;
+}
+function oneOneScheduleClashesRpiano(oneScheduled, rpianoScheduled){
+  return collectOneOneRpianoClashes(oneScheduled, rpianoScheduled).length > 0;
+}
+function oneOneRpianoClashesForCurrent(){
+  return collectOneOneRpianoClashes(
+    (LAST_ONEONE && LAST_ONEONE.scheduled) || [],
+    (LAST_RPIANO && LAST_RPIANO.scheduled) || []
+  );
+}
+function individualScheduledItemsClash(a, b){
+  if(!a || !b || a.day !== b.day) return false;
+  if(a.start == null || a.end == null || b.start == null || b.end == null) return false;
+  if(!intervalsOverlap(a.start, a.end, b.start, b.end)) return false;
+  if(a.teacherId && b.teacherId && a.teacherId === b.teacherId) return true;
+  const sa = studentsForScheduledItem(a).map(s => s.ID);
+  const sb = studentsForScheduledItem(b).map(s => s.ID);
+  if(sa.some(id => sb.includes(id))) return true;
+  const ra = itemRoomId(a), rb = itemRoomId(b);
+  if(ra && rb && ra === rb) return true;
+  return false;
+}
+function scopeTeacherSet(scopeTeacherIds){
+  const scope = normalizeTeacherScope(scopeTeacherIds);
+  return scope && scope.length ? new Set(scope) : null;
+}
+function dropScopedIndividualSlots(state, scopeTeacherIds){
+  if(!state) return;
+  const scope = scopeTeacherSet(scopeTeacherIds);
+  if(!scope) return;
+  state.scheduled = (state.scheduled || []).filter(s => !scope.has(s.teacherId));
+  state.unresolved = (state.unresolved || []).filter(u => !scope.has(u.teacherId));
+  (state.variants || []).forEach(v => {
+    if(!v) return;
+    v.scheduled = (v.scheduled || []).filter(s => !scope.has(s.teacherId));
+    v.unresolved = (v.unresolved || []).filter(u => !scope.has(u.teacherId));
+  });
+}
+function prepareIndividualRegenerate(kind, scopeTeacherIds){
+  const matrix = kind === 'rpiano' ? DB.rpiano : DB.oneToOne;
+  const state = kind === 'rpiano' ? LAST_RPIANO : LAST_ONEONE;
+  if(!state) return;
+  state.accepted = false;
+  state.acceptedAt = '';
+  state.acceptedSchedule = undefined;
+  if(isAllMatrixColumnsScope(matrix, scopeTeacherIds)){
+    state.scheduled = [];
+    state.unresolved = [];
+    state.variants = [];
+  } else {
+    dropScopedIndividualSlots(state, scopeTeacherIds);
+  }
+}
+function mergeScopedIndividualResult(prev, best, scopeTeacherIds, matrix){
+  const scope = scopeTeacherSet(scopeTeacherIds);
+  if(!scope || isAllMatrixColumnsScope(matrix, scopeTeacherIds)){
+    return {
+      scheduled: (best && best.scheduled) || [],
+      unresolved: (best && best.unresolved) || []
+    };
+  }
+  const keptSched = ((prev && prev.scheduled) || []).filter(s => !scope.has(s.teacherId));
+  const keptUn = ((prev && prev.unresolved) || []).filter(u => !scope.has(u.teacherId));
+  const freshSched = ((best && best.scheduled) || []).filter(s => scope.has(s.teacherId));
+  const freshUn = ((best && best.unresolved) || []).filter(u => scope.has(u.teacherId));
+  const scheduled = keptSched.concat(freshSched);
+  const dayRank = d => { const i = DAYS.indexOf(d); return i < 0 ? 99 : i; };
+  scheduled.sort((a,b) => dayRank(a.day) - dayRank(b.day) || a.start - b.start);
+  coalesceFlushIndividualLessons(scheduled);
+  return {scheduled, unresolved: keptUn.concat(freshUn)};
+}
+function compactIndividualVariants(state){
+  if(!state) return;
+  const scheduled = (state.scheduled || []).map(s => Object.assign({}, s));
+  const unresolved = (state.unresolved || []).map(u => Object.assign({}, u));
+  state.variants = [{scheduled, unresolved}];
+  state.selectedIndex = 0;
+}
+function scheduledMatchesStudentTeacher(item, studentId, teacherId){
+  if(!item || item.teacherId !== teacherId) return false;
+  if(item.studentId === studentId) return true;
+  return studentsForScheduledItem(item).some(s => s && s.ID === studentId);
+}
+function dropIndividualMatrixSlot(kind, studentId, teacherId){
+  const state = kind === 'rpiano' ? LAST_RPIANO : LAST_ONEONE;
+  if(!state || !studentId || !teacherId) return false;
+  const before = (state.scheduled || []).length;
+  state.scheduled = (state.scheduled || []).filter(s => !scheduledMatchesStudentTeacher(s, studentId, teacherId));
+  state.unresolved = (state.unresolved || []).filter(u => !(u.teacherId === teacherId && u.studentId === studentId));
+  (state.variants || []).forEach(v => {
+    if(!v) return;
+    v.scheduled = (v.scheduled || []).filter(s => !scheduledMatchesStudentTeacher(s, studentId, teacherId));
+    v.unresolved = (v.unresolved || []).filter(u => !(u.teacherId === teacherId && u.studentId === studentId));
+  });
+  const changed = before !== (state.scheduled || []).length;
+  if(changed){
+    state.accepted = false;
+    state.acceptedSchedule = undefined;
+    markLayoutNeedsAccept(kind);
+    if(kind === 'oneone') DB.oneToOneState = state;
+    else DB.rpianoState = state;
+  }
+  return changed;
+}
+function individualItemStudentId(item){
+  if(!item) return '';
+  if(item.studentId) return String(item.studentId);
+  const raw = String(item.studentIds || '').split(/[,;]+/).map(x => x.trim()).filter(Boolean);
+  return raw[0] || '';
+}
+function dropAllIndividualForStudent(kind, studentId){
+  const state = kind === 'rpiano' ? LAST_RPIANO : LAST_ONEONE;
+  const sid = String(studentId || '');
+  if(!state || !sid) return false;
+  const match = s => s && (String(s.studentId || '') === sid
+    || studentsForScheduledItem(s).some(st => st && st.ID === sid)
+    || individualItemStudentId(s) === sid);
+  const before = (state.scheduled || []).length + ((state.unresolved || []).length);
+  state.scheduled = (state.scheduled || []).filter(s => !match(s));
+  state.unresolved = (state.unresolved || []).filter(u => String(u.studentId || '') !== sid);
+  (state.variants || []).forEach(v => {
+    if(!v) return;
+    v.scheduled = (v.scheduled || []).filter(s => !match(s));
+    v.unresolved = (v.unresolved || []).filter(u => String(u.studentId || '') !== sid);
+  });
+  const changed = before !== ((state.scheduled || []).length + ((state.unresolved || []).length));
+  if(changed){
+    state.accepted = false;
+    state.acceptedSchedule = undefined;
+    markLayoutNeedsAccept(kind);
+    if(kind === 'oneone') DB.oneToOneState = state;
+    else DB.rpianoState = state;
+  }
+  return changed;
+}
+function clearMatrixHoursForStudent(matrix, studentId){
+  if(!matrix || !matrix.hours || !studentId) return false;
+  const sid = String(studentId);
+  if(!matrix.hours[sid]) return false;
+  delete matrix.hours[sid];
+  if(matrix.studentRooms) delete matrix.studentRooms[sid];
+  return true;
+}
+function purgeStudentIndividualWork(studentId){
+  const sid = String(studentId || '');
+  if(!sid) return {oneone: false, rpiano: false};
+  const one = clearMatrixHoursForStudent(DB.oneToOne, sid) | dropAllIndividualForStudent('oneone', sid);
+  const piano = clearMatrixHoursForStudent(DB.rpiano, sid) | dropAllIndividualForStudent('rpiano', sid);
+  return {oneone: !!one, rpiano: !!piano};
+}
+function orphanIndividualStudentIds(kind){
+  const known = new Set((DB.students || []).map(s => s && s.ID).filter(Boolean));
+  const out = new Set();
+  const matrix = kind === 'rpiano' ? DB.rpiano : DB.oneToOne;
+  Object.keys((matrix && matrix.hours) || {}).forEach(sid => {
+    if(known.has(sid)) return;
+    const row = (matrix.hours || {})[sid] || {};
+    if(Object.keys(row).some(tid => parseOneOneHours(row[tid]))) out.add(sid);
+  });
+  const state = kind === 'rpiano' ? LAST_RPIANO : LAST_ONEONE;
+  ((state && state.scheduled) || []).forEach(item => {
+    const sid = individualItemStudentId(item);
+    if(sid && !known.has(sid)) out.add(sid);
+  });
+  ((state && state.unresolved) || []).forEach(u => {
+    const sid = String((u && u.studentId) || '');
+    if(sid && !known.has(sid)) out.add(sid);
+  });
+  return [...out].sort();
+}
+function matrixStudentRowsForPanel(matrix, kind, filterQ){
+  const qn = String(filterQ || '').trim().toLowerCase();
+  const live = (DB.students || []).map(s => ({
+    ID: s.ID,
+    NAME1: s.NAME1,
+    NAME2: s.NAME2,
+    NAME3: s.NAME3,
+    INSTR_ID: s.INSTR_ID,
+    missing: false
+  }));
+  const known = new Set(live.map(s => s.ID));
+  orphanIndividualStudentIds(kind).forEach(sid => {
+    if(known.has(sid)) return;
+    const fromSched = (((kind === 'rpiano' ? LAST_RPIANO : LAST_ONEONE) || {}).scheduled || [])
+      .find(it => individualItemStudentId(it) === sid);
+    const label = (fromSched && fromSched.name)
+      ? String(fromSched.name).replace(/\s+(1\/1|piano)\s*$/i, '').trim()
+      : sid;
+    const bits = label.split(/\s+/);
+    live.push({
+      ID: sid,
+      NAME1: bits[0] || sid,
+      NAME2: bits.slice(1).join(' '),
+      NAME3: '',
+      INSTR_ID: '',
+      missing: true
+    });
+  });
+  return live.filter(s => {
+    if(!qn) return true;
+    const blob = `${studentDisplayName(s)} ${s.ID} ${instrName(s.INSTR_ID)||''} missing`.toLowerCase();
+    return blob.includes(qn);
+  });
+}
+function refreshIndividualAcceptedSnapshot(state, kind){
+  if(!state || !state.accepted) return state;
+  state.acceptedSchedule = individualAcceptedRows(state, kind === 'rpiano' ? 'piano' : '1/1');
+  return state;
+}
 
-function renderCalendar(container, items, colorByTeacher, dragSource){
-  const totalHeight = (CAL_DAY_END - CAL_DAY_START) * CAL_PX_PER_MIN;
+const CAL_DAY_START = 8*60, CAL_DAY_END = 20*60, CAL_PX_PER_MIN = 1.15;
+const REPORT_PRINT_PX_PER_MIN = 0.9;
+const REPORT_PRINT_MAX_CAL_HEIGHT = 680;
+
+function renderCalendar(container, items, colorByTeacher, dragSource, opts){
+  opts = opts || {};
+  const pxPerMin = Number.isFinite(opts.pxPerMin) ? opts.pxPerMin : CAL_PX_PER_MIN;
+  const compact = !!opts.compact;
+  const minBlockHeight = compact ? 10 : 14;
+  const totalHeight = (CAL_DAY_END - CAL_DAY_START) * pxPerMin;
+  const visible = mergeFlushIndividualTiles(items);
 
   let ticksHtml = '<div class="cal-headerpad"></div>';
   for(let h = 8; h <= 20; h++){
-    const top = (h*60 - CAL_DAY_START) * CAL_PX_PER_MIN;
+    const top = (h*60 - CAL_DAY_START) * pxPerMin;
     ticksHtml += `<div class="tick" style="top:${top}px">${String(h).padStart(2,'0')}:00</div>`;
   }
 
   let daysHtml = '';
   DAYS.forEach(day => {
-    const dayReservations = layoutColumns(items.filter(i => i.day === day && i.source === 'class'));
-    const dayItems = layoutColumns(items.filter(i => i.day === day && i.source !== 'class'));
+    const dayReservations = layoutColumns(visible.filter(i => i.day === day && i.source === 'class'));
+    const dayItems = layoutColumns(visible.filter(i => i.day === day && i.source !== 'class'));
     let blocksHtml = '';
     function paintBlock(i, z){
-      const top = (i.start - CAL_DAY_START) * CAL_PX_PER_MIN;
-      const height = Math.max((i.end - i.start) * CAL_PX_PER_MIN - 2, 14);
+      const top = (i.start - CAL_DAY_START) * pxPerMin;
+      const height = Math.max((i.end - i.start) * pxPerMin - 2, minBlockHeight);
       const widthPct = 100 / i._totalCols;
       const leftPct = i._col * widthPct;
       const isClass = i.source === 'class';
       const style = (!isClass && colorByTeacher && !i.source) ? (() => {
         const c = colorForTeacher(i.teacherId);
-        return `background:${c.bg};border-left-color:${c.border};`;
+        return `background:${c.bg};border-left-color:${c.border};--cal-ink:${c.text};--cal-ink-dim:${c.textDim};`;
       })() : '';
-      const teacherLine = (!isClass && colorByTeacher && !i.source) ? `<span class="meta">${i.teacher||i.teacherId}</span>` : '';
+      const teacherBgCls = (!isClass && colorByTeacher && !i.source) ? ' has-teacher-bg' : '';
+      const who = i.teacher || teacherName(i.teacherId) || i.teacherId || '';
+      const showTeacher = !isClass && who && (
+        i.source === 'oneone' || i.source === 'rpiano' || (colorByTeacher && !i.source)
+      );
+      const teacherLine = showTeacher ? `<span class="meta">${escapeAttr(who)}</span>` : '';
       const roomTag = !isClass && itemRoomId(i) ? ' 🔒' + itemRoomLabel(i) : '';
       const studentTitle = escapeAttr(isClass
-        ? ((i.classNames && i.classNames.length) ? `${i.name}\n${i.classNames.join('\n')}` : (i.name || 'Class reservation'))
+        ? [i.name, i.reason, ((i.classNames || []).join('\n'))].filter(Boolean).join('\n')
         : ((i.studentNames && i.studentNames.length) ? `${i.name} — ${i.studentNames.length} students:\n${i.studentNames.join('\n')}` : i.name));
       const sourceCls = isClass ? ' is-class'
         : (i.source === 'accepted' ? ' is-accepted-bg'
@@ -3542,11 +4395,31 @@ function renderCalendar(container, items, colorByTeacher, dragSource){
         : (i.source === 'rpiano' ? ' is-rpiano' : '')));
       const canDrag = isClass ? false : (dragSource ? i.source === dragSource : !i.source);
       const conflictCls = !isClass && itemHasConflict(i) ? ' has-conflict' : '';
-      const countLabel = isClass
-        ? 'reserved'
-        : (i.studentCount === 1 ? '1 student' : `${i.studentCount} students`);
-      return `<div class="cal-block${conflictCls}${sourceCls}${canDrag ? ' is-draggable' : ''}" data-lesson-id="${escapeAttr(i.lessonId)}" data-source="${escapeAttr(i.source || '')}" data-draggable="${canDrag ? '1' : ''}" data-tooltip="${studentTitle}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);width:calc(${widthPct}% - 4px);z-index:${z};${style}">
-        <b>${i.name}${roomTag}</b>${teacherLine}<span class="meta">${toHHMM(i.start)}–${toHHMM(i.end)} · ${countLabel}</span>
+      let blockTitle = '';
+      let timeLine = '';
+      if(isClass){
+        const classLines = classReservationDisplayLines(i);
+        blockTitle = escapeAttr(classLines.title) + roomTag;
+        const metaBits = [`${toHHMM(i.start)}–${toHHMM(i.end)}`];
+        if(classLines.classLabel
+          && classLines.classLabel.toLowerCase() !== classLines.title.toLowerCase()
+          && !classLines.title.toLowerCase().includes(classLines.classLabel.toLowerCase())){
+          metaBits.push(classLines.classLabel);
+        }
+        timeLine = metaBits.join(' · ');
+      } else {
+        const extraLabel = compact ? ''
+          : (i.studentCount === 1 ? '1 student' : `${i.studentCount} students`);
+        timeLine = compact || !extraLabel
+          ? `${toHHMM(i.start)}–${toHHMM(i.end)}`
+          : `${toHHMM(i.start)}–${toHHMM(i.end)} · ${extraLabel}`;
+        blockTitle = `${escapeAttr(i.name)}${roomTag}`;
+      }
+      const mergedAttr = (i.mergedIds && i.mergedIds.length > 1)
+        ? ` data-merged-ids="${escapeAttr(i.mergedIds.join(','))}"`
+        : '';
+      return `<div class="cal-block${teacherBgCls}${conflictCls}${sourceCls}${canDrag ? ' is-draggable' : ''}" data-lesson-id="${escapeAttr(i.lessonId)}"${mergedAttr} data-source="${escapeAttr(i.source || '')}" data-draggable="${canDrag ? '1' : ''}" data-tooltip="${studentTitle}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);width:calc(${widthPct}% - 4px);z-index:${z};${style}">
+        <b>${blockTitle}</b>${teacherLine}<span class="meta">${timeLine}</span>
       </div>`;
     }
     dayReservations.forEach(i => { blocksHtml += paintBlock(i, 0); });
@@ -3581,10 +4454,11 @@ function renderChronoList(containerEl, items){
 
 function lookupLessonForScheduled(item){
   if(!item || !item.lessonId) return null;
-  if(isSmallGroupId(item.lessonId)){
-    return getSmallGroupLessons().find(l => l.id === item.lessonId) || null;
+  const want = String(item.lessonId);
+  if(isSmallGroupId(want)){
+    return getSmallGroupLessons().find(l => String(l.id) === want) || null;
   }
-  return DB.lessons.find(l => l.id === item.lessonId) || null;
+  return (DB.lessons || []).find(l => String(l.id) === want) || null;
 }
 function scheduledItemIsPinned(item){
   const l = lookupLessonForScheduled(item);
@@ -3602,6 +4476,124 @@ function studentsForScheduledItem(item){
   const ids = String(raw).split(/[,;]+/).map(x => String(x).trim()).filter(Boolean);
   if(!ids.length) return [];
   return ids.map(id => (DB.students || []).find(s => s.ID === id)).filter(Boolean);
+}
+function scheduledContentSnapshot(item){
+  if(!item) return '';
+  return JSON.stringify({
+    name: item.name || '',
+    group: item.group || '',
+    groupId: item.groupId || '',
+    teacherId: item.teacherId || '',
+    teacher: item.teacher || '',
+    roomId: itemRoomId(item),
+    room: item.room || '',
+    studentCount: item.studentCount || 0,
+    studentNames: (item.studentNames || []).slice()
+  });
+}
+function scheduledContentFromSource(item){
+  const l = lookupLessonForScheduled(item);
+  if(!l) return null;
+  const students = lessonStudents(l);
+  const studentNames = students.map(studentDisplayName).sort();
+  const rooms = roomFieldsOf(l);
+  const isSg = isSmallGroupId(l.id);
+  let teacherId = l.teacherId || '';
+  let teacher = '';
+  if(teacherId){
+    teacher = teacherName(teacherId) || l.teacher || teacherId;
+  } else if(isSg && item.teacherId){
+    teacherId = item.teacherId;
+    teacher = teacherName(teacherId) || item.teacher || teacherId;
+  } else {
+    teacher = l.teacher || item.teacher || '';
+  }
+  return {
+    name: l.name || item.name || '',
+    group: isSg ? 'SMALLGROUP' : (l.group || ''),
+    groupId: isSg ? '' : (l.groupId || ''),
+    teacherId,
+    teacher,
+    studentCount: studentNames.length,
+    studentNames,
+    roomId: rooms.roomId,
+    room: rooms.room
+  };
+}
+function applyScheduledContentFields(item, fields){
+  if(!item || !fields) return false;
+  const before = scheduledContentSnapshot(item);
+  item.name = fields.name;
+  item.group = fields.group;
+  item.groupId = fields.groupId;
+  item.teacherId = fields.teacherId;
+  item.teacher = fields.teacher;
+  item.studentCount = fields.studentCount;
+  item.studentNames = (fields.studentNames || []).slice();
+  item.roomId = fields.roomId;
+  item.room = fields.room;
+  return scheduledContentSnapshot(item) !== before;
+}
+function scheduledItemIsGroupContent(item){
+  if(!item) return false;
+  const src = item.source;
+  return !src || src === 'group';
+}
+function setRefreshPlacedContentStatus(msg){
+  const el = document.getElementById('ttRefreshStatus');
+  if(el) el.textContent = msg || '';
+}
+function refreshPlacedGroupLessonContent(){
+  if(SEARCH_UI_LOCK || !LAST_RESULT) return {updated: 0, missing: 0};
+  const lists = [LAST_RESULT.scheduled];
+  (LAST_VARIANTS || []).forEach(v => {
+    if(v && v.scheduled && v.scheduled !== LAST_RESULT.scheduled) lists.push(v.scheduled);
+  });
+  if(LAST_RESULT.dragBaseline && LAST_RESULT.dragBaseline !== LAST_RESULT.scheduled){
+    lists.push(LAST_RESULT.dragBaseline);
+  }
+  let updated = 0;
+  let missing = 0;
+  lists.forEach((list, listIdx) => {
+    (list || []).forEach(item => {
+      if(!scheduledItemIsGroupContent(item)) return;
+      const fields = scheduledContentFromSource(item);
+      if(!fields){
+        if(listIdx === 0) missing++;
+        return;
+      }
+      if(applyScheduledContentFields(item, fields) && listIdx === 0) updated++;
+    });
+  });
+  if(updated){
+    markLayoutNeedsAccept('timetable');
+    markWorkDirty();
+  }
+  renderGrid();
+  refreshTimetableStats();
+  return {updated, missing};
+}
+function onRefreshPlacedGroupLessonContent(){
+  if(SEARCH_UI_LOCK) return;
+  try {
+    if(!LAST_RESULT || !(LAST_RESULT.scheduled || []).length){
+      setRefreshPlacedContentStatus('Generate the timetable first.');
+      return;
+    }
+    const {updated, missing} = refreshPlacedGroupLessonContent();
+    if(updated){
+      setRefreshPlacedContentStatus(`Updated ${updated} placed block(s) from Lesson groups / Small Groups. Day and time stayed the same — Accept again to freeze.`);
+      return;
+    }
+    if(missing){
+      setRefreshPlacedContentStatus(`${missing} placed block(s) have no matching Lesson groups / Small Groups row — names were left as they are.`);
+      return;
+    }
+    setRefreshPlacedContentStatus('Placed group lessons already match Lesson groups / Small Groups.');
+  } catch(err){
+    setRefreshPlacedContentStatus('Refresh failed: ' + (err && err.message ? err.message : String(err)));
+    console.error(err);
+  }
 }
 function frozenIndividualItems(){
   const out = [];
@@ -3643,21 +4635,95 @@ function combinedWeekItems(kind){
   return groups.concat(hasAcceptedOneOne() ? one : []).concat(hasAcceptedRpiano() ? piano : []);
 }
 function emptyReportFilters(){
-  return { classId:'', studentId:'', muclass:'', roomId:'', teacherId:'', kind:'', showClassReservations: true };
+  return { classId:'', studentId:'', muclass:'', roomId:'', teacherId:'', kind:'', showClassReservations: true, showRpiano: false };
+}
+function reportStudentShowRpianoEnabled(){
+  const el = document.getElementById('reportShowRpiano');
+  if(!el) return false;
+  return !!el.checked;
+}
+const STANDARD_WEEKLY_PDF_ROOM_HINTS = [
+  { label: '321-es terem', hints: ['321'] },
+  { label: 'Dobterem', hints: ['dobterem', 'dob', 'drum'] }
+];
+function resolveRoomsByHints(hints){
+  const rooms = (DB.refRooms || []).slice();
+  const used = new Set();
+  const out = [];
+  (hints || []).forEach(h => {
+    const tryHints = (h.hints && h.hints.length)
+      ? h.hints.slice()
+      : [h.hint].filter(Boolean);
+    let hit = null;
+    for(let i = 0; i < tryHints.length; i++){
+      const q = String(tryHints[i] || '').trim().toLowerCase();
+      if(!q) continue;
+      hit = rooms.find(r => {
+        if(!r || !r.id || used.has(r.id)) return false;
+        const blob = `${r.name || ''} ${r.id || ''}`.toLowerCase();
+        return blob.includes(q);
+      });
+      if(hit) break;
+    }
+    if(hit){
+      used.add(hit.id);
+      out.push({ id: hit.id, label: h.label || hit.name || hit.id });
+    }
+  });
+  return out;
 }
 let REPORT_FILTERS = emptyReportFilters();
 function reportItemKind(item){
   if(!item) return 'group';
   if(item.source === 'class') return 'class';
   if(item.source === 'oneone') return 'oneone';
-  if(item.source === 'rpiano' || item.source === 'piano') return 'rpiano';
+  if(item.source === 'rpiano' || item.source === 'piano' || item.source === 'rjpiano') return 'rpiano';
+  const lid = String(item.lessonId || '');
+  if(/^RP-/i.test(lid)) return 'rpiano';
+  if(String(item.group || '').toLowerCase() === 'piano') return 'rpiano';
+  if(String(item.lessonLabel || '').toLowerCase() === 'piano') return 'rpiano';
   return 'group';
+}
+function isRpianoReportItem(item){
+  return reportItemKind(item) === 'rpiano';
+}
+function studentReportShowRpiano(filters){
+  return !!(filters && filters.showRpiano === true);
+}
+function withoutRpianoItems(items){
+  return (items || []).filter(i => !isRpianoReportItem(i));
 }
 function reportKindLabel(kind){
   if(kind === 'oneone') return '1/1';
   if(kind === 'rpiano') return 'Required Piano';
   if(kind === 'class') return 'Class reservation';
   return 'Group lessons';
+}
+function classReservationReason(row){
+  if(!row) return '';
+  const note = String(row.note || row.reason || '').trim();
+  const avail = String(row.avail || '').trim();
+  const pick = note || avail;
+  if(!pick) return '';
+  if(/^reserv(ed|ation)?s?$/i.test(pick)) return '';
+  return pick;
+}
+function classReservationDisplayLines(item){
+  const classLabel = String(
+    item.class || item.name || ((item.classNames || []).join(', ')) || ''
+  ).trim();
+  const reason = String(item.reason || classReservationReason(item) || '').trim();
+  const note = String(item.note || '').trim();
+  const avail = String(item.avail || '').trim();
+  const detailParts = [];
+  [reason, note, avail].forEach(raw => {
+    const s = String(raw || '').trim();
+    if(!s || /^reserv(ed|ation)?s?$/i.test(s)) return;
+    if(!detailParts.some(p => p.toLowerCase() === s.toLowerCase())) detailParts.push(s);
+  });
+  const detail = detailParts.join(' · ');
+  const title = detail || classLabel || 'Class reservation';
+  return { title, classLabel, detail };
 }
 function classReservationItems(){
   return (DB.classAvail || []).map((r, idx) => {
@@ -3670,9 +4736,10 @@ function classReservationItems(){
     if(!r.start && !r.end) return null;
     const classId = r.classId || '';
     const label = r.class || className(classId) || classId || 'Class';
+    const reason = classReservationReason(r);
     return {
       lessonId: 'CLASS-' + (classId || idx) + '-' + r.day + '-' + s,
-      name: label + ' reserved',
+      name: label,
       day: r.day,
       start: s,
       end: e,
@@ -3687,7 +4754,9 @@ function classReservationItems(){
       room: '',
       studentCount: 0,
       studentNames: [label],
-      note: r.note || ''
+      note: r.note || '',
+      avail: r.avail || '',
+      reason
     };
   }).filter(Boolean);
 }
@@ -3712,7 +4781,9 @@ function mergeClassReservationItems(items){
         room: '',
         studentCount: 0,
         studentNames: [],
-        note: i.note || ''
+        note: i.note || '',
+        avail: i.avail || '',
+        reason: i.reason || classReservationReason(i)
       });
     }
     const g = groups.get(key);
@@ -3724,12 +4795,19 @@ function mergeClassReservationItems(items){
     } else if(!id && label && !g.classNames.includes(label)){
       g.classNames.push(label);
     }
+    const reason = i.reason || classReservationReason(i);
+    if(reason){
+      const have = String(g.reason || '').split(',').map(x => x.trim()).filter(Boolean);
+      if(!have.some(x => x.toLowerCase() === reason.toLowerCase())){
+        g.reason = have.concat([reason]).join(', ');
+      }
+    }
   });
   return [...groups.values()].map(g => {
     const names = g.classNames;
     g.name = names.length <= 3
-      ? names.join(', ') + ' reserved'
-      : names.slice(0, 2).join(', ') + ' +' + (names.length - 2) + ' reserved';
+      ? names.join(', ')
+      : names.slice(0, 2).join(', ') + ' +' + (names.length - 2);
     g.class = names.join(', ');
     g.classId = g.classIds.length === 1 ? g.classIds[0] : '';
     g.studentNames = names.slice();
@@ -3799,6 +4877,7 @@ function reportItemMatches(item, filters){
     return true;
   }
   if(f.kind && reportItemKind(item) !== f.kind) return false;
+  if(f.studentId && !studentReportShowRpiano(f) && isRpianoReportItem(item) && f.kind !== 'rpiano') return false;
   if(f.teacherId && String(item.teacherId || '') !== String(f.teacherId)) return false;
   if(f.roomId && itemRoomId(item) !== String(f.roomId)) return false;
   const students = studentsForScheduledItem(item);
@@ -3895,8 +4974,11 @@ function readReportFiltersFromUi(){
       const el = document.getElementById('reportShowClassReservations');
       if(!el) return REPORT_FILTERS.showClassReservations !== false;
       return !!el.checked;
-    })()
+    })(),
+    showRpiano: reportStudentShowRpianoEnabled()
   };
+  const batchRpiano = document.getElementById('reportBatchShowRpiano');
+  if(batchRpiano) batchRpiano.checked = REPORT_FILTERS.showRpiano === true;
 }
 function fillReportFilterOptions(){
   const classes = (DB.refClasses || []).slice().sort((a,b) => String(a.name||a.id).localeCompare(String(b.name||b.id)));
@@ -3923,6 +5005,8 @@ function fillReportFilterOptions(){
   if(kindEl && REPORT_FILTERS.kind) kindEl.value = REPORT_FILTERS.kind;
   const showClassEl = document.getElementById('reportShowClassReservations');
   if(showClassEl) showClassEl.checked = REPORT_FILTERS.showClassReservations !== false;
+  const showRpianoEl = document.getElementById('reportShowRpiano');
+  if(showRpianoEl) showRpianoEl.checked = REPORT_FILTERS.showRpiano === true;
 }
 function renderReportList(container, items){
   if(!container) return;
@@ -3944,7 +5028,7 @@ function renderReportList(container, items){
       <td class="tt-time">${DAY_LABEL[i.day] || i.day}</td>
       <td class="tt-time">${toHHMM(i.start)}–${toHHMM(i.end)}</td>
       <td>${reportKindLabel(reportItemKind(i))}</td>
-      <td><div class="${blockCls}" data-tooltip="${studentTitle}"><b>${i.name || ''}${!isClass && itemRoomId(i) ? ' 🔒'+itemRoomLabel(i) : ''}</b></div></td>
+      <td><div class="${blockCls}" data-tooltip="${studentTitle}"><b>${i.name || ''}${!isClass && itemRoomId(i) ? ' 🔒'+itemRoomLabel(i) : ''}</b>${isClass && i.reason ? `<span class="meta">${escapeAttr(i.reason)}</span>` : (!isClass && (i.source === 'oneone' || i.source === 'rpiano') && (i.teacher || i.teacherId) ? `<span class="meta">${escapeAttr(i.teacher || teacherName(i.teacherId) || i.teacherId)}</span>` : '')}</div></td>
       <td>${isClass ? '—' : (i.teacher || teacherName(i.teacherId) || '')}</td>
       <td>${isClass ? '—' : (itemRoomLabel(i) || '—')}</td>
       <td>${classes || '—'}</td>
@@ -3955,7 +5039,7 @@ function renderReportList(container, items){
   container.innerHTML = html;
 }
 function classReservationLegendChip(){
-  return `<span class="legend-chip"><span class="swatch" style="background:rgba(224,87,107,.30);border-color:#c43b50"></span>Class reservation</span>`;
+  return `<span class="legend-chip"><span class="swatch" style="background:rgba(120,124,140,.28);border-color:#8b90a0"></span>Class reservation</span>`;
 }
 function renderReportsTab(){
   fillReportFilterOptions();
@@ -3976,7 +5060,7 @@ function renderReportsTab(){
   if(empty){
     if(items.length || reservations.length) empty.textContent = '';
     else if(total) empty.textContent = 'Nothing matches these filters.';
-    else empty.textContent = 'Generate group lessons (and 1/1 / Required Piano) to fill the week calendar. Tick Class reservations to overlay CLASS_CONST busy times in red.';
+    else empty.textContent = 'Generate group lessons (and 1/1 / Required Piano) to fill the week calendar. Tick Class reservations to overlay CLASS_CONST busy times in grey.';
   }
   if(legend){
     const groups = items.filter(i => reportItemKind(i) === 'group');
@@ -3998,6 +5082,432 @@ function renderReportsTab(){
   renderReportList(list, items.concat(reservations));
   if(grid) attachHoverTooltips(grid);
   if(list) attachHoverTooltips(list);
+}
+function reportBundleForFilters(filters){
+  const f = Object.assign(emptyReportFilters(), filters || {});
+  const all = reportWeekItems();
+  const items = f.kind === 'class' ? [] : filterReportItems(all, f);
+  const reservations = reportClassReservationItems(f, items);
+  return {
+    all,
+    items,
+    reservations,
+    overlay: mergeClassReservationItems(reservations),
+    listItems: items.concat(reservations)
+  };
+}
+function reportBatchFilters(scope, id, opts){
+  opts = opts || {};
+  const f = emptyReportFilters();
+  if(scope === 'student'){
+    f.studentId = id;
+    f.showClassReservations = true;
+    f.showRpiano = opts.showRpiano === true;
+  } else if(scope === 'teacher'){
+    f.teacherId = id;
+    f.showClassReservations = false;
+  } else if(scope === 'room'){
+    f.roomId = id;
+    f.showClassReservations = false;
+  } else if(scope === 'class'){
+    f.classId = id;
+    f.showClassReservations = false;
+  }
+  return f;
+}
+function reportBatchPageItems(page){
+  const b = page && page.bundle;
+  if(!b) return { gridItems: [], listItems: [] };
+  const showClass = page.scope === 'student' && page.filters.showClassReservations !== false;
+  const showRpiano = page.scope !== 'student' || studentReportShowRpiano(page.filters);
+  let items = showRpiano ? (b.items || []) : withoutRpianoItems(b.items);
+  let reservations = showClass ? (b.reservations || []) : [];
+  const overlay = showClass ? (b.overlay || []) : [];
+  return {
+    gridItems: showClass ? items.concat(overlay) : items,
+    listItems: items.concat(reservations)
+  };
+}
+function reportBatchFiltersForPage(page){
+  const filters = Object.assign(emptyReportFilters(), (page && page.filters) || {});
+  if(page && page.scope === 'student'){
+    filters.showRpiano = reportStudentShowRpianoEnabled();
+  }
+  return filters;
+}
+function reportBundleForPage(page){
+  return reportBundleForFilters(reportBatchFiltersForPage(page));
+}
+function shortReportReason(text){
+  const s = String(text || '').replace(/<[^>]+>/g, '').trim();
+  if(!s) return '';
+  return s.length > 140 ? s.slice(0, 137) + '…' : s;
+}
+function matrixHoursLabelForTeacherStudent(matrix, studentId, teacherId){
+  const row = matrix && matrix.hours && matrix.hours[studentId];
+  if(!row) return '';
+  const h = parseOneOneHours(row[teacherId]);
+  if(!h) return '';
+  return formatOneOneHours(h) + 'h weekly';
+}
+function reportTeacherUnplacedForPdf(teacherId){
+  const tid = String(teacherId || '');
+  if(!tid) return [];
+  const out = [];
+  const seen = new Set();
+  function add(entry){
+    const key = entry.key || [entry.kind, entry.label, entry.detail].join('|');
+    if(seen.has(key)) return;
+    seen.add(key);
+    out.push(entry);
+  }
+  function addGroupUnresolved(u){
+    const l = u.lesson || {};
+    const ltid = String(l.teacherId || '');
+    if(ltid !== tid) return;
+    const lessonName = l.name || l.id || 'Lesson';
+    const kind = isSmallGroupId(l.id || '') ? 'Small group' : 'Group lesson';
+    const students = (u.students || []).filter(Boolean);
+    if(students.length){
+      students.forEach(st => {
+        const name = studentDisplayName(st);
+        add({
+          key: `group:${l.id}:${st.ID || name}`,
+          kind,
+          label: name,
+          detail: lessonName
+        });
+      });
+      return;
+    }
+    add({
+      key: `group:${l.id}`,
+      kind,
+      label: lessonName,
+      detail: shortReportReason(u.customReason)
+    });
+  }
+  const groupUnresolved = (LAST_RESULT && LAST_RESULT.unresolved) || [];
+  groupUnresolved.forEach(addGroupUnresolved);
+  const groupLessonIds = new Set(groupUnresolved.map(u => u.lesson && u.lesson.id).filter(Boolean));
+  (DB.acceptedSchedule || []).forEach(r => {
+    if(r.status !== 'unresolved' || String(r.teacherId || '') !== tid) return;
+    const kind = String(r.kind || '').toLowerCase();
+    if(kind === '1/1' || kind === 'piano' || kind === 'required piano') return;
+    if(r.lessonId && groupLessonIds.has(r.lessonId)) return;
+    const lessonName = r.name || r.lessonId || 'Lesson';
+    const rowKind = kind === 'smallgroup' ? 'Small group' : 'Group lesson';
+    const names = String(r.students || '').split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+    if(names.length){
+      names.forEach(name => {
+        add({
+          key: `accepted:${r.lessonId}:${name}`,
+          kind: rowKind,
+          label: name,
+          detail: lessonName
+        });
+      });
+    } else {
+      add({
+        key: `accepted:${r.lessonId}`,
+        kind: rowKind,
+        label: lessonName,
+        detail: shortReportReason(r.note)
+      });
+    }
+  });
+  function addIndividualUnresolved(state, kindLabel, matrix){
+    if(!state) return;
+    (state.unresolved || []).forEach(u => {
+      if(String(u.teacherId || '') !== tid) return;
+      const st = (DB.students || []).find(s => s && s.ID === u.studentId);
+      const name = u.name || (st ? studentDisplayName(st) : u.studentId) || '';
+      const hours = matrixHoursLabelForTeacherStudent(matrix, u.studentId, tid);
+      const reason = shortReportReason(u.reason);
+      add({
+        key: `${kindLabel}:${u.studentId}:${tid}`,
+        kind: kindLabel,
+        label: name,
+        detail: reason || hours
+      });
+    });
+  }
+  addIndividualUnresolved(LAST_ONEONE, '1/1', DB.oneToOne);
+  addIndividualUnresolved(LAST_RPIANO, 'Required Piano', DB.rpiano);
+  return out.sort((a, b) => a.label.localeCompare(b.label) || a.kind.localeCompare(b.kind));
+}
+function renderReportTeacherUnplacedHtml(entries){
+  if(!entries || !entries.length) return '';
+  let html = '<div class="report-print-unplaced"><h3>Could not schedule</h3><ul>';
+  entries.forEach(e => {
+    const bits = [e.kind];
+    if(e.detail) bits.push(e.detail);
+    html += `<li><b>${escapeAttr(e.label)}</b><span class="meta"> — ${escapeAttr(bits.join(' · '))}</span></li>`;
+  });
+  html += '</ul></div>';
+  return html;
+}
+function reportBatchTargets(scope){
+  if(scope === 'student'){
+    return (DB.students || []).filter(s => s && s.ID).map(s => ({
+      id: s.ID,
+      label: studentDisplayName(s)
+    })).sort((a, b) => a.label.localeCompare(b.label));
+  }
+  if(scope === 'teacher'){
+    return (DB.refTeachers || []).filter(t => t && t.id).map(t => ({
+      id: t.id,
+      label: t.name || t.id
+    })).sort((a, b) => a.label.localeCompare(b.label));
+  }
+  if(scope === 'room'){
+    return (DB.refRooms || []).filter(r => r && r.id).map(r => ({
+      id: r.id,
+      label: r.name || r.id
+    })).sort((a, b) => a.label.localeCompare(b.label));
+  }
+  if(scope === 'class'){
+    return (DB.refClasses || []).filter(c => c && c.id).map(c => ({
+      id: c.id,
+      label: (c.name || c.id) + (classMuclass(c.id) ? ' · ' + classMuclass(c.id) : '')
+    })).sort((a, b) => a.label.localeCompare(b.label));
+  }
+  return [];
+}
+function reportBatchPageTitle(scope, id){
+  const hit = reportBatchTargets(scope).find(t => t.id === id);
+  if(hit) return hit.label;
+  if(scope === 'student'){
+    const st = (DB.students || []).find(s => s && s.ID === id);
+    return st ? studentDisplayName(st) : id;
+  }
+  if(scope === 'teacher') return teacherName(id) || id;
+  if(scope === 'room') return roomName(id) || id;
+  if(scope === 'class') return className(id) || id;
+  return id;
+}
+function planStandardWeeklyPdfPages(opts){
+  opts = opts || {};
+  const skipEmpty = opts.skipEmpty === true;
+  const pages = [];
+  resolveRoomsByHints(opts.roomHints || STANDARD_WEEKLY_PDF_ROOM_HINTS).forEach(r => {
+    const roomPages = planReportBatchPages('room', [r.id], { skipEmpty: false });
+    roomPages.forEach(p => { if(r.label) p.title = r.label; });
+    pages.push(...roomPages);
+  });
+  pages.push(...planReportBatchPages('student', null, { skipEmpty, showRpiano: opts.showRpiano }));
+  pages.push(...planReportBatchPages('teacher', null, { skipEmpty }));
+  return pages;
+}
+function planReportBatchPages(scope, ids, opts){
+  opts = opts || {};
+  const skipEmpty = opts.skipEmpty !== false;
+  const idList = (ids && ids.length) ? ids.slice() : reportBatchTargets(scope).map(t => t.id);
+  const pages = [];
+  idList.forEach(id => {
+    const filters = reportBatchFilters(scope, id, opts);
+    const bundle = reportBundleForFilters(filters);
+    const unplaced = scope === 'teacher' ? reportTeacherUnplacedForPdf(id) : [];
+    if(skipEmpty && !bundle.listItems.length && !unplaced.length) return;
+    if(scope === 'student' && !studentReportShowRpiano(filters)){
+      bundle.items = withoutRpianoItems(bundle.items);
+      bundle.listItems = withoutRpianoItems(bundle.listItems);
+    }
+    pages.push({
+      scope,
+      id,
+      title: reportBatchPageTitle(scope, id),
+      filters,
+      bundle,
+      unplaced
+    });
+  });
+  return pages;
+}
+function reportBatchPageHeading(page){
+  if(!page) return '';
+  if(page.scope === 'room') return 'Room — ' + (page.title || '');
+  if(page.scope === 'student') return 'Student — ' + (page.title || '');
+  if(page.scope === 'teacher') return 'Teacher — ' + (page.title || '');
+  if(page.scope === 'class') return 'Class — ' + (page.title || '');
+  return page.title || '';
+}
+function reportBatchPageMeta(page, view){
+  const count = (view && view.listItems) ? view.listItems.length : 0;
+  const scopeLabel = page.scope === 'student' ? 'Student'
+    : (page.scope === 'teacher' ? 'Teacher'
+    : (page.scope === 'room' ? 'Room' : 'Class'));
+  const resNote = (page.scope === 'student' && page.filters.showClassReservations !== false)
+    ? ' · class reservations included'
+    : '';
+  const pianoNote = (page.scope === 'student' && !studentReportShowRpiano(page.filters))
+    ? ' · Required Piano hidden'
+    : '';
+  const unplacedNote = (page.scope === 'teacher' && page.unplaced && page.unplaced.length)
+    ? ` · ${page.unplaced.length} not scheduled`
+    : '';
+  return `${scopeLabel} · ${count} calendar item(s)${resNote}${pianoNote}${unplacedNote}`;
+}
+function fitReportPrintCalendar(section){
+  if(!section) return;
+  const gridWrap = section.querySelector('.report-print-grid-wrap');
+  const cal = section.querySelector('.cal-wrap');
+  if(!gridWrap || !cal) return;
+  cal.style.transform = '';
+  cal.style.transformOrigin = '';
+  gridWrap.style.height = '';
+  const hasUnplaced = !!(section.querySelector('.report-print-unplaced li'));
+  const maxH = hasUnplaced ? REPORT_PRINT_MAX_CAL_HEIGHT - 90 : REPORT_PRINT_MAX_CAL_HEIGHT;
+  const h = cal.offsetHeight;
+  if(h > maxH && h > 0){
+    const scale = maxH / h;
+    cal.style.transform = 'scale(' + scale + ')';
+    cal.style.transformOrigin = 'top left';
+    gridWrap.style.height = Math.ceil(h * scale) + 'px';
+  }
+}
+function renderReportBatchPage(section, page){
+  if(!section || !page) return;
+  const titleEl = section.querySelector('.report-print-title');
+  const metaEl = section.querySelector('.report-print-meta');
+  const grid = section.querySelector('.report-print-grid');
+  const unplacedWrap = section.querySelector('.report-print-unplaced-wrap');
+  const filters = reportBatchFiltersForPage(page);
+  const bundle = reportBundleForPage(page);
+  const livePage = Object.assign({}, page, { filters, bundle });
+  const view = reportBatchPageItems(livePage);
+  const unplaced = page.scope === 'teacher'
+    ? (page.unplaced || reportTeacherUnplacedForPdf(page.id))
+    : [];
+  if(titleEl) titleEl.textContent = reportBatchPageHeading(page);
+  if(metaEl) metaEl.textContent = reportBatchPageMeta(livePage, view);
+  if(unplacedWrap){
+    unplacedWrap.innerHTML = page.scope === 'teacher' ? renderReportTeacherUnplacedHtml(unplaced) : '';
+  }
+  if(grid){
+    renderCalendar(grid, view.gridItems, true, 'none', {
+      pxPerMin: REPORT_PRINT_PX_PER_MIN,
+      compact: true
+    });
+    fitReportPrintCalendar(section);
+  }
+}
+function exportReportsBatchPdfFromPages(pages){
+  if(typeof document === 'undefined') return 0;
+  if(!pages.length){
+    alert('Nothing to export — the week calendar is still blank or every pick was empty.');
+    return 0;
+  }
+  const host = document.getElementById('reportBatchPrintHost');
+  if(!host) return 0;
+  host.innerHTML = '';
+  pages.forEach(page => {
+    const section = document.createElement('section');
+    section.className = 'report-print-page';
+    section.innerHTML =
+      '<h2 class="report-print-title"></h2>' +
+      '<p class="report-print-meta"></p>' +
+      '<div class="grid-wrap report-print-grid-wrap"><div class="report-print-grid"></div></div>' +
+      '<div class="report-print-unplaced-wrap"></div>';
+    renderReportBatchPage(section, page);
+    host.appendChild(section);
+  });
+  host.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('is-print-report-batch');
+  const done = () => {
+    document.body.classList.remove('is-print-report-batch');
+    host.innerHTML = '';
+    host.setAttribute('aria-hidden', 'true');
+  };
+  if(typeof window !== 'undefined' && window.addEventListener){
+    window.addEventListener('afterprint', done, { once: true });
+  }
+  const triggerPrint = () => {
+    if(typeof window !== 'undefined' && typeof window.print === 'function') window.print();
+    else done();
+  };
+  if(typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'){
+    requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(triggerPrint, 150)));
+  } else {
+    setTimeout(triggerPrint, 150);
+  }
+  return pages.length;
+}
+function exportReportsBatchPdf(scope, ids, opts){
+  const pages = planReportBatchPages(scope, ids, opts);
+  if(!pages.length){
+    alert('Nothing to export — every pick was empty or the week calendar is still blank.');
+    return 0;
+  }
+  return exportReportsBatchPdfFromPages(pages);
+}
+function exportStandardWeeklyPdfPack(opts){
+  opts = opts || {};
+  opts.showRpiano = reportStudentShowRpianoEnabled();
+  const pages = planStandardWeeklyPdfPages(opts);
+  if(!pages.length){
+    alert('Nothing to export — load a timetable first (and check that rooms 321 / Dobterem exist in Reference → Rooms).');
+    return 0;
+  }
+  const missing = (STANDARD_WEEKLY_PDF_ROOM_HINTS || []).filter(h => {
+    return !resolveRoomsByHints([h]).length;
+  });
+  if(missing.length){
+    const names = missing.map(h => h.label || h.hint).join(', ');
+    if(!confirm(`These rooms were not found in Reference → Rooms: ${names}. Export the rest anyway?`)) return 0;
+  }
+  return exportReportsBatchPdfFromPages(pages);
+}
+function fillReportBatchPickList(){
+  const scopeEl = document.getElementById('reportBatchScope');
+  const listEl = document.getElementById('reportBatchPickList');
+  const rpianoWrap = document.getElementById('reportBatchShowRpianoWrap');
+  if(!scopeEl || !listEl) return;
+  const scope = scopeEl.value || 'student';
+  if(rpianoWrap) rpianoWrap.style.display = scope === 'student' ? '' : 'none';
+  const batchOpts = scope === 'student' ? { showRpiano: reportStudentShowRpianoEnabled() } : {};
+  const targets = reportBatchTargets(scope);
+  listEl.innerHTML = targets.map(t => {
+    const filters = reportBatchFilters(scope, t.id, batchOpts);
+    const bundle = reportBundleForFilters(filters);
+    const livePage = { scope, filters, bundle };
+    const unplaced = scope === 'teacher' ? reportTeacherUnplacedForPdf(t.id) : [];
+    const count = reportBatchPageItems(livePage).listItems.length;
+    const extra = unplaced.length ? ` · ${unplaced.length} unplaced` : '';
+    const checked = (count > 0 || unplaced.length > 0) ? ' checked' : '';
+    return `<label class="report-batch-pick">` +
+      `<input type="checkbox" value="${escapeAttr(t.id)}"${checked}>` +
+      ` ${escapeAttr(t.label)} <span class="meta">(${count}${extra})</span>` +
+      `</label>`;
+  }).join('');
+  if(!targets.length) listEl.innerHTML = '<p class="dataio-hint" style="margin:0">No entries in this category.</p>';
+}
+function openReportBatchModal(){
+  const batchRpiano = document.getElementById('reportBatchShowRpiano');
+  const mainRpiano = document.getElementById('reportShowRpiano');
+  if(batchRpiano && mainRpiano) batchRpiano.checked = !!mainRpiano.checked;
+  setModalOverlay('reportBatchPdfOverlay', true);
+  fillReportBatchPickList();
+}
+function runReportBatchExport(){
+  const scopeEl = document.getElementById('reportBatchScope');
+  const skipEl = document.getElementById('reportBatchSkipEmpty');
+  const scope = scopeEl ? scopeEl.value : 'student';
+  const skipEmpty = skipEl ? !!skipEl.checked : true;
+  const ids = [...document.querySelectorAll('#reportBatchPickList input[type="checkbox"]:checked')].map(el => el.value);
+  if(!ids.length){
+    alert('Pick at least one weekly report.');
+    return;
+  }
+  setModalOverlay('reportBatchPdfOverlay', false);
+  const opts = { skipEmpty };
+  if(scope === 'student') opts.showRpiano = reportStudentShowRpianoEnabled();
+  exportReportsBatchPdf(scope, ids, opts);
+}
+function setReportBatchChecks(checked){
+  document.querySelectorAll('#reportBatchPickList input[type="checkbox"]').forEach(el => {
+    el.checked = !!checked;
+  });
 }
 function downloadReportCsv(){
   const all = reportWeekItems();
@@ -4022,7 +5532,9 @@ function timetableAuditItems(scheduled){
   return (scheduled || []).concat(frozenIndividualItems());
 }
 function itemHasConflict(item){
-  return !!(LAST_AUDIT && item && item.lessonId && LAST_AUDIT.conflictIds.has(item.lessonId));
+  if(!LAST_AUDIT || !item) return false;
+  const ids = (item.mergedIds && item.mergedIds.length) ? item.mergedIds : [item.lessonId];
+  return ids.some(id => id && LAST_AUDIT.conflictIds.has(id));
 }
 function overlapRangeLabel(a, b){
   return `${DAY_LABEL[a.day]} ${toHHMM(Math.max(a.start, b.start))}–${toHHMM(Math.min(a.end, b.end))}`;
@@ -4199,6 +5711,9 @@ function renderAuditPanel(opts){
 function cloneLessonSlots(scheduled){
   return (scheduled || []).map(i => ({lessonId: i.lessonId, day: i.day, start: i.start, end: i.end}));
 }
+function cloneScheduledItems(scheduled){
+  return (scheduled || []).map(i => Object.assign({}, i));
+}
 function applyLessonSlots(scheduled, slots){
   if(!scheduled || !slots) return;
   const byId = {};
@@ -4211,6 +5726,21 @@ function applyLessonSlots(scheduled, slots){
     item.end = s.end;
   });
 }
+function restoreScheduledFromBaseline(result){
+  if(!result || !result.dragBaseline) return;
+  const base = result.dragBaseline;
+  if(base.length && base[0] && Object.prototype.hasOwnProperty.call(base[0], 'name')){
+    const restored = cloneScheduledItems(base);
+    result.scheduled.length = 0;
+    restored.forEach(it => result.scheduled.push(it));
+    return;
+  }
+  applyLessonSlots(result.scheduled, base);
+  const keep = new Set(base.map(s => s && s.lessonId).filter(Boolean));
+  for(let i = (result.scheduled || []).length - 1; i >= 0; i--){
+    if(!keep.has(result.scheduled[i].lessonId)) result.scheduled.splice(i, 1);
+  }
+}
 function lessonSlotsMatch(scheduled, slots){
   if(!scheduled || !slots || scheduled.length !== slots.length) return false;
   const byId = {};
@@ -4222,14 +5752,14 @@ function lessonSlotsMatch(scheduled, slots){
 }
 function ensureDragBaseline(result){
   if(!result) return;
-  if(!result.dragBaseline) result.dragBaseline = cloneLessonSlots(result.scheduled);
+  if(!result.dragBaseline) result.dragBaseline = cloneScheduledItems(result.scheduled);
   if(!Array.isArray(result.dragUndo)) result.dragUndo = [];
 }
 function updateTimetableAcceptBtn(){
   const btn = document.getElementById('acceptScheduleBtn');
   if(!btn) return;
   const ready = !!(LAST_RESULT && (LAST_RESULT.scheduled || []).length);
-  const accepted = !!(ready && LAST_RESULT.accepted);
+  const accepted = !!(ready && timetableVariantShowsAccepted(LAST_RESULT));
   btn.disabled = !ready || accepted;
   btn.textContent = accepted ? '✓ Schedule accepted' : '✓ Accept this schedule';
   updateAllTabLocks();
@@ -4251,24 +5781,45 @@ function markLayoutNeedsAccept(kind){
 function updateDragEditButtons(){
   const undoBtn = document.getElementById('ttUndoBtn');
   const resetBtn = document.getElementById('ttResetBtn');
-  if(!undoBtn && !resetBtn) return;
+  const refreshBtn = document.getElementById('ttRefreshContentBtn');
+  if(!undoBtn && !resetBtn && !refreshBtn) return;
   const result = LAST_RESULT;
   const canUndo = !!(result && result.dragUndo && result.dragUndo.length);
   const canReset = !!(result && result.dragBaseline && !lessonSlotsMatch(result.scheduled, result.dragBaseline));
   if(undoBtn) undoBtn.disabled = !canUndo;
   if(resetBtn) resetBtn.disabled = !canReset;
+  if(refreshBtn) refreshBtn.disabled = false;
 }
 function undoLastDrag(){
   if(SEARCH_UI_LOCK) return;
   if(!LAST_RESULT || !LAST_RESULT.dragUndo || !LAST_RESULT.dragUndo.length) return;
   const step = LAST_RESULT.dragUndo.pop();
-  const item = scheduledItemById(step.lessonId);
-  if(item && step.from){
-    item.day = step.from.day;
-    item.start = step.from.start;
-    item.end = step.from.end;
+  if(step && step.type === 'delete' && Array.isArray(step.removed)){
+    const have = new Set((LAST_RESULT.scheduled || []).map(s => s && s.lessonId));
+    step.removed.forEach(it => {
+      if(!it || !it.lessonId || have.has(it.lessonId)) return;
+      LAST_RESULT.scheduled.push(Object.assign({}, it));
+      have.add(it.lessonId);
+    });
+    const dayRank = d => { const i = DAYS.indexOf(d); return i < 0 ? 99 : i; };
+    LAST_RESULT.scheduled.sort((a, b) => dayRank(a.day) - dayRank(b.day) || a.start - b.start);
+  } else {
+    const pieces = (step && step.chain && step.chain.length)
+      ? step.chain.slice().reverse()
+      : (step && step.pieces && step.pieces.length)
+        ? step.pieces.slice().reverse()
+        : (step && step.lessonId ? [step] : []);
+    pieces.forEach(p => {
+      const item = scheduledItemById(p.lessonId);
+      if(item && p.from){
+        item.day = p.from.day;
+        item.start = p.from.start;
+        item.end = p.from.end;
+      }
+    });
   }
   renderGrid();
+  refreshTimetableStats();
   markWorkDirty();
 }
 function undoIndividualDrag(kind){
@@ -4276,11 +5827,20 @@ function undoIndividualDrag(kind){
   const state = kind === 'rpiano' ? LAST_RPIANO : LAST_ONEONE;
   if(!state || !state.dragUndo || !state.dragUndo.length) return;
   const step = state.dragUndo.pop();
-  const item = (state.scheduled || []).find(it => String(it.lessonId) === String(step.lessonId));
-  if(item && step.from){
-    item.day = step.from.day;
-    item.start = step.from.start;
-    item.end = step.from.end;
+  if(step && step.snapshot){
+    state.scheduled = step.snapshot.map(s => Object.assign({}, s));
+  } else {
+    const pieces = (step && step.pieces && step.pieces.length)
+      ? step.pieces
+      : (step && step.lessonId ? [{lessonId: step.lessonId, from: step.from}] : []);
+    pieces.forEach(p => {
+      const item = (state.scheduled || []).find(it => String(it.lessonId) === String(p.lessonId));
+      if(item && p.from){
+        item.day = p.from.day;
+        item.start = p.from.start;
+        item.end = p.from.end;
+      }
+    });
   }
   if(kind === 'rpiano') renderRpianoTab();
   else renderOneOneTab();
@@ -4295,11 +5855,112 @@ function updateIndividualUndo(kind){
 function resetVariantDrags(){
   if(SEARCH_UI_LOCK) return;
   if(!LAST_RESULT || !LAST_RESULT.dragBaseline) return;
-  applyLessonSlots(LAST_RESULT.scheduled, LAST_RESULT.dragBaseline);
+  restoreScheduledFromBaseline(LAST_RESULT);
   LAST_RESULT.dragUndo = [];
   markLayoutNeedsAccept('timetable');
   renderGrid();
+  refreshTimetableStats();
   markWorkDirty();
+}
+function refreshTimetableStats(){
+  if(!LAST_RESULT) return;
+  const statsRow = document.getElementById('statsRow');
+  if(!statsRow || statsRow.style.display === 'none') return;
+  const nums = statsRow.querySelectorAll('.stat .num');
+  if(nums[0]) nums[0].textContent = String((LAST_RESULT.scheduled || []).length);
+  if(nums[1]) nums[1].textContent = String((LAST_RESULT.unresolved || []).length);
+}
+function groupCalendarLessonDeletable(item){
+  if(!item || !LAST_RESULT) return false;
+  if(item.source && item.source !== 'group') return false;
+  if(scheduledItemIsPinned(item)) return false;
+  return (LAST_RESULT.scheduled || []).some(s => s && s.lessonId === item.lessonId);
+}
+function removeGroupLessonsFromLayout(lessonIds){
+  if(SEARCH_UI_LOCK || !LAST_RESULT) return false;
+  const ids = [...new Set((lessonIds || []).map(String).filter(Boolean))];
+  if(!ids.length) return false;
+  const removed = [];
+  ids.forEach(id => {
+    const idx = (LAST_RESULT.scheduled || []).findIndex(s => s && String(s.lessonId) === id);
+    if(idx < 0) return;
+    const item = LAST_RESULT.scheduled[idx];
+    if(!groupCalendarLessonDeletable(item)) return;
+    removed.push(Object.assign({}, item));
+    LAST_RESULT.scheduled.splice(idx, 1);
+  });
+  if(!removed.length) return false;
+  ensureDragBaseline(LAST_RESULT);
+  LAST_RESULT.dragUndo.push({type: 'delete', removed});
+  markLayoutNeedsAccept('timetable');
+  markWorkDirty();
+  hideCalContextMenu();
+  renderGrid();
+  refreshTimetableStats();
+  return true;
+}
+function getCalContextMenu(){
+  let el = document.getElementById('calContextMenu');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'calContextMenu';
+    el.className = 'cal-context-menu';
+    el.hidden = true;
+    el.innerHTML = '<button type="button" class="cal-context-item" data-action="delete">Delete from layout</button>';
+    document.body.appendChild(el);
+  }
+  if(!el.dataset.bound){
+    el.dataset.bound = '1';
+    el.addEventListener('click', e => {
+      const btn = e.target.closest('[data-action]');
+      if(!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const action = btn.dataset.action;
+      const ids = String(el.dataset.lessonIds || '').split(',').map(s => s.trim()).filter(Boolean);
+      if(action === 'delete') removeGroupLessonsFromLayout(ids);
+      hideCalContextMenu();
+    });
+  }
+  return el;
+}
+function hideCalContextMenu(){
+  const el = document.getElementById('calContextMenu');
+  if(!el) return;
+  el.hidden = true;
+  el.dataset.lessonIds = '';
+}
+function showCalContextMenu(clientX, clientY, lessonIds){
+  const el = getCalContextMenu();
+  el.dataset.lessonIds = (lessonIds || []).join(',');
+  el.hidden = false;
+  el.style.left = '0px';
+  el.style.top = '0px';
+  const pad = 8;
+  const rect = el.getBoundingClientRect();
+  let x = clientX;
+  let y = clientY;
+  if(x + rect.width > window.innerWidth - pad) x = Math.max(pad, window.innerWidth - rect.width - pad);
+  if(y + rect.height > window.innerHeight - pad) y = Math.max(pad, window.innerHeight - rect.height - pad);
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+}
+function onCalendarBlockContextMenu(e){
+  if(SEARCH_UI_LOCK) return;
+  const block = e.currentTarget;
+  if(!block.closest('#ttGrid')) return;
+  const source = block.dataset.source || '';
+  if(source === 'class' || source === 'accepted' || source === 'oneone' || source === 'rpiano') return;
+  const item = scheduledItemById(block.dataset.lessonId);
+  if(!groupCalendarLessonDeletable(item)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const tip = document.getElementById('hoverTooltip');
+  if(tip) tip.style.display = 'none';
+  const ids = String(block.dataset.mergedIds || '')
+    .split(',').map(s => s.trim()).filter(Boolean);
+  const lessonIds = ids.length ? ids : [item.lessonId];
+  showCalContextMenu(e.clientX, e.clientY, lessonIds);
 }
 
 const CAL_SNAP_MIN = 5;
@@ -4311,6 +5972,19 @@ function snapMinutes(mins){
 function clampLessonStart(start, duration){
   const maxStart = CAL_DAY_END - duration;
   return Math.max(CAL_DAY_START, Math.min(start, maxStart));
+}
+function calendarDragPiecesFromBlock(block, item){
+  const ids = String((block && block.dataset && block.dataset.mergedIds) || '')
+    .split(',').map(s => s.trim()).filter(Boolean);
+  if(ids.length >= 2){
+    const pieces = [];
+    ids.forEach(id => {
+      const it = scheduledItemById(id);
+      if(it) pieces.push({lessonId: it.lessonId, duration: Math.max(CAL_SNAP_MIN, it.end - it.start)});
+    });
+    if(pieces.length === ids.length) return pieces;
+  }
+  return [{lessonId: item.lessonId, duration: Math.max(CAL_SNAP_MIN, item.end - item.start)}];
 }
 function scheduledItemById(lessonId){
   const lists = [
@@ -4357,6 +6031,7 @@ function showDropPreview(dayBody, start, duration){
   el.style.height = height + 'px';
 }
 function abortCalendarInteraction(){
+  hideCalContextMenu();
   if(CAL_DRAG) endCalendarDrag(false);
   else {
     document.body.classList.remove('cal-drag-active');
@@ -4383,32 +6058,55 @@ function endCalendarDrag(apply){
   if(drag.block) drag.block.classList.remove('is-dragging');
   clearDropPreview(drag.container);
   if(!apply || !drag.active || !drag.hover) return;
-  const item = scheduledItemById(drag.lessonId);
-  if(!item) return;
-  const duration = Math.max(CAL_SNAP_MIN, item.end - item.start);
-  const start = drag.hover.start;
-  const end = start + duration;
-  if(item.day === drag.hover.day && item.start === start && item.end === end) return;
   const kind = drag.kind || 'timetable';
+  const pieceSpecs = (drag.pieces && drag.pieces.length)
+    ? drag.pieces
+    : [{lessonId: drag.lessonId, duration: drag.duration}];
+  const live = pieceSpecs.map(p => scheduledItemById(p.lessonId));
+  if(live.some(it => !it)) return;
+  let t = drag.hover.start;
+  const moves = live.map((it, idx) => {
+    const duration = Math.max(CAL_SNAP_MIN, pieceSpecs[idx].duration || (it.end - it.start));
+    const move = {
+      lessonId: it.lessonId,
+      from: {day: it.day, start: it.start, end: it.end},
+      to: {day: drag.hover.day, start: t, end: t + duration}
+    };
+    t += duration;
+    return move;
+  });
+  if(moves.every(m => m.from.day === m.to.day && m.from.start === m.to.start && m.from.end === m.to.end)) return;
   if(kind === 'oneone' || kind === 'rpiano'){
     const state = kind === 'oneone' ? LAST_ONEONE : LAST_RPIANO;
     if(!state) return;
     ensureDragBaseline(state);
-    state.dragUndo.push({
-      lessonId: item.lessonId,
-      from: {day: item.day, start: item.start, end: item.end},
-      to: {day: drag.hover.day, start, end}
+    const snapshot = (state.scheduled || []).map(s => Object.assign({}, s));
+    state.dragUndo.push(Object.assign(
+      {snapshot},
+      moves.length === 1
+        ? {lessonId: moves[0].lessonId, from: moves[0].from, to: moves[0].to}
+        : {pieces: moves}
+    ));
+    moves.forEach(m => {
+      const it = scheduledItemById(m.lessonId);
+      if(!it) return;
+      it.day = m.to.day;
+      it.start = m.to.start;
+      it.end = m.to.end;
     });
-    item.day = drag.hover.day;
-    item.start = start;
-    item.end = end;
+    coalesceFlushIndividualLessons(state.scheduled);
     markLayoutNeedsAccept(kind);
     markWorkDirty();
     if(kind === 'oneone') renderOneOneTab();
     else renderRpianoTab();
     return;
   }
-  if(!LAST_RESULT) return;
+  const item = live[0];
+  if(!item || !LAST_RESULT) return;
+  const duration = Math.max(CAL_SNAP_MIN, item.end - item.start);
+  const start = drag.hover.start;
+  const end = start + duration;
+  if(item.day === drag.hover.day && item.start === start && item.end === end) return;
   ensureDragBaseline(LAST_RESULT);
   LAST_RESULT.dragUndo.push({
     lessonId: item.lessonId,
@@ -4480,14 +6178,17 @@ function onCalendarBlockPointerDown(e){
   if(!dayBodies.length) return;
   const blockRect = block.getBoundingClientRect();
   const source = block.dataset.source || '';
+  const pieces = calendarDragPiecesFromBlock(block, item);
+  const duration = pieces.reduce((sum, p) => sum + p.duration, 0);
   CAL_DRAG = {
     pointerId: e.pointerId,
     block,
     container: wrap,
     dayBodies,
-    lessonId,
+    lessonId: pieces[0] ? pieces[0].lessonId : lessonId,
+    pieces,
     kind: source === 'oneone' || source === 'rpiano' ? source : 'timetable',
-    duration: Math.max(CAL_SNAP_MIN, item.end - item.start),
+    duration: Math.max(CAL_SNAP_MIN, duration),
     grabOffsetMin: (e.clientY - blockRect.top) / CAL_PX_PER_MIN,
     originX: e.clientX,
     originY: e.clientY,
@@ -4505,11 +6206,27 @@ function attachCalendarDrag(container){
   container.querySelectorAll('.cal-block[data-lesson-id]').forEach(block => {
     block.addEventListener('pointerdown', onCalendarBlockPointerDown);
     block.addEventListener('dragstart', e => e.preventDefault());
+    block.addEventListener('contextmenu', onCalendarBlockContextMenu);
   });
 }
 
 document.getElementById('ttUndoBtn')?.addEventListener('click', undoLastDrag);
 document.getElementById('ttResetBtn')?.addEventListener('click', resetVariantDrags);
+document.addEventListener('click', e => {
+  const btn = e.target && e.target.closest && e.target.closest('#ttRefreshContentBtn');
+  if(!btn) return;
+  e.preventDefault();
+  onRefreshPlacedGroupLessonContent();
+});
+document.addEventListener('pointerdown', e => {
+  const menu = document.getElementById('calContextMenu');
+  if(!menu || menu.hidden) return;
+  if(menu.contains(e.target)) return;
+  hideCalContextMenu();
+}, true);
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') hideCalContextMenu();
+});
 document.addEventListener('keydown', (e) => {
   if(!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z' || e.shiftKey) return;
   const tag = (e.target && e.target.tagName) || '';
@@ -4574,6 +6291,9 @@ function scheduledStudentNames(i){
   return [];
 }
 function calendarEventTitle(i){
+  if(i && i.source === 'class'){
+    return [i.name, i.reason].filter(Boolean).join(' — ');
+  }
   return [i.name, i.teacher || teacherName(i.teacherId) || '', i.group || ''].filter(Boolean).join(' — ');
 }
 function buildTimetableIcs(scheduled, fromDate){
@@ -4752,6 +6472,9 @@ function clearAcceptedScheduledRecord(){
   DB.acceptedTimetable = null;
   LAST_ONEONE = null;
   LAST_RPIANO = null;
+  INDIVIDUAL_TEACHER_PICKS.oneone = null;
+  INDIVIDUAL_TEACHER_PICKS.rpiano = null;
+  syncTimetableVariantAcceptedFlags();
   renderLessons();
   if(LAST_SMALL_GROUPS) renderSmallGroupsResults(LAST_SMALL_GROUPS);
   renderAcceptedSchedule();
@@ -4917,9 +6640,9 @@ function acceptTimetableSchedule(){
       reason: u.customReason || 'no free slot found within availability + class-time windows.'
     }))
   };
-  LAST_RESULT.accepted = true;
+  syncTimetableVariantAcceptedFlags();
   LAST_RESULT.dragUndo = [];
-  LAST_RESULT.dragBaseline = cloneLessonSlots(LAST_RESULT.scheduled);
+  LAST_RESULT.dragBaseline = cloneScheduledItems(LAST_RESULT.scheduled);
   const {lessonsWritten, smallGroupsWritten} = writeAcceptedToSourceTables(LAST_RESULT);
   renderLessons();
   if(LAST_SMALL_GROUPS) renderSmallGroupsResults(LAST_SMALL_GROUPS);
@@ -5078,6 +6801,14 @@ function restoreFromLoadedObject(loaded){
   DB.rpiano = DB.rpiano || {columns: [], hours: {}};
   LAST_ONEONE = DB.oneToOneState || LAST_ONEONE || null;
   LAST_RPIANO = DB.rpianoState || LAST_RPIANO || null;
+  migrateIndividualViewTeachers(LAST_ONEONE);
+  migrateIndividualViewTeachers(LAST_RPIANO);
+  coalesceIndividualState(LAST_ONEONE);
+  coalesceIndividualState(LAST_RPIANO);
+  if(LAST_ONEONE) compactIndividualVariants(LAST_ONEONE);
+  if(LAST_RPIANO) compactIndividualVariants(LAST_RPIANO);
+  refreshIndividualAcceptedSnapshot(LAST_ONEONE, 'oneone');
+  refreshIndividualAcceptedSnapshot(LAST_RPIANO, 'rpiano');
   renderStudents(); renderLessons(); renderAvail(); renderCAvail(); renderRefTables(); renderBreaksTable();
 
   // Restore the small group roster exactly as it was when saved.
@@ -5105,6 +6836,7 @@ function restoreFromLoadedObject(loaded){
     LAST_VARIANTS = DB.timetableVariants;
     const idx = Number.isInteger(DB.timetableSelectedIndex) ? DB.timetableSelectedIndex : 0;
     LAST_RESULT = LAST_VARIANTS[idx] || LAST_VARIANTS[0] || DB.lastResult || null;
+    syncTimetableVariantAcceptedFlags();
     populateVariantSelector();
     if(LAST_VARIANTS.length > 1) document.getElementById('variantSelect').value = String(Math.max(0, idx));
     if(LAST_RESULT) renderResults(LAST_RESULT);
@@ -6363,6 +8095,47 @@ function smallGroupRoleForStudent(s){
   const type = studentType(s);
   return SMALL_GROUP_TYPES.includes(type) ? type : 'sol';
 }
+function smallGroupMemberById(sg, sid){
+  const id = String(sid || '');
+  if(!sg || !id) return null;
+  for(const t of SMALL_GROUP_TYPES){
+    const hit = (sg[t] || []).find(s => String(s.ID) === id);
+    if(hit) return hit;
+  }
+  return null;
+}
+function orphanSmallGroupMembers(sg){
+  const known = new Set((DB.students || []).map(s => s && s.ID).filter(Boolean).map(String));
+  const out = [];
+  const seen = new Set();
+  SMALL_GROUP_TYPES.forEach(t => {
+    (sg && sg[t] || []).forEach(s => {
+      if(!s || !s.ID) return;
+      const sid = String(s.ID);
+      if(known.has(sid) || seen.has(sid)) return;
+      seen.add(sid);
+      out.push(Object.assign({}, s, {_orphanRole: t, missing: true}));
+    });
+  });
+  return out.sort((a, b) => studentDisplayName(a).localeCompare(studentDisplayName(b), undefined, {sensitivity:'base'}));
+}
+function removeStudentFromAllSmallGroups(studentId){
+  const sid = String(studentId || '');
+  if(!sid || !LAST_SMALL_GROUPS || !LAST_SMALL_GROUPS.smallGroups) return false;
+  let changed = false;
+  LAST_SMALL_GROUPS.smallGroups.forEach(sg => {
+    if(!sg) return;
+    SMALL_GROUP_TYPES.forEach(t => {
+      const before = (sg[t] || []).length;
+      sg[t] = (sg[t] || []).filter(s => String(s.ID) !== sid);
+      if(sg[t].length !== before) changed = true;
+    });
+  });
+  if(changed){
+    LAST_SMALL_GROUPS.appearances = computeSmallGroupAppearanceCounts(LAST_SMALL_GROUPS.smallGroups);
+  }
+  return changed;
+}
 function setSmallGroupStudentMembership(sg, student, on){
   if(!sg || !student) return false;
   const sid = String(student.ID);
@@ -6421,9 +8194,11 @@ function renderSmallGroupStudentsEditor(){
   }
   if(title) title.textContent = `Edit students — ${smallGroupShortLabel(sg)}`;
   const members = new Set(SMALL_GROUP_TYPES.flatMap(t => (sg[t] || []).map(s => String(s.ID))));
-  const students = (DB.students || []).slice().sort((a,b) =>
+  const liveStudents = (DB.students || []).slice().sort((a,b) =>
     studentDisplayName(a).localeCompare(studentDisplayName(b), undefined, {sensitivity:'base'})
   );
+  const orphans = orphanSmallGroupMembers(sg);
+  const students = liveStudents.concat(orphans);
   let html = `<thead><tr>
     <th style="width:36px"></th>
     <th>Name</th>
@@ -6437,11 +8212,13 @@ function renderSmallGroupStudentsEditor(){
     const cls = className(s.CLASS_ID) || '—';
     const mu = studentMuclass(s) || '—';
     const sid = String(s.ID);
-    const search = `${name} ${instr} ${cls} ${mu} ${sid}`;
+    const missing = !!s.missing;
+    const roleNote = missing && s._orphanRole ? ` · was ${String(s._orphanRole).toUpperCase()}` : '';
+    const search = `${name} ${instr} ${cls} ${mu} ${sid}${missing ? ' missing orphan' : ''}`;
     const on = members.has(sid);
-    html += `<tr data-sid="${escapeAttr(sid)}" data-search="${escapeAttr(search)}" class="${on ? 'is-member' : ''}">
+    html += `<tr data-sid="${escapeAttr(sid)}" data-search="${escapeAttr(search)}" class="${on ? 'is-member' : ''}${missing ? ' is-orphan' : ''}">
       <td><input type="checkbox" class="small-group-student-check" data-sid="${escapeAttr(sid)}"${on ? ' checked' : ''}></td>
-      <td>${escapeAttr(name)}</td>
+      <td>${escapeAttr(name)}${missing ? `<div class="meta small-group-orphan-note">Not in Students${escapeAttr(roleNote)} — uncheck to remove</div>` : ''}</td>
       <td>${escapeAttr(instr)}</td>
       <td>${escapeAttr(cls)}</td>
       <td>${escapeAttr(mu)}</td>
@@ -6449,14 +8226,29 @@ function renderSmallGroupStudentsEditor(){
   });
   html += '</tbody>';
   table.innerHTML = html;
+  function resolveEditableStudent(sid){
+    const liveSg = LAST_SMALL_GROUPS && LAST_SMALL_GROUPS.smallGroups && LAST_SMALL_GROUPS.smallGroups[EDITING_SMALL_GROUP_INDEX];
+    return (DB.students || []).find(x => String(x.ID) === String(sid))
+      || smallGroupMemberById(liveSg, sid);
+  }
   function toggleSid(sid, on){
     const live = LAST_SMALL_GROUPS && LAST_SMALL_GROUPS.smallGroups && LAST_SMALL_GROUPS.smallGroups[EDITING_SMALL_GROUP_INDEX];
-    const student = (DB.students || []).find(x => String(x.ID) === String(sid));
+    const student = resolveEditableStudent(sid);
     if(!live || !student) return;
+    if(on && student.missing){
+      // Missing students can only be removed, not re-added as new roster members.
+      const cb = table.querySelector(`.small-group-student-check[data-sid="${String(sid).replace(/"/g, '')}"]`);
+      if(cb) cb.checked = false;
+      return;
+    }
     if(!setSmallGroupStudentMembership(live, student, on)) return;
     LAST_SMALL_GROUPS.appearances = computeSmallGroupAppearanceCounts(LAST_SMALL_GROUPS.smallGroups);
     renderSmallGroupsResults(LAST_SMALL_GROUPS);
     markWorkDirty();
+    if(!on && student.missing){
+      renderSmallGroupStudentsEditor();
+      return;
+    }
     const row = table.querySelector(`tr[data-sid="${String(sid).replace(/"/g, '')}"]`);
     if(row && row.classList) row.classList.toggle('is-member', !!on);
   }
@@ -6485,12 +8277,14 @@ function renderSmallGroupCard(sg, index, appearanceCounts){
   const jmix = Object.entries(jc).sort((a,b)=>b[1]-a[1]).map(([g,n]) => `${g}×${n}`).join(' · ');
 
   let rows = '';
+  const knownStudents = new Set((DB.students || []).map(s => s && s.ID).filter(Boolean).map(String));
   SMALL_GROUP_TYPES.forEach(t => {
     sg[t].forEach(s => {
       const isDouble = (appearanceCounts[s.ID]||0) >= 2;
-      rows += `<div class="small-group-member${isDouble?' double-booked':''}">
+      const missing = !!(s && s.ID && !knownStudents.has(String(s.ID)));
+      rows += `<div class="small-group-member${isDouble?' double-booked':''}${missing?' is-orphan':''}">
         <span class="role">${t.toUpperCase()}</span>
-        <span class="who">${studentDisplayName(s)}<br><span class="cls">${instrName(s.INSTR_ID)} · ${className(s.CLASS_ID)||'—'}</span></span>
+        <span class="who">${studentDisplayName(s)}${missing ? ' <span class="small-group-orphan-tag">missing</span>' : ''}<br><span class="cls">${instrName(s.INSTR_ID) || '—'} · ${className(s.CLASS_ID)||'—'}</span></span>
       </div>`;
     });
   });
@@ -6801,9 +8595,10 @@ document.getElementById('downloadSmallGroupsBtn').addEventListener('click', () =
 // If that teacher still has no complete layout, round 2 keeps the placed
 // blocks and splits only the leftovers. If that is still incomplete, round 3
 // splits every cell (including ones that already sat) and packs from one pool.
-// Allowed splits (1/1 and Required Piano): 60 → 2×30, 90 → 2×45 or 60+30,
-// 120 → 2×60. A 30-min lesson stays 30. Two pieces of the same
-// student×teacher may share a day only when they sit flush.
+// Allowed splits: 120 → 2×60 for 1/1 and Required Piano; Required Piano may also split
+// 90 → 2×45 / 60+30. A 60- or 90-minute cell never splits (1/1 or piano).
+// A 30-min lesson stays 30.
+// Two pieces of the same student×teacher may share a day only when they sit flush.
 const ONEONE_SNAP = 5;
 
 function parseIdList(s){
@@ -6906,15 +8701,16 @@ function oneOneHoursToMinutes(hours){
   if(!h) return 0;
   return Math.max(15, Math.round(h * 60 / ONEONE_SNAP) * ONEONE_SNAP);
 }
-function oneOneSplitPlans(duration){
+function oneOneSplitPlans(duration, kind){
   const dur = clampOneOneDuration(duration);
-  if(dur === 60) return [[30, 30]];
-  if(dur === 90) return [[45, 45], [60, 30], [30, 60]];
+  const isPiano = kind === 'rpiano';
+  if(dur === 60) return [];
+  if(dur === 90) return isPiano ? [[45, 45], [60, 30], [30, 60]] : [];
   if(dur === 120) return [[60, 60]];
   return [];
 }
-function oneOneHalves(duration){
-  const plans = oneOneSplitPlans(duration);
+function oneOneHalves(duration, kind){
+  const plans = oneOneSplitPlans(duration, kind);
   return plans.length ? plans[0].slice() : null;
 }
 function formatOneOneHours(h){
@@ -7064,6 +8860,31 @@ function migrateStudentRooms(matrix){
     const rec = matrix.studentRooms[sid];
     if(rec) migrateRoomLock(rec, {defaultOn:false});
   });
+  return matrix;
+}
+/** Keep Drive sheet column order; append every ref teacher missing from the matrix header. */
+function ensureMatrixRefTeacherColumns(matrix){
+  if(!matrix) return matrix;
+  const ref = (DB.refTeachers || []).filter(t => t && t.id);
+  if(!ref.length) return matrix;
+  matrix.columns = matrix.columns || [];
+  const byId = new Map();
+  matrix.columns.forEach(c => {
+    if(c && c.id) byId.set(c.id, c);
+  });
+  const ordered = matrix.columns.filter(c => c && c.id).slice();
+  ref.forEach(t => {
+    if(byId.has(t.id)){
+      const col = byId.get(t.id);
+      if(!col.name && t.name) col.name = t.name;
+      return;
+    }
+    const col = {id: t.id, name: t.name || teacherName(t.id) || t.id, roomId: '', room: ''};
+    migrateRoomLock(col, {defaultOn:false});
+    ordered.push(col);
+    byId.set(t.id, col);
+  });
+  matrix.columns = ordered;
   return matrix;
 }
 function mergeMatrixColumnRooms(next, prev){
@@ -7493,9 +9314,11 @@ function scheduleOneToOne(opts){
   }
 
   function captureLayout(){
+    const sched = scheduled.map(s => Object.assign({}, s));
+    coalesceFlushIndividualLessons(sched);
     return {
       snap: snapshotBusy(),
-      scheduled: scheduled.slice(),
+      scheduled: sched,
       unresolved: unresolved.slice()
     };
   }
@@ -7515,7 +9338,7 @@ function scheduleOneToOne(opts){
   function splitPoolJobs(list){
     const halfJobs = [];
     list.forEach(j => {
-      const plans = oneOneSplitPlans(j.duration);
+      const plans = oneOneSplitPlans(j.duration, source);
       if(!plans.length){
         halfJobs.push({student: j.student, copy: j.copy, duration: j.duration});
         return;
@@ -7529,7 +9352,7 @@ function scheduleOneToOne(opts){
     return halfJobs;
   }
   function trySplitJob(j){
-    const plans = oneOneSplitPlans(j.duration);
+    const plans = oneOneSplitPlans(j.duration, source);
     if(!plans.length) return false;
     const pid = j.student.ID + '#' + (j.copy || 0);
     for(let i = 0; i < plans.length; i++){
@@ -7573,6 +9396,7 @@ function scheduleOneToOne(opts){
     }
   }
 
+  coalesceFlushIndividualLessons(scheduled);
   scheduled.sort((a,b) => DAYS.indexOf(a.day) - DAYS.indexOf(b.day) || a.start - b.start);
   return {scheduled, unresolved, duration, teacherId, dayCount, target};
 }
@@ -7624,6 +9448,7 @@ function scheduleAllOneToOne(opts){
     scheduled.push.apply(scheduled, result.scheduled);
     unresolved.push.apply(unresolved, result.unresolved);
   });
+  coalesceFlushIndividualLessons(scheduled);
   scheduled.sort((a,b) => String(a.teacher||'').localeCompare(String(b.teacher||'')) || DAYS.indexOf(a.day) - DAYS.indexOf(b.day) || a.start - b.start);
   return {scheduled, unresolved, assignmentCount: assignments.length};
 }
@@ -7782,8 +9607,8 @@ async function scheduleAllOneToOneSearchAsync(opts, onTick){
   const target = Math.max(1, (opts && opts.attempts) || readOneOneSearchAttempts());
   const maxTries = Math.max(target, (opts && opts.maxTries) || oneOneSearchMaxTries(target));
   const seen = new Map();
-  setSearchLiveHeadline(`Attempt 1 / ${target} — fewest teacher days first`);
-  if(onTick) onTick(0, maxTries, `Starting 1 / ${target}`);
+  setSearchLiveHeadline(searchLiveIndividualHeadline(0, maxTries, 0, target, false));
+  if(onTick) onTick(0, target, searchLiveIndividualCount(0, target, 0, maxTries));
   await yieldUi();
   if(SEARCH_CANCELLED) return [];
   const first = attachOneOneLayoutScore(
@@ -7794,12 +9619,12 @@ async function scheduleAllOneToOneSearchAsync(opts, onTick){
   first.attemptKind = 'deterministic';
   seen.set(resultSignature(first), first);
   searchLiveSay(`Attempt 1: ${oneOneResultLogLine(first)} — baseline kept.`, 'ok');
-  if(onTick) onTick(1, maxTries, `1 / ${target} distinct · try 1`);
+  if(onTick) onTick(seen.size, target, searchLiveIndividualCount(seen.size, target, 1, maxTries));
   await yieldUi();
   let n = 2;
   while(seen.size < target && n <= maxTries){
     if(SEARCH_CANCELLED) break;
-    setSearchLiveHeadline(`Attempt ${n} / ${target} — shuffled mix`);
+    setSearchLiveHeadline(searchLiveIndividualHeadline(n, maxTries, seen.size, target, true));
     const result = attachOneOneLayoutScore(
       scheduleAllOneToOne(Object.assign({}, opts, {randomize: true})),
       accepted
@@ -7813,7 +9638,7 @@ async function scheduleAllOneToOneSearchAsync(opts, onTick){
     } else if(n % 5 === 0){
       searchLiveSay(`Attempt ${n}: same week as an earlier try — discarded. ${seen.size} / ${target} so far.`, 'info');
     }
-    if(onTick) onTick(n, maxTries, `${seen.size} / ${target} distinct · try ${n}`);
+    if(onTick) onTick(seen.size, target, searchLiveIndividualCount(seen.size, target, n, maxTries));
     n++;
     await yieldUi();
   }
@@ -7837,7 +9662,7 @@ function compareScoreTuple(a, b){
   return 0;
 }
 function variantLeftOut(v){
-  return ((v && v.unresolved) || []).length;
+  return layoutLeftOutCount(v);
 }
 function groupLookaheadScore(v){
   const L = (v && v.lookahead) || {};
@@ -7848,6 +9673,11 @@ function groupLookaheadScore(v){
     -(L.onePlaced || 0),
     -(L.pianoPlaced || 0)
   ];
+}
+function bestForecastLayout(variants){
+  const list = (variants || []).filter(v => v && layoutReadyForForecast(v) && v.lookahead);
+  if(!list.length) return null;
+  return list.slice().sort((a, b) => compareScoreTuple(groupLookaheadScore(a), groupLookaheadScore(b)))[0];
 }
 function oneOneLookaheadScore(v){
   const L = (v && v.lookahead) || {};
@@ -7903,10 +9733,291 @@ function formatLookaheadLabel(L, kind){
   }
   return bits.length ? ' · ' + bits.join(' · ') : '';
 }
+function formatLookaheadForecast(L, kind){
+  if(!L) return 'no 1/1 or piano hours to preview';
+  const s = formatLookaheadLabel(L, kind).replace(/^ · /, '');
+  return s || 'no 1/1 or piano hours to preview';
+}
+function groupForecastLiveLine(v, i, variants){
+  const idx = i == null ? variantIndexInPool(v, variants) : i;
+  return variantOptionText(v, idx, 'group');
+}
+function announceGroupForecastLive(variants){
+  const list = variants || [];
+  const ready = list.filter(v => v && layoutReadyForForecast(v) && v.lookahead);
+  if(!ready.length) return;
+  const starI = suggestedVariantIndex(list);
+  searchLiveSay('Pool after 1/1 + piano preview (same as the layout list):', 'info');
+  ready.forEach(v => {
+    const i = list.indexOf(v);
+    searchLiveSay(groupForecastLiveLine(v, i, list), i === starI ? 'ok' : 'info');
+  });
+}
 function variantDisplayName(i){
   return i === 0 ? 'Best' : `Variant ${i + 1}`;
 }
+function buildGroupScheduleBusyMaps(scheduled, skipLessonId){
+  const teacherBusy = {}, studentBusy = {}, roomBusy = {};
+  (scheduled || []).forEach(item => {
+    if(!item || !item.day || item.start == null || item.end == null) return;
+    if(skipLessonId && item.lessonId === skipLessonId) return;
+    const day = item.day, start = item.start, end = item.end;
+    if(item.teacherId){
+      teacherBusy[item.teacherId] = teacherBusy[item.teacherId] || {};
+      teacherBusy[item.teacherId][day] = (teacherBusy[item.teacherId][day] || []).concat([{start, end}]);
+    }
+    studentsForScheduledItem(item).forEach(s => {
+      if(!s || !s.ID) return;
+      studentBusy[s.ID] = studentBusy[s.ID] || {};
+      studentBusy[s.ID][day] = (studentBusy[s.ID][day] || []).concat([{start, end}]);
+    });
+    const rid = itemRoomId(item);
+    if(rid){
+      roomBusy[rid] = roomBusy[rid] || {};
+      roomBusy[rid][day] = (roomBusy[rid][day] || []).concat([{start, end}]);
+    }
+  });
+  return {teacherBusy, studentBusy, roomBusy};
+}
+function teacherWeekIntervalsForMove(teacherId, scheduled, skipLessonId, extra){
+  const byDay = {};
+  DAYS.forEach(day => { byDay[day] = []; });
+  (scheduled || []).forEach(item => {
+    if(!item || !item.teacherId || item.teacherId !== teacherId) return;
+    if(skipLessonId && item.lessonId === skipLessonId) return;
+    if(!item.day || item.start == null || item.end == null) return;
+    byDay[item.day].push({start: item.start, end: item.end});
+  });
+  if(extra && extra.teacherId === teacherId && extra.day && extra.start != null && extra.end != null){
+    byDay[extra.day].push({start: extra.start, end: extra.end});
+  }
+  return byDay;
+}
+function groupMoveBreakBudgetOk(teacherId, scheduled, skipLessonId, day, start, end){
+  if(!teacherId) return true;
+  const bs = teacherBreakSettings(teacherId);
+  if(bs.unconstrained) return true;
+  const byDay = teacherWeekIntervalsForMove(teacherId, scheduled, skipLessonId, {teacherId, day, start, end});
+  return breakUnitsAcrossDays(byDay, bs.minutes, teacherId, 'group') <= bs.count;
+}
+function groupMoveSlotLegal(item, day, start, scheduled){
+  if(!item || scheduledItemIsPinned(item)) return false;
+  const dur = item.end - item.start;
+  if(!Number.isFinite(dur) || dur <= 0) return false;
+  const end = start + dur;
+  if(start < DEFAULT_START || end > DEFAULT_END) return false;
+  if(item.day === day && item.start === start) return false;
+  const tw = teacherWindowClash(item.teacherId, item.teacher, day, start, end, 'group');
+  if(tw) return false;
+  const skipId = item.lessonId;
+  const {teacherBusy, studentBusy, roomBusy} = buildGroupScheduleBusyMaps(scheduled, skipId);
+  if(item.teacherId){
+    const tBusy = (teacherBusy[item.teacherId] && teacherBusy[item.teacherId][day]) || [];
+    if(tBusy.some(iv => intervalsOverlap(start, end, iv.start, iv.end))) return false;
+  }
+  const students = studentsForScheduledItem(item);
+  for(const s of students){
+    const busyList = (studentBusy[s.ID] && studentBusy[s.ID][day]) || [];
+    if(busyList.some(iv => intervalsOverlap(start, end, iv.start, iv.end))) return false;
+  }
+  const rid = itemRoomId(item);
+  if(rid && roomSlotTaken(roomBusy, rid, day, start, end)) return false;
+  if(studentReservationClash(students, day, start, end)) return false;
+  if(!groupMoveBreakBudgetOk(item.teacherId, scheduled, skipId, day, start, end)) return false;
+  return true;
+}
+function forecastMoveTeacherPlan(scheduled){
+  const byTeacher = {};
+  (scheduled || []).forEach(it => {
+    if(!it || !it.teacherId || scheduledItemIsPinned(it)) return;
+    (byTeacher[it.teacherId] = byTeacher[it.teacherId] || []).push(it.lessonId);
+  });
+  return Object.keys(byTeacher).sort().map(teacherId => ({
+    teacherId,
+    label: teacherName(teacherId) || teacherId,
+    lessonIds: byTeacher[teacherId].slice()
+  }));
+}
+function forecastMoveCandidatesForItem(item, scheduled){
+  if(!item || !item.teacherId) return [];
+  const dur = item.end - item.start;
+  const out = [];
+  const wins = teacherDayWindows(item.teacherId, 'group');
+  Object.keys(wins).forEach(day => {
+    teacherWindowIntervals(wins[day]).forEach(([segStart, segEnd]) => {
+      for(let start = segStart; start + dur <= segEnd; start += CAL_SNAP_MIN){
+        if(!groupMoveSlotLegal(item, day, start, scheduled)) continue;
+        const dist = Math.abs(DAYS.indexOf(day) - DAYS.indexOf(item.day)) * 10000 + Math.abs(start - item.start);
+        out.push({day, start, end: start + dur, dist});
+      }
+    });
+  });
+  out.sort((a, b) => a.dist - b.dist);
+  return out.slice(0, FORECAST_SLOT_MOVE_MAX_CANDIDATES);
+}
+function applyScheduledMove(scheduled, lessonId, day, start, end){
+  return (scheduled || []).map(it => {
+    if(!it || it.lessonId !== lessonId) return it;
+    return Object.assign({}, it, {day, start, end});
+  });
+}
+function scheduleMoveAuditClean(scheduled){
+  const audit = auditTimetable(scheduled);
+  return !((audit.entries || []).some(e => e.level !== 'warning'));
+}
+function optimizeLayoutSlotsForForecast(v, oneJobs, pianoJobs){
+  if(!v || !layoutReadyForForecast(v)) return {v, moves: 0, improved: false};
+  if(!oneJobs.length && !pianoJobs.length) return {v, moves: 0, improved: false};
+  let scheduled = (v.scheduled || []).slice();
+  if(!scheduled.length) return {v, moves: 0, improved: false};
+  if(!v.lookahead) fillGroupLookahead(v, oneJobs, pianoJobs);
+  let bestScore = groupLookaheadScore(v);
+  let moves = 0;
+  let improved = false;
+  for(let round = 0; round < FORECAST_SLOT_MOVE_ROUNDS; round++){
+    let roundImproved = false;
+    for(const teacher of forecastMoveTeacherPlan(scheduled)){
+      if(SEARCH_CANCELLED) break;
+      for(const lessonId of teacher.lessonIds){
+        const item = scheduled.find(it => it && it.lessonId === lessonId);
+        if(!item) continue;
+        const candidates = forecastMoveCandidatesForItem(item, scheduled);
+        for(const cand of candidates){
+          const trial = applyScheduledMove(scheduled, item.lessonId, cand.day, cand.start, cand.end);
+          if(!scheduleMoveAuditClean(trial)) continue;
+          const trialV = Object.assign({}, v, {scheduled: trial});
+          fillGroupLookahead(trialV, oneJobs, pianoJobs);
+          const score = groupLookaheadScore(trialV);
+          if(compareScoreTuple(score, bestScore) < 0){
+            scheduled = trial;
+            v = trialV;
+            bestScore = score;
+            moves++;
+            roundImproved = true;
+            improved = true;
+            break;
+          }
+        }
+      }
+    }
+    if(!roundImproved) break;
+  }
+  v.scheduled = scheduled;
+  fillGroupLookahead(v, oneJobs, pianoJobs);
+  return {v, moves, improved};
+}
+async function optimizeLayoutSlotsForForecastAsync(v, oneJobs, pianoJobs, onTeacher){
+  if(!v || !layoutReadyForForecast(v)) return {v, moves: 0, improved: false};
+  if(!oneJobs.length && !pianoJobs.length) return {v, moves: 0, improved: false};
+  let scheduled = (v.scheduled || []).slice();
+  if(!scheduled.length) return {v, moves: 0, improved: false};
+  if(!v.lookahead) await fillGroupLookaheadAsync(v, oneJobs, pianoJobs);
+  let bestScore = groupLookaheadScore(v);
+  let moves = 0;
+  let improved = false;
+  let trialCount = 0;
+  for(let round = 0; round < FORECAST_SLOT_MOVE_ROUNDS; round++){
+    let roundImproved = false;
+    const teachers = forecastMoveTeacherPlan(scheduled);
+    for(let ti = 0; ti < teachers.length; ti++){
+      const teacher = teachers[ti];
+      if(SEARCH_CANCELLED) break;
+      if(round === 0 && onTeacher) onTeacher(teacher, ti + 1, teachers.length);
+      await yieldUi();
+      for(const lessonId of teacher.lessonIds){
+        const item = scheduled.find(it => it && it.lessonId === lessonId);
+        if(!item) continue;
+        const candidates = forecastMoveCandidatesForItem(item, scheduled);
+        for(const cand of candidates){
+          trialCount++;
+          const trial = applyScheduledMove(scheduled, item.lessonId, cand.day, cand.start, cand.end);
+          if(!scheduleMoveAuditClean(trial)) continue;
+          const trialV = Object.assign({}, v, {scheduled: trial});
+          await fillGroupLookaheadAsync(trialV, oneJobs, pianoJobs);
+          const score = groupLookaheadScore(trialV);
+          if(compareScoreTuple(score, bestScore) < 0){
+            scheduled = trial;
+            v = trialV;
+            bestScore = score;
+            moves++;
+            roundImproved = true;
+            improved = true;
+            break;
+          }
+          if(trialCount % FORECAST_MOVE_YIELD_EVERY === 0) await yieldUi();
+        }
+      }
+    }
+    if(!roundImproved) break;
+    await yieldUi();
+  }
+  v.scheduled = scheduled;
+  await fillGroupLookaheadAsync(v, oneJobs, pianoJobs);
+  return {v, moves, improved};
+}
+function optimizeLayoutForecastMoves(v){
+  if(!v || !layoutReadyForForecast(v)) return 0;
+  const prep = beginGroupLookahead([v]);
+  if(!prep) return 0;
+  const {oneJobs, pianoJobs} = prep;
+  return optimizeLayoutSlotsForForecast(v, oneJobs, pianoJobs).moves;
+}
+async function optimizeLayoutForecastMovesAsync(v, onTick, onImproved){
+  if(!v || !layoutReadyForForecast(v)) return 0;
+  const prep = beginGroupLookahead([v]);
+  if(!prep) return 0;
+  const {oneJobs, pianoJobs} = prep;
+  const r = await optimizeLayoutSlotsForForecastAsync(v, oneJobs, pianoJobs, (teacher, ti, tn) => {
+    if(onTick) onTick(ti, tn, teacher);
+  });
+  if(r.improved && onImproved) onImproved(r.v, r.moves);
+  return r.moves;
+}
+function optimizeVariantsSlotsForForecast(variants){
+  const best = forecastMoveTargetLayout(variants);
+  return best ? optimizeLayoutForecastMoves(best) : 0;
+}
+async function optimizeVariantsSlotsForForecastAsync(variants, onTick, onImproved){
+  const best = forecastMoveTargetLayout(variants);
+  if(!best) return 0;
+  return optimizeLayoutForecastMovesAsync(best, onTick, (v, nMoves) => {
+    if(onImproved) onImproved(v, (variants || []).indexOf(v), nMoves);
+  });
+}
+async function fillGroupLookaheadAsync(v, oneJobs, pianoJobs){
+  if(!layoutReadyForForecast(v)){
+    v.lookahead = null;
+    return;
+  }
+  const accepted = (buildAcceptedScheduleRows(v) || []).filter(r => r.status === 'scheduled');
+  await yieldUi();
+  const one = oneJobs.length
+    ? probeBestIndividual({matrix: DB.oneToOne, acceptedRows: accepted})
+    : {scheduled: [], unresolved: []};
+  await yieldUi();
+  const piano = pianoJobs.length
+    ? probeBestIndividual({
+        matrix: DB.rpiano,
+        acceptedRows: accepted.concat(busyRowsFromScheduled(one.scheduled)),
+        source: 'rpiano',
+        lessonLabel: 'piano',
+        idPrefix: 'RP'
+      })
+    : {scheduled: [], unresolved: []};
+  v.lookahead = {
+    oneUnresolved: one.unresolved.length,
+    onePlaced: one.scheduled.length,
+    oneTotal: oneJobs.length,
+    pianoUnresolved: piano.unresolved.length,
+    pianoPlaced: piano.scheduled.length,
+    pianoTotal: pianoJobs.length
+  };
+}
 function fillGroupLookahead(v, oneJobs, pianoJobs){
+  if(!layoutReadyForForecast(v)){
+    v.lookahead = null;
+    return;
+  }
   const accepted = (buildAcceptedScheduleRows(v) || []).filter(r => r.status === 'scheduled');
   const one = oneJobs.length
     ? probeBestIndividual({matrix: DB.oneToOne, acceptedRows: accepted})
@@ -7941,28 +10052,31 @@ function beginGroupLookahead(variants){
   if(!list.length || (!oneJobs.length && !pianoJobs.length)) return null;
   return {list, oneJobs, pianoJobs};
 }
-function attachGroupLookahead(variants, onTick){
+function attachGroupLookahead(variants, onTick, onFilled){
   const prep = beginGroupLookahead(variants);
-  if(!prep) return -1;
+  if(!prep) return markSuggestedByLookahead(variants || [], groupLookaheadScore);
   const {list, oneJobs, pianoJobs} = prep;
-  for(let i=0;i<list.length;i++){
-    const v = list[i];
-    if(!v) continue;
-    if(onTick) onTick(i + 1, list.length);
+  const ready = list.filter(layoutReadyForForecast);
+  for(let i=0;i<ready.length;i++){
+    const v = ready[i];
+    if(onTick) onTick(i + 1, ready.length);
     fillGroupLookahead(v, oneJobs, pianoJobs);
+    if(onFilled) onFilled(v, i, ready.length);
   }
   return markSuggestedByLookahead(list, groupLookaheadScore);
 }
-async function attachGroupLookaheadAsync(variants, onTick){
+async function attachGroupLookaheadAsync(variants, onTick, onFilled){
   const prep = beginGroupLookahead(variants);
-  if(!prep) return -1;
+  if(!prep) return markSuggestedByLookahead(variants || [], groupLookaheadScore);
   const {list, oneJobs, pianoJobs} = prep;
-  for(let i=0;i<list.length;i++){
-    const v = list[i];
+  const ready = list.filter(layoutReadyForForecast);
+  for(let i=0;i<ready.length;i++){
+    const v = ready[i];
     if(!v) continue;
-    if(onTick) onTick(i + 1, list.length);
+    if(onTick) onTick(i + 1, ready.length);
     await yieldUi();
-    fillGroupLookahead(v, oneJobs, pianoJobs);
+    await fillGroupLookaheadAsync(v, oneJobs, pianoJobs);
+    if(onFilled) onFilled(v, i, ready.length);
   }
   return markSuggestedByLookahead(list, groupLookaheadScore);
 }
@@ -8032,7 +10146,8 @@ function variantOptionText(v, i, kind){
     const sgTotal = getSmallGroupLessons().length;
     const sgLeft = ((v && v.unresolved) || []).filter(u => u.lesson && u.lesson.id && isSmallGroupId(u.lesson.id)).length;
     const sgOk = sgTotal - sgLeft;
-    return `${mark}${name} · ${sgOk}/${sgTotal} SG · ${left} left`;
+    const fc = v && v.lookahead ? formatLookaheadForecast(v.lookahead, 'group') : '';
+    return `${mark}${name} · ${sgOk}/${sgTotal} SG · ${left} left out${fc ? ' · ' + fc : ''}`;
   }
   const pairs = oneOneCoverageCount(v);
   const extra = placed > pairs ? ` · ${placed} sessions` : '';
@@ -8069,38 +10184,47 @@ function renderLookaheadSummary(el, variants, kind, selectedIdx){
 }
 function stripLookaheadLogSection(lines){
   const list = lines || [];
-  const i = list.findIndex(l => l && l.type === 'section' && l.text === 'Lookahead');
+  const i = list.findIndex(l => l && l.type === 'section' && (l.text === 'Lookahead' || l.text === '1/1 forecast'));
   if(i < 0) return list.slice();
   return list.slice(0, i);
 }
 function lookaheadLogLines(v, i, kind){
   const mark = v && v.suggested ? '★ ' : '';
   const name = mark + variantDisplayName(i);
-  const bits = formatLookaheadLabel(v && v.lookahead, kind).replace(/^ · /, '');
-  const lines = [{type:'section', text:'Lookahead'}];
-  if(bits) lines.push({type:'ok', text:`${name}: ${bits}`});
-  else lines.push({type:'info', text:`${name}: no 1/1 or piano hours to preview`});
+  const left = kind === 'group' ? variantLeftOut(v) : ((v && v.unresolved) || []).length;
+  const forecast = formatLookaheadForecast(v && v.lookahead, kind);
+  const lines = [{type:'section', text:'1/1 forecast'}];
+  lines.push({
+    type: v && v.suggested ? 'ok' : 'info',
+    text: kind === 'group'
+      ? `${name}: ${left} left out on this tab · ${forecast}`
+      : `${name}: ${forecast}`
+  });
   return lines;
 }
 function logGroupLookahead(variants){
   const list = variants || [];
   if(!list.length) return;
-  const starI = suggestedVariantIndex(list);
-  const v = list[starI];
-  if(v && v.lookahead){
-    SearchLog.section('Lookahead');
+  const ready = list.filter(item => item && layoutReadyForForecast(item));
+  const withForecast = ready.filter(item => item.lookahead);
+  if(withForecast.length){
+    SearchLog.section('1/1 forecast');
     SearchLog.info(lookaheadEveryLayoutEnabled()
-      ? 'Every distinct layout was probed with a deterministic 1/1 pack, then Required Piano in those leftover holes. ★ is the layout with the fewest leftover items on this tab (every unplaced lesson, not small groups first), then fewest unplaced 1/1, then fewest unplaced piano. Search log and the Solution list open on ★.'
-      : `The best ${SCHEDULE_VARIANT_KEEP} layouts were probed with a deterministic 1/1 pack, then Required Piano in those leftover holes. ★ is the layout with the fewest leftover items among those (every unplaced lesson, not small groups first), then fewest unplaced 1/1, then fewest unplaced piano. Search log and the Solution list open on ★.`);
-    const bits = formatLookaheadLabel(v.lookahead, 'group').replace(/^ · /, '') || 'no 1/1 or piano hours to preview';
-    SearchLog.ok(`★ ${variantDisplayName(starI)}: ${bits}`);
-    if(starI > 0 && list[0] && list[0].lookahead){
-      const other = formatLookaheadLabel(list[0].lookahead, 'group').replace(/^ · /, '');
-      SearchLog.info(`Best (fewest leftover items, then least idle) is still the first option${other ? ': ' + other : ''}.`);
-    }
+      ? 'Only layouts with nothing left out get a 1/1 + piano preview. ★ follows the best forecast below.'
+      : 'Only complete layouts in the kept pool get a 1/1 + piano preview; ★ and pool order follow the best forecast. Slot moves run on ★ only.');
+    withForecast.forEach(item => {
+      const i = list.indexOf(item);
+      const mark = item.suggested ? '★ ' : '';
+      const forecast = formatLookaheadForecast(item.lookahead, 'group');
+      SearchLog.push(item.suggested ? 'ok' : 'info',
+        `${mark}${variantDisplayName(i)}: ${forecast}`);
+    });
+  }
+  if(ready.length < list.length){
+    SearchLog.info(`Forecast skipped for ${list.length - ready.length} layout(s) with left-out lessons or small groups.`);
   }
   list.forEach((item, i) => {
-    if(!item || !item.lookahead) return;
+    if(!item || !item.lookahead || !layoutReadyForForecast(item)) return;
     item.searchLog = stripLookaheadLogSection(item.searchLog).concat(lookaheadLogLines(item, i, 'group'));
   });
 }
@@ -8247,7 +10371,8 @@ function teacherSwapSearchAttempts(candCount){
   return Math.max(1, Math.min(want, Math.ceil(TEACHER_SWAP_PACK_BUDGET / n)));
 }
 function considerSwapPack(best, result, oneJobs, pianoJobs){
-  fillGroupLookahead(result, oneJobs, pianoJobs);
+  if(layoutReadyForForecast(result)) fillGroupLookahead(result, oneJobs, pianoJobs);
+  else result.lookahead = null;
   if(!best || compareScoreTuple(groupLookaheadScore(result), groupLookaheadScore(best)) < 0) return result;
   return best;
 }
@@ -8478,35 +10603,214 @@ function renderTeacherSwapSuggestions(){
     list.map(s => `<li>${escapeAttr(s.label)} — ${escapeAttr(teacherSwapDeltaLine(s, v))}.</li>`).join('') +
     `</ul>`;
 }
-function individualSearchFingerprint(kind, scopeTeacherId){
+function individualAvailFingerprint(teacherIds){
+  const want = teacherIds == null ? null : new Set((teacherIds || []).filter(Boolean));
+  return (DB.teacherAvail || [])
+    .filter(r => r && r.teacherId && r.day && (!want || want.has(r.teacherId)))
+    .map(r => [r.teacherId, r.day, r.start || '', r.end || '', r.type || '', r.scope || ''])
+    .sort((a,b) => String(a[0]).localeCompare(String(b[0]))
+      || String(a[1]).localeCompare(String(b[1]))
+      || String(a[2]).localeCompare(String(b[2])));
+}
+function individualSearchFingerprint(kind, scopeTeacherIds){
   const matrix = kind === 'rpiano' ? DB.rpiano : DB.oneToOne;
   const prev = kind === 'rpiano' ? LAST_RPIANO : LAST_ONEONE;
-  const kept = scopeTeacherId
-    ? ((prev && prev.scheduled) || [])
-      .filter(s => s.teacherId !== scopeTeacherId)
-      .map(s => [s.lessonId, s.day, s.start, s.end, s.teacherId])
-    : [];
+  const scope = normalizeTeacherScope(scopeTeacherIds);
+  const full = scope === null || isAllMatrixColumnsScope(matrix, scope);
+  const kept = full ? [] : ((prev && prev.scheduled) || [])
+    .filter(s => !scope.includes(s.teacherId))
+    .map(s => [s.lessonId, s.day, s.start, s.end, s.teacherId]);
+  const availTeachers = full
+    ? matrixTeacherIds(matrix)
+    : [...new Set((scope || []).concat(kept.map(k => k[4]).filter(Boolean)))];
   return JSON.stringify({
     kind,
-    scopeTeacherId: scopeTeacherId || '',
+    scopeTeacherIds: scope === null ? [] : scope.slice().sort(),
     kept,
     accepted: (DB.acceptedSchedule || []).map(r => [r.lessonId, r.day, r.start, r.end, r.teacherId]),
     oneone: kind === 'rpiano' ? ((LAST_ONEONE && LAST_ONEONE.scheduled) || []).map(s => [s.lessonId, s.day, s.start, s.end]) : null,
     hours: (matrix && matrix.hours) || {},
     rooms: ((matrix && matrix.columns) || []).map(c => [c.id, c.roomId || '']),
-    studentRooms: Object.keys((matrix && matrix.studentRooms) || {}).sort().map(sid => [sid, (matrix.studentRooms[sid] && matrix.studentRooms[sid].roomId) || ''])
+    studentRooms: Object.keys((matrix && matrix.studentRooms) || {}).sort().map(sid => [sid, (matrix.studentRooms[sid] && matrix.studentRooms[sid].roomId) || '']),
+    teacherAvail: individualAvailFingerprint(availTeachers.length ? availTeachers : matrixTeacherIds(matrix))
   });
 }
-function assignmentsForGenerate(matrix, teacherId){
-  const all = collectOneOneAssignments(matrix);
-  if(!teacherId) return all;
-  return all.filter(a => a.teacherId === teacherId);
+function normalizeTeacherScope(scope){
+  if(scope === '' || scope == null) return null;
+  if(Array.isArray(scope)) return scope.length ? scope.filter(Boolean) : [];
+  const s = String(scope);
+  return s ? [s] : null;
 }
-function cloneIndividualKeep(state, teacherId){
-  if(!teacherId) return {scheduled: [], unresolved: []};
+function matrixTeacherIds(matrix){
+  return [...new Set(collectOneOneAssignments(matrix).map(a => a.teacherId).filter(Boolean))]
+    .sort((a,b) => String(teacherName(a)||a).localeCompare(String(teacherName(b)||b)));
+}
+function matrixColumnTeacherIds(matrix){
+  return [...new Set((matrix && matrix.columns || []).map(c => c && c.id).filter(Boolean))]
+    .sort((a,b) => String(teacherName(a)||a).localeCompare(String(teacherName(b)||b)));
+}
+function isFullTeacherScope(matrix, scopeTeacherIds){
+  const all = matrixTeacherIds(matrix);
+  const scope = normalizeTeacherScope(scopeTeacherIds);
+  if(scope === null) return !!all.length;
+  if(!scope.length || !all.length) return false;
+  return scope.length >= all.length && all.every(id => scope.includes(id));
+}
+/** True only when every matrix column teacher is in the generate scope (not “all teachers with hours”). */
+function isAllMatrixColumnsScope(matrix, scopeTeacherIds){
+  const cols = matrixColumnTeacherIds(matrix);
+  const scope = normalizeTeacherScope(scopeTeacherIds);
+  if(scope === null) return true;
+  if(!cols.length) return isFullTeacherScope(matrix, scope);
+  if(!scope.length) return false;
+  return cols.length === scope.length && cols.every(id => scope.includes(id));
+}
+function migrateIndividualViewTeachers(state){
+  if(!state) return state;
+  if(Array.isArray(state.viewTeacherIds) && state.viewTeacherIds.length) return state;
+  if(state.viewTeacherId) state.viewTeacherIds = [state.viewTeacherId];
+  else state.viewTeacherIds = [];
+  return state;
+}
+function individualTeacherState(kind){
+  return kind === 'rpiano' ? LAST_RPIANO : LAST_ONEONE;
+}
+const INDIVIDUAL_TEACHER_PICKS = {oneone: null, rpiano: null};
+let INDIVIDUAL_TEACHERS_MODAL_KIND = null;
+let INDIVIDUAL_TEACHERS_MODAL_DRAFT = null;
+function getIndividualGenerateTeacherIds(kind){
+  if(INDIVIDUAL_TEACHERS_MODAL_KIND === kind && INDIVIDUAL_TEACHERS_MODAL_DRAFT){
+    return INDIVIDUAL_TEACHERS_MODAL_DRAFT.slice();
+  }
+  const state = individualTeacherState(kind);
+  if(state){
+    migrateIndividualViewTeachers(state);
+    if(state.viewTeacherIds && state.viewTeacherIds.length) return state.viewTeacherIds.slice();
+  }
+  const matrix = kind === 'rpiano' ? (DB.rpiano || {hours: {}}) : (DB.oneToOne || {hours: {}});
+  const all = matrixTeacherIds(matrix);
+  const saved = INDIVIDUAL_TEACHER_PICKS[kind];
+  if(saved) return saved.filter(id => all.includes(id));
+  return [];
+}
+function individualTeachersBtnId(kind){
+  return kind === 'rpiano' ? 'rpianoTeachersBtn' : 'oneoneTeachersBtn';
+}
+function individualTeachersSummary(kind, ids){
+  const matrix = kind === 'rpiano' ? ensureRpianoMatrix() : ensureOneToOneMatrix();
+  const all = matrixTeacherIds(matrix);
+  if(!all.length) return 'No teachers';
+  if(!ids.length) return 'Pick teachers…';
+  if(ids.length >= all.length) return `All ${all.length} teachers`;
+  if(ids.length === 1) return teacherName(ids[0]) || ids[0];
+  return `${ids.length} teachers`;
+}
+function updateIndividualTeachersBtn(kind){
+  const btn = document.getElementById(individualTeachersBtnId(kind));
+  if(!btn) return;
+  const matrix = kind === 'rpiano' ? ensureRpianoMatrix() : ensureOneToOneMatrix();
+  btn.textContent = individualTeachersSummary(kind, getIndividualGenerateTeacherIds(kind));
+  btn.disabled = !matrixTeacherIds(matrix).length;
+}
+function syncIndividualTeacherSelection(kind, matrix, stateObj){
+  const all = matrixTeacherIds(matrix);
+  const ids = getIndividualGenerateTeacherIds(kind);
+  INDIVIDUAL_TEACHER_PICKS[kind] = ids.slice();
+  if(stateObj){
+    migrateIndividualViewTeachers(stateObj);
+    stateObj.viewTeacherIds = ids.filter(id => all.includes(id));
+  }
+  updateIndividualTeachersBtn(kind);
+}
+function renderIndividualTeachersModalList(){
+  const list = document.getElementById('individualTeachersList');
+  const countEl = document.getElementById('individualTeachersCount');
+  if(!list || !INDIVIDUAL_TEACHERS_MODAL_KIND) return;
+  const kind = INDIVIDUAL_TEACHERS_MODAL_KIND;
+  const matrix = kind === 'rpiano' ? ensureRpianoMatrix() : ensureOneToOneMatrix();
+  const ids = matrixTeacherIds(matrix);
+  const draft = new Set(INDIVIDUAL_TEACHERS_MODAL_DRAFT || []);
+  const cellN = new Map();
+  collectOneOneAssignments(matrix).forEach(a => {
+    if(a.teacherId) cellN.set(a.teacherId, (cellN.get(a.teacherId) || 0) + 1);
+  });
+  const q = String((document.getElementById('individualTeachersFilter') || {}).value || '').trim().toLowerCase();
+  const filtered = ids.filter(id => {
+    if(!q) return true;
+    const name = String(teacherName(id) || id).toLowerCase();
+    return name.includes(q) || String(id).toLowerCase().includes(q);
+  });
+  if(!filtered.length){
+    list.innerHTML = '<p class="individual-teachers-empty">No teachers match.</p>';
+  } else {
+    list.innerHTML = filtered.map(id => {
+      const on = draft.has(id);
+      const hours = cellN.get(id) || 0;
+      const name = teacherName(id) || id;
+      const c = colorForTeacher(id);
+      return `<label class="individual-teachers-item${on ? ' is-checked' : ''}">
+        <input type="checkbox" data-teacher-id="${escapeAttr(id)}"${on ? ' checked' : ''}>
+        <span class="individual-teachers-swatch" style="background:${escapeAttr(c.bg)};border-color:${escapeAttr(c.border)}"></span>
+        <span class="individual-teachers-name">${escapeAttr(name)}</span>
+        <span class="individual-teachers-meta">${hours} cell${hours === 1 ? '' : 's'}</span>
+      </label>`;
+    }).join('');
+  }
+  if(countEl){
+    const n = (INDIVIDUAL_TEACHERS_MODAL_DRAFT || []).length;
+    countEl.textContent = ids.length
+      ? `${n} of ${ids.length} selected${n && n < ids.length ? ' — unchecked teachers keep their layout' : ''}`
+      : '';
+  }
+}
+function openIndividualTeachersModal(kind){
+  if(SEARCH_UI_LOCK) return;
+  INDIVIDUAL_TEACHERS_MODAL_KIND = kind;
+  INDIVIDUAL_TEACHERS_MODAL_DRAFT = getIndividualGenerateTeacherIds(kind).slice();
+  const title = document.getElementById('individualTeachersTitle');
+  const hint = document.getElementById('individualTeachersHint');
+  if(title) title.textContent = kind === 'rpiano' ? 'Required Piano teachers' : '1/1 teachers';
+  if(hint){
+    hint.textContent = kind === 'rpiano'
+      ? 'Generate packs piano for the checked teachers. The weekly grid shows only these teachers. Unchecked teachers keep their current piano layout.'
+      : 'Generate packs 1/1 for the checked teachers. The weekly grid shows only these teachers. Unchecked teachers keep their current 1/1 layout.';
+  }
+  const filter = document.getElementById('individualTeachersFilter');
+  if(filter) filter.value = '';
+  renderIndividualTeachersModalList();
+  setModalOverlay('individualTeachersOverlay', true);
+  if(filter) filter.focus();
+}
+function hideIndividualTeachersModal(apply){
+  if(apply && INDIVIDUAL_TEACHERS_MODAL_KIND && INDIVIDUAL_TEACHERS_MODAL_DRAFT){
+    onIndividualGenerateTeachersChange(INDIVIDUAL_TEACHERS_MODAL_KIND, INDIVIDUAL_TEACHERS_MODAL_DRAFT.slice());
+  }
+  INDIVIDUAL_TEACHERS_MODAL_KIND = null;
+  INDIVIDUAL_TEACHERS_MODAL_DRAFT = null;
+  setModalOverlay('individualTeachersOverlay', false);
+}
+function isIndividualTeachersModalOpen(){
+  return overlayIsOpen(document.getElementById('individualTeachersOverlay'));
+}
+function individualScopeLabel(matrix, scopeTeacherIds){
+  const scope = normalizeTeacherScope(scopeTeacherIds);
+  if(scope === null || isAllMatrixColumnsScope(matrix, scope)) return '';
+  if(scope.length === 1) return teacherName(scope[0]) || scope[0];
+  return `${scope.length} teachers`;
+}
+function assignmentsForGenerate(matrix, scopeTeacherIds){
+  const all = collectOneOneAssignments(matrix);
+  const scope = normalizeTeacherScope(scopeTeacherIds);
+  if(scope === null || isAllMatrixColumnsScope(matrix, scope)) return all;
+  if(!scope.length) return [];
+  return all.filter(a => scope.includes(a.teacherId));
+}
+function cloneIndividualKeep(state, scopeTeacherIds, matrix){
+  const scope = normalizeTeacherScope(scopeTeacherIds);
+  if(scope === null || isAllMatrixColumnsScope(matrix, scope)) return {scheduled: [], unresolved: []};
   return {
-    scheduled: JSON.parse(JSON.stringify((state && state.scheduled || []).filter(s => s.teacherId !== teacherId))),
-    unresolved: JSON.parse(JSON.stringify((state && state.unresolved || []).filter(u => u.teacherId !== teacherId)))
+    scheduled: JSON.parse(JSON.stringify((state && state.scheduled || []).filter(s => !scope.includes(s.teacherId)))),
+    unresolved: JSON.parse(JSON.stringify((state && state.unresolved || []).filter(u => !scope.includes(u.teacherId))))
   };
 }
 function mergeKeptIntoVariants(variants, keep){
@@ -8540,20 +10844,20 @@ function individualSearchOpts(kind, assignments, keep){
   }
   return Object.assign(base, {acceptedRows: DB.acceptedSchedule || []});
 }
-function generateIndividualScoped(kind, scopeTeacherId){
+function generateIndividualScoped(kind, scopeTeacherIds){
   const matrix = kind === 'rpiano' ? ensureRpianoMatrix() : ensureOneToOneMatrix();
-  const assignments = assignmentsForGenerate(matrix, scopeTeacherId);
-  const keep = cloneIndividualKeep(kind === 'rpiano' ? LAST_RPIANO : LAST_ONEONE, scopeTeacherId);
+  const assignments = assignmentsForGenerate(matrix, scopeTeacherIds);
+  const keep = cloneIndividualKeep(kind === 'rpiano' ? LAST_RPIANO : LAST_ONEONE, scopeTeacherIds, matrix);
   return {
     assignments,
     keep,
     variants: mergeKeptIntoVariants(scheduleAllOneToOneSearch(individualSearchOpts(kind, assignments, keep)), keep)
   };
 }
-async function generateIndividualScopedAsync(kind, scopeTeacherId, onTick){
+async function generateIndividualScopedAsync(kind, scopeTeacherIds, onTick){
   const matrix = kind === 'rpiano' ? ensureRpianoMatrix() : ensureOneToOneMatrix();
-  const assignments = assignmentsForGenerate(matrix, scopeTeacherId);
-  const keep = cloneIndividualKeep(kind === 'rpiano' ? LAST_RPIANO : LAST_ONEONE, scopeTeacherId);
+  const assignments = assignmentsForGenerate(matrix, scopeTeacherIds);
+  const keep = cloneIndividualKeep(kind === 'rpiano' ? LAST_RPIANO : LAST_ONEONE, scopeTeacherIds, matrix);
   const variants = await scheduleAllOneToOneSearchAsync(individualSearchOpts(kind, assignments, keep), onTick);
   return {
     assignments,
@@ -8561,46 +10865,64 @@ async function generateIndividualScopedAsync(kind, scopeTeacherId, onTick){
     variants: mergeKeptIntoVariants(variants, keep)
   };
 }
-function fillIndividualGenerateTeacherSelect(sel, matrix){
-  if(!sel) return;
-  const ids = [...new Set(collectOneOneAssignments(matrix).map(a => a.teacherId).filter(Boolean))]
-    .sort((a,b) => String(teacherName(a)||a).localeCompare(String(teacherName(b)||b)));
-  const current = sel.value;
-  const pick = ids.includes(current) ? current : '';
-  sel.innerHTML = `<option value="">All teachers</option>` + ids.map(id =>
-    `<option value="${escapeAttr(id)}"${id===pick?' selected':''}>${escapeAttr(teacherName(id)||id)}</option>`
-  ).join('');
-}
 function individualGenerateBtnLabel(kind){
-  const sel = document.getElementById(kind === 'rpiano' ? 'rpianoGenerateTeacher' : 'oneoneGenerateTeacher');
-  const tid = sel && sel.value;
-  const who = tid ? (teacherName(tid) || tid) : '';
-  if(kind === 'rpiano') return who ? `▶ Generate ${who}` : '▶ Generate Required Piano';
-  return who ? `▶ Generate 1/1 · ${who}` : '▶ Generate all 1/1';
+  const matrix = kind === 'rpiano' ? ensureRpianoMatrix() : ensureOneToOneMatrix();
+  const ids = getIndividualGenerateTeacherIds(kind);
+  const allN = matrixTeacherIds(matrix).length;
+  const who = individualScopeLabel(matrix, ids);
+  if(kind === 'rpiano'){
+    if(!ids.length) return '▶ Generate Required Piano';
+    if(!who) return '▶ Generate Required Piano';
+    if(ids.length === 1) return `▶ Generate ${who}`;
+    return `▶ Generate Required Piano · ${ids.length} teachers`;
+  }
+  if(!ids.length) return '▶ Generate all 1/1';
+  if(!who) return '▶ Generate all 1/1';
+  if(ids.length === 1) return `▶ Generate 1/1 · ${who}`;
+  return `▶ Generate 1/1 · ${ids.length} teachers`;
 }
-function applyIndividualSearch(kind, fresh, viewTeacherId, scopeTeacherId){
-  const fp = individualSearchFingerprint(kind, scopeTeacherId);
+function applyIndividualSearch(kind, fresh, viewTeacherIds, scopeTeacherIds){
+  const fp = individualSearchFingerprint(kind, scopeTeacherIds);
   const prev = kind === 'rpiano' ? LAST_RPIANO : LAST_ONEONE;
+  const matrix = kind === 'rpiano' ? DB.rpiano : DB.oneToOne;
+  const scopeIds = normalizeTeacherScope(scopeTeacherIds);
+  const regenAll = scopeIds === null || isAllMatrixColumnsScope(matrix, scopeIds);
   let variants = fresh || [];
-  if(prev && prev.inputFingerprint === fp && prev.variants && prev.variants.length){
+  if(regenAll && prev && prev.inputFingerprint === fp && prev.variants && prev.variants.length){
     variants = mergeIndividualVariants(prev.variants, fresh);
   }
   const best = variants[0] || {scheduled: [], unresolved: []};
+  variants.forEach(v => {
+    if(v && Array.isArray(v.scheduled)) coalesceFlushIndividualLessons(v.scheduled);
+  });
+  const merged = mergeScopedIndividualResult(prev, best, scopeIds, matrix);
+  const viewIds = normalizeTeacherScope(viewTeacherIds);
+  const viewList = viewIds === null
+    ? (scopeIds === null ? matrixTeacherIds(matrix) : (scopeIds.length ? scopeIds : []))
+    : viewIds.slice();
   const state = {
-    viewTeacherId: viewTeacherId || (best.scheduled[0] && best.scheduled[0].teacherId) || '',
-    scheduled: best.scheduled,
-    unresolved: best.unresolved,
+    viewTeacherIds: viewList,
+    scheduled: merged.scheduled,
+    unresolved: merged.unresolved,
     accepted: false,
+    acceptedSchedule: undefined,
     variants,
     selectedIndex: 0,
     inputFingerprint: fp
   };
-  if(kind === 'rpiano') LAST_RPIANO = state;
-  else {
-    LAST_ONEONE = state;
-    LAST_RPIANO = null;
-  }
+  assignIndividualState(kind, state);
   return state;
+}
+function applyIndividualStarLayout(state, matrix, scopeTeacherIds, variants, starI, keep){
+  if(!state || !variants || !variants.length) return;
+  const v = variants[starI];
+  if(!v) return;
+  state.selectedIndex = starI;
+  const prevKept = {scheduled: (keep && keep.scheduled) || [], unresolved: (keep && keep.unresolved) || []};
+  const merged = mergeScopedIndividualResult(prevKept, v, scopeTeacherIds, matrix);
+  state.scheduled = merged.scheduled;
+  state.unresolved = merged.unresolved;
+  compactIndividualVariants(state);
 }
 function populateIndividualVariantSelector(kind){
   const state = kind === 'rpiano' ? LAST_RPIANO : LAST_ONEONE;
@@ -8637,7 +10959,6 @@ function selectIndividualVariant(kind, idx){
   if(kind === 'rpiano'){
     renderRpianoTab();
   } else {
-    LAST_RPIANO = null;
     renderOneOneTab();
     updateAllTabLocks();
   }
@@ -8645,7 +10966,7 @@ function selectIndividualVariant(kind, idx){
 }
 
 function isTimetableAccepted(){
-  return !!(LAST_RESULT && LAST_RESULT.accepted && (LAST_RESULT.scheduled || []).length);
+  return timetableVariantShowsAccepted(LAST_RESULT);
 }
 function canOpenOneOne(){
   return isTimetableAccepted();
@@ -8740,24 +11061,37 @@ function individualTeacherIds(kind){
   }
   return [...new Set(ids)].sort((a,b) => String(teacherName(a)||a).localeCompare(String(teacherName(b)||b)));
 }
-function fillIndividualTeacherFilter(sel, stateObj, emptyLabel, kind){
-  if(!sel) return;
-  const ids = individualTeacherIds(kind);
-  if(!ids.length){
-    sel.innerHTML = `<option value="">${emptyLabel}</option>`;
+function teachersWeekItems(teacherIds, kind){
+  const ids = normalizeTeacherScope(teacherIds);
+  if(ids === null || !ids.length) return [];
+  const seen = new Set();
+  const out = [];
+  ids.forEach(tid => {
+    teacherWeekItems(tid, kind).forEach(i => {
+      const k = i.lessonId || [i.source, i.day, i.start, i.end, i.teacherId].join('\t');
+      if(seen.has(k)) return;
+      seen.add(k);
+      out.push(i);
+    });
+  });
+  return out.sort((a,b) => DAYS.indexOf(a.day) - DAYS.indexOf(b.day) || a.start - b.start);
+}
+function renderTeacherWeekGrid(grid, stateObj, emptyHtml, kind){
+  if(!grid) return;
+  const fromUi = getIndividualGenerateTeacherIds(kind);
+  const teacherIds = fromUi.length
+    ? fromUi
+    : ((stateObj && stateObj.viewTeacherIds) || []);
+  if(stateObj) stateObj.viewTeacherIds = teacherIds.slice();
+  const items = teachersWeekItems(teacherIds, kind);
+  LAST_AUDIT = auditTimetable(combinedWeekItems(kind));
+  if(!teacherIds.length){
+    grid.innerHTML = '<p class="dataio-hint" style="margin:0">Check at least one teacher above to see the weekly grid.</p>';
+    const wrap = document.getElementById((kind === 'rpiano' ? 'rpiano' : 'oneone') + 'AuditWrap');
+    if(wrap) wrap.style.display = 'none';
+    updateIndividualUndo(kind);
     return;
   }
-  const current = (stateObj && stateObj.viewTeacherId) || sel.value || ids[0];
-  const pick = ids.includes(current) ? current : ids[0];
-  sel.innerHTML = ids.map(id => `<option value="${escapeAttr(id)}" ${id===pick?'selected':''}>${escapeAttr(teacherName(id)||id)}</option>`).join('');
-  if(stateObj) stateObj.viewTeacherId = sel.value;
-}
-function renderTeacherWeekGrid(grid, sel, stateObj, emptyHtml, kind){
-  if(!grid) return;
-  fillIndividualTeacherFilter(sel, stateObj, '— generate first —', kind);
-  const teacherId = (sel && sel.value) || (stateObj && stateObj.viewTeacherId) || '';
-  const items = teacherWeekItems(teacherId, kind);
-  LAST_AUDIT = auditTimetable(combinedWeekItems(kind));
   if(!items.length){
     grid.innerHTML = emptyHtml;
     const wrap = document.getElementById((kind === 'rpiano' ? 'rpiano' : 'oneone') + 'AuditWrap');
@@ -8778,9 +11112,8 @@ function renderTeacherWeekGrid(grid, sel, stateObj, emptyHtml, kind){
 function renderOneOneGrid(){
   renderTeacherWeekGrid(
     document.getElementById('oneoneGrid'),
-    document.getElementById('oneoneTeacherFilter'),
     LAST_ONEONE,
-    '<p class="dataio-hint" style="margin:0">Open the 1/1 matrix, then Generate all 1/1. Pick a teacher here to see grey accepted blocks, gold 1/1, and teal Required Piano.</p>',
+    '<p class="dataio-hint" style="margin:0">No lessons yet for the checked teachers. Fill the matrix and Generate.</p>',
     'oneone'
   );
 }
@@ -8792,15 +11125,11 @@ function renderHoursMatrixPanel(opts){
   const m = opts.matrix || {columns: [], hours: {}};
   const cols = m.columns || [];
   const q = (document.getElementById(opts.filterId) || {}).value || '';
-  const qn = String(q).trim().toLowerCase();
-  const students = (DB.students || []).filter(s => {
-    if(!qn) return true;
-    const blob = `${studentDisplayName(s)} ${s.ID} ${instrName(s.INSTR_ID)||''}`.toLowerCase();
-    return blob.includes(qn);
-  });
+  const students = matrixStudentRowsForPanel(m, opts.kind, q);
   const assignments = collectOneOneAssignments(m);
+  const missingN = students.filter(s => s.missing).length;
   if(countEl){
-    countEl.textContent = `${assignments.length} filled cells · ${students.length} student${students.length===1?'':'s'}`;
+    countEl.textContent = `${assignments.length} filled cells · ${students.length} student${students.length===1?'':'s'}${missingN ? ` · ${missingN} missing from Students` : ''}`;
   }
   if(!cols.length){
     box.innerHTML = `<p class="dataio-hint" style="padding:12px;margin:0">${opts.emptyHtml}</p>`;
@@ -8820,8 +11149,14 @@ function renderHoursMatrixPanel(opts){
     }).join('');
     const rid = itemRoomId(studentMatrixRoom(m, s.ID));
     const optsHtml = rooms.map(r => `<option value="${escapeAttr(r.id)}" ${r.id===rid?'selected':''}>${escapeAttr(r.name || r.id)}</option>`).join('');
-    return `<tr>
-      <td class="is-sticky"><div class="oneone-sid">${escapeAttr(s.ID)}</div><div class="oneone-sname">${escapeAttr(studentDisplayName(s))}</div><div class="meta" style="font-size:10px;color:var(--ink-dim)">${escapeAttr(instrName(s.INSTR_ID)||'—')}</div></td>
+    const missingBadge = s.missing
+      ? `<div class="meta oneone-missing">Not in Students — clear hours or Remove to drop their ${opts.kind === 'rpiano' ? 'piano' : '1/1'}</div>`
+      : '';
+    const removeBtn = s.missing
+      ? `<button type="button" class="btn danger small oneone-orphan-remove" data-sid="${escapeAttr(s.ID)}" title="Remove all matrix hours and scheduled lessons for this missing student">Remove</button>`
+      : '';
+    return `<tr class="${s.missing ? 'is-orphan' : ''}">
+      <td class="is-sticky"><div class="oneone-sid">${escapeAttr(s.ID)}</div><div class="oneone-sname">${escapeAttr(studentDisplayName(s))}</div><div class="meta" style="font-size:10px;color:var(--ink-dim)">${escapeAttr(instrName(s.INSTR_ID)||'—')}</div>${missingBadge}${removeBtn}</td>
       <td class="oneone-roomcol"><select class="oneone-col-room" data-sid="${escapeAttr(s.ID)}" title="Lock this student's individual lessons into a room. Blank = no lock."><option value="">Room —</option>${optsHtml}</select></td>
       ${cells}
     </tr>`;
@@ -8835,10 +11170,8 @@ function renderHoursMatrixPanel(opts){
       inp.value = formatOneOneHours(hours);
       inp.closest('td')?.classList.toggle('is-filled', !!inp.value);
       markWorkDirty();
-      if(countEl){
-        const n = collectOneOneAssignments(opts.matrix).length;
-        countEl.textContent = `${n} filled cells · ${students.length} student${students.length===1?'':'s'}`;
-      }
+      if(opts.kind === 'rpiano') renderRpianoTab();
+      else renderOneOneTab();
     });
   });
   box.querySelectorAll('select.oneone-col-room').forEach(sel => {
@@ -8847,6 +11180,17 @@ function renderHoursMatrixPanel(opts){
       markWorkDirty();
       if(opts.kind === 'rpiano') renderRpianoGrid();
       else renderOneOneGrid();
+    });
+  });
+  box.querySelectorAll('button.oneone-orphan-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sid = btn.dataset.sid;
+      if(!sid) return;
+      clearMatrixHoursForStudent(opts.matrix, sid);
+      dropAllIndividualForStudent(opts.kind, sid);
+      markWorkDirty();
+      if(opts.kind === 'rpiano') renderRpianoTab();
+      else renderOneOneTab();
     });
   });
 }
@@ -8859,6 +11203,15 @@ function renderUnresolvedList(wrapId, listId, unresolved){
     const t = u.teacherId ? (teacherName(u.teacherId) || u.teacherId) + ' · ' : '';
     return `<li><b>${escapeAttr(u.name || u.studentId)}</b> — ${escapeAttr(t + (u.reason || 'no slot'))}</li>`;
   }).join('');
+}
+function renderOneOneRpianoClashList(clashes){
+  const wrap = document.getElementById('oneoneRpianoClashWrap');
+  const ul = document.getElementById('oneoneRpianoClashList');
+  if(!wrap || !ul) return;
+  wrap.style.display = clashes.length ? 'block' : 'none';
+  ul.innerHTML = clashes.map(c =>
+    `<li>${escapeHtml(typeof c === 'string' ? c : c.text)}</li>`
+  ).join('');
 }
 function renderPlacementStats(statsId, scheduled, unresolved, placedLabel){
   const stats = document.getElementById(statsId);
@@ -8881,13 +11234,14 @@ function renderOneOneTab(){
   updateOneOneTabLock();
   updateRpianoTabLock();
   ensureOneToOneMatrix();
-  fillIndividualGenerateTeacherSelect(document.getElementById('oneoneGenerateTeacher'), DB.oneToOne);
+  syncIndividualTeacherSelection('oneone', DB.oneToOne, LAST_ONEONE);
   const genBtn = document.getElementById('oneoneGenerateBtn');
   if(genBtn && genBtn.textContent !== 'Generating…') genBtn.textContent = individualGenerateBtnLabel('oneone');
   const summary = document.getElementById('oneoneSummary');
   const tag = document.getElementById('oneoneStatusTag');
   const scheduled = (LAST_ONEONE && LAST_ONEONE.scheduled) || [];
   const unresolved = (LAST_ONEONE && LAST_ONEONE.unresolved) || [];
+  const rpianoClashes = oneOneRpianoClashesForCurrent();
   const assignments = collectOneOneAssignments(DB.oneToOne);
   const teacherN = new Set(assignments.map(a => a.teacherId)).size;
   if(summary){
@@ -8902,7 +11256,7 @@ function renderOneOneTab(){
       const nVar = (LAST_ONEONE.variants || []).length;
       const pairs = oneOneCoverageCount(LAST_ONEONE);
       const sess = scheduled.length > pairs ? ` · ${scheduled.length} sessions` : '';
-      summary.textContent = `${pairs} 1/1 placed${sess}${nVar > 1 ? ` · ${nVar} layouts` : ''}. Accept 1/1 to freeze this layout (including any dragged times).`;
+      summary.textContent = `${pairs} 1/1 placed${sess}${nVar > 1 ? ` · ${nVar} layouts` : ''}. Accept 1/1 to freeze this layout (including any dragged times).${rpianoClashes.length ? ` ${rpianoClashes.length} clash(es) with Required Piano — see below.` : ''}`;
     } else if(assignments.length){
       summary.textContent = `${assignments.length} 1/1 hours across ${teacherN} teacher${teacherN===1?'':'s'} · 1 = 60 min, 1.5 = 90, 2 = 120. Generate, then Accept 1/1 before piano.`;
     } else {
@@ -8916,6 +11270,7 @@ function renderOneOneTab(){
   }
   renderPlacementStats('oneoneStatsRow', scheduled, unresolved, '1/1 placed');
   renderUnresolvedList('oneoneUnresolvedWrap', 'oneoneUnresolvedList', unresolved);
+  renderOneOneRpianoClashList(rpianoClashes);
   populateIndividualVariantSelector('oneone');
   const acceptBtn = document.getElementById('oneoneAcceptBtn');
   if(acceptBtn){
@@ -8928,7 +11283,7 @@ function renderOneOneTab(){
     panel: 'oneoneAcceptedSchedulePanel',
     table: 'oneoneAcceptedScheduleTable',
     tag: 'oneoneAcceptedScheduleTag'
-  }, hasAcceptedOneOne() ? (LAST_ONEONE.acceptedSchedule || individualAcceptedRows(LAST_ONEONE, '1/1')) : []);
+  }, hasAcceptedOneOne() ? individualAcceptedRows(LAST_ONEONE, '1/1') : []);
 }
 
 function ensureOneToOneMatrix(){
@@ -8939,22 +11294,20 @@ function ensureOneToOneMatrix(){
   if(emptyHours && SEED.oneToOne && SEED.oneToOne.hours && Object.keys(SEED.oneToOne.hours).length){
     DB.oneToOne = JSON.parse(JSON.stringify(SEED.oneToOne));
   }
-  if(!DB.oneToOne.columns.length && (DB.refTeachers || []).length){
-    DB.oneToOne.columns = (DB.refTeachers || []).map(t => ({id: t.id, name: t.name}));
-  }
+  ensureMatrixRefTeacherColumns(DB.oneToOne);
   (DB.oneToOne.columns || []).forEach(c => migrateRoomLock(c, {defaultOn:false}));
   migrateStudentRooms(DB.oneToOne);
   return DB.oneToOne;
 }
-function fillOneOneTeacherFilter(){
-  fillIndividualTeacherFilter(document.getElementById('oneoneTeacherFilter'), LAST_ONEONE, '— generate 1/1 first —', 'oneone');
-}
 function setOneOneHours(studentId, teacherId, hours){
   ensureOneToOneMatrix();
+  const prev = parseOneOneHours(((DB.oneToOne.hours || {})[studentId] || {})[teacherId]);
   DB.oneToOne.hours[studentId] = DB.oneToOne.hours[studentId] || {};
   const n = parseOneOneHours(hours);
   if(!n) delete DB.oneToOne.hours[studentId][teacherId];
   else DB.oneToOne.hours[studentId][teacherId] = n;
+  if(!Object.keys(DB.oneToOne.hours[studentId] || {}).length) delete DB.oneToOne.hours[studentId];
+  if(prev !== n) dropIndividualMatrixSlot('oneone', studentId, teacherId);
 }
 function renderOneOneMatrix(){
   renderHoursMatrixPanel({
@@ -8975,11 +11328,19 @@ function setOneOneGenerateBusy(busy){
   btn.textContent = busy ? 'Generating…' : individualGenerateBtnLabel('oneone');
   const attempts = document.getElementById('oneoneSearchAttempts');
   if(attempts) attempts.disabled = !!busy;
-  const teacher = document.getElementById('oneoneGenerateTeacher');
-  if(teacher) teacher.disabled = !!busy;
+  const pickBtn = document.getElementById(individualTeachersBtnId('oneone'));
+  if(pickBtn) pickBtn.disabled = !!busy;
 }
 function finishIndividualGeneratePaint(kind){
-  if(kind === 'rpiano'){
+  if(kind === 'oneone'){
+    const clashes = oneOneRpianoClashesForCurrent();
+    if(clashes.length && isSearchLiveOpen()){
+      searchLiveSay(`${clashes.length} clash(es) with Required Piano — listed on the 1/1 tab. Piano is kept.`, 'warn');
+      clashes.slice(0, 8).forEach(c => searchLiveSay(c.text, 'warn'));
+    }
+    renderOneOneTab();
+    renderRpianoTab();
+  } else if(kind === 'rpiano'){
     renderRpianoTab();
     renderOneOneTab();
   } else {
@@ -8988,6 +11349,7 @@ function finishIndividualGeneratePaint(kind){
   }
   if(LAST_RESULT) renderGrid();
   markWorkDirty();
+  flushAutosave();
 }
 function runOneOneGenerate(){
   if(SEARCH_UI_LOCK) return;
@@ -8996,34 +11358,35 @@ function runOneOneGenerate(){
     return;
   }
   ensureOneToOneMatrix();
-  const scopeTeacherId = (document.getElementById('oneoneGenerateTeacher') || {}).value || '';
-  const assignments = assignmentsForGenerate(DB.oneToOne, scopeTeacherId);
+  const scopeTeacherIds = getIndividualGenerateTeacherIds('oneone');
+  const assignments = assignmentsForGenerate(DB.oneToOne, scopeTeacherIds);
+  if(!scopeTeacherIds.length){
+    alert('Check at least one teacher.');
+    return;
+  }
   if(!assignments.length){
-    alert(scopeTeacherId
-      ? 'That teacher has no 1/1 hours in the matrix.'
-      : 'The 1/1 matrix is empty. Fill hours in the table (1 = 60 min).');
+    alert('The checked teachers have no 1/1 hours in the matrix.');
     return;
   }
   const attempts = readOneOneSearchAttempts('oneone');
   const maxTries = oneOneSearchMaxTries(attempts);
-  const who = scopeTeacherId ? (teacherName(scopeTeacherId) || scopeTeacherId) : '';
+  const who = individualScopeLabel(DB.oneToOne, scopeTeacherIds);
   resetSearchCancel();
   setOneOneGenerateBusy(true);
   openSearchLive(who ? `Generate 1/1 · ${who}` : 'Generate all 1/1');
   searchLiveSay(`${attempts} distinct layout(s); up to ${maxTries} tries. Packing into accepted group holes.`, 'info');
   if(who) searchLiveSay(`Only ${who} — other teachers stay.`, 'info');
-  setSearchLiveProgress(0, maxTries, 'Starting…');
+  setSearchLiveProgress(0, attempts, searchLiveIndividualCount(0, attempts, 0, maxTries));
   (async () => {
     try {
-      const scoped = await generateIndividualScopedAsync('oneone', scopeTeacherId, (done, total, label) => {
+      const scoped = await generateIndividualScopedAsync('oneone', scopeTeacherIds, (done, total, label) => {
         setSearchLiveProgress(done, total, label);
       });
       if(!(scoped.variants || []).length){
         searchLiveSay(SEARCH_CANCELLED ? 'Stopped before a layout was kept.' : 'No layout produced.', 'warn');
         return;
       }
-      const viewId = scopeTeacherId || (document.getElementById('oneoneTeacherFilter') || {}).value;
-      const state = applyIndividualSearch('oneone', scoped.variants, viewId, scopeTeacherId);
+      const state = applyIndividualSearch('oneone', scoped.variants, scopeTeacherIds, scopeTeacherIds);
       if(state && state.variants){
         const pianoN = collectOneOneAssignments(DB.rpiano).length;
         if(pianoN){
@@ -9038,12 +11401,7 @@ function runOneOneGenerate(){
           attachOneOneLookahead(state.variants);
         }
         const starI = suggestedVariantIndex(state.variants);
-        const v = state.variants[starI];
-        if(v){
-          state.selectedIndex = starI;
-          state.scheduled = v.scheduled;
-          state.unresolved = v.unresolved;
-        }
+        applyIndividualStarLayout(state, DB.oneToOne, scopeTeacherIds, state.variants, starI, scoped.keep);
       }
       finishIndividualGeneratePaint('oneone');
       setSearchLiveHeadline('Done');
@@ -9063,14 +11421,17 @@ function acceptOneOneSchedule(){
   }
   LAST_ONEONE.accepted = true;
   LAST_ONEONE.acceptedAt = new Date().toISOString();
-  LAST_ONEONE.acceptedSchedule = individualAcceptedRows(LAST_ONEONE, '1/1');
+  compactIndividualVariants(LAST_ONEONE);
+  refreshIndividualAcceptedSnapshot(LAST_ONEONE, 'oneone');
   LAST_ONEONE.dragUndo = [];
   LAST_ONEONE.dragBaseline = cloneLessonSlots(LAST_ONEONE.scheduled);
+  DB.oneToOneState = LAST_ONEONE;
   renderOneOneTab();
   renderRpianoTab();
   if(LAST_RESULT) renderGrid();
   markWorkDirty();
-  alert('1/1 accepted — those slots are frozen. Required Piano stays on file if you already accepted it; Generate 1/1 replaces it.');
+  flushAutosave();
+  alert('1/1 accepted — those slots are frozen. Required Piano stays on file; clashes with this layout are listed on the 1/1 tab.');
 }
 
 document.getElementById('oneoneGenerateBtn').addEventListener('click', runOneOneGenerate);
@@ -9080,30 +11441,62 @@ document.getElementById('oneoneVariantSelect').addEventListener('change', (e) =>
   selectIndividualVariant('oneone', parseInt(e.target.value, 10) || 0);
 });
 document.getElementById('oneoneMatrixFilter').addEventListener('input', renderOneOneMatrix);
-document.getElementById('oneoneTeacherFilter').addEventListener('change', () => {
-  LAST_ONEONE = LAST_ONEONE || {scheduled: [], unresolved: []};
-  LAST_ONEONE.viewTeacherId = document.getElementById('oneoneTeacherFilter').value;
-  renderOneOneGrid();
-});
-function syncIndividualWeekFromGenerate(kind){
-  const gen = document.getElementById(kind === 'rpiano' ? 'rpianoGenerateTeacher' : 'oneoneGenerateTeacher');
-  const tid = gen && gen.value;
-  if(!tid) return;
-  if(kind === 'rpiano'){
-    LAST_RPIANO = LAST_RPIANO || {scheduled: [], unresolved: []};
-    LAST_RPIANO.viewTeacherId = tid;
-    renderRpianoGrid();
-  } else {
-    LAST_ONEONE = LAST_ONEONE || {scheduled: [], unresolved: []};
-    LAST_ONEONE.viewTeacherId = tid;
-    renderOneOneGrid();
-  }
+function onIndividualGenerateTeachersChange(kind, idsOverride){
+  const ids = idsOverride || getIndividualGenerateTeacherIds(kind);
+  INDIVIDUAL_TEACHER_PICKS[kind] = ids.slice();
+  const state = kind === 'rpiano' ? LAST_RPIANO : LAST_ONEONE;
+  if(state) state.viewTeacherIds = ids.slice();
+  const btn = document.getElementById(kind === 'rpiano' ? 'rpianoGenerateBtn' : 'oneoneGenerateBtn');
+  if(btn && btn.textContent !== 'Generating…') btn.textContent = individualGenerateBtnLabel(kind);
+  updateIndividualTeachersBtn(kind);
+  if(kind === 'rpiano') renderRpianoGrid();
+  else renderOneOneGrid();
 }
-document.getElementById('oneoneGenerateTeacher').addEventListener('change', () => {
-  const btn = document.getElementById('oneoneGenerateBtn');
-  if(btn && btn.textContent !== 'Generating…') btn.textContent = individualGenerateBtnLabel('oneone');
-  syncIndividualWeekFromGenerate('oneone');
+document.getElementById('oneoneTeachersBtn').addEventListener('click', () => openIndividualTeachersModal('oneone'));
+document.getElementById('rpianoTeachersBtn').addEventListener('click', () => openIndividualTeachersModal('rpiano'));
+const individualTeachersList = document.getElementById('individualTeachersList');
+if(individualTeachersList){
+  individualTeachersList.addEventListener('change', e => {
+    if(!e.target.matches('input[type=checkbox][data-teacher-id]') || !INDIVIDUAL_TEACHERS_MODAL_KIND) return;
+    const id = e.target.dataset.teacherId;
+    const draft = new Set(INDIVIDUAL_TEACHERS_MODAL_DRAFT || []);
+    if(e.target.checked) draft.add(id);
+    else draft.delete(id);
+    INDIVIDUAL_TEACHERS_MODAL_DRAFT = [...draft];
+    renderIndividualTeachersModalList();
+  });
+  individualTeachersList.addEventListener('click', e => {
+    const row = e.target.closest('.individual-teachers-item');
+    if(!row || e.target.matches('input[type=checkbox]')) return;
+    const inp = row.querySelector('input[type=checkbox][data-teacher-id]');
+    if(inp){
+      inp.checked = !inp.checked;
+      inp.dispatchEvent(new Event('change', {bubbles: true}));
+    }
+  });
+}
+const individualTeachersFilter = document.getElementById('individualTeachersFilter');
+if(individualTeachersFilter){
+  individualTeachersFilter.addEventListener('input', renderIndividualTeachersModalList);
+}
+document.getElementById('individualTeachersAllBtn').addEventListener('click', () => {
+  if(!INDIVIDUAL_TEACHERS_MODAL_KIND) return;
+  const matrix = INDIVIDUAL_TEACHERS_MODAL_KIND === 'rpiano' ? ensureRpianoMatrix() : ensureOneToOneMatrix();
+  INDIVIDUAL_TEACHERS_MODAL_DRAFT = matrixTeacherIds(matrix).slice();
+  renderIndividualTeachersModalList();
 });
+document.getElementById('individualTeachersNoneBtn').addEventListener('click', () => {
+  INDIVIDUAL_TEACHERS_MODAL_DRAFT = [];
+  renderIndividualTeachersModalList();
+});
+document.getElementById('individualTeachersDoneBtn').addEventListener('click', () => hideIndividualTeachersModal(true));
+document.getElementById('individualTeachersCancelBtn').addEventListener('click', () => hideIndividualTeachersModal(false));
+const individualTeachersOverlay = document.getElementById('individualTeachersOverlay');
+if(individualTeachersOverlay){
+  individualTeachersOverlay.addEventListener('click', e => {
+    if(e.target.id === 'individualTeachersOverlay') hideIndividualTeachersModal(false);
+  });
+}
 function onOneOneSearchAttemptsChange(){
   readOneOneSearchAttempts('oneone');
   markWorkDirty();
@@ -9117,11 +11510,7 @@ if(oneoneSearchAttemptsEl) oneoneSearchAttemptsEl.addEventListener('change', onO
 const rpianoSearchAttemptsEl = document.getElementById('rpianoSearchAttempts');
 if(rpianoSearchAttemptsEl) rpianoSearchAttemptsEl.addEventListener('change', onRpianoSearchAttemptsChange);
 document.getElementById('exportOneoneAcceptedBtn').addEventListener('click', () => {
-  const rows = hasAcceptedOneOne()
-    ? ((LAST_ONEONE.acceptedSchedule && LAST_ONEONE.acceptedSchedule.length)
-      ? LAST_ONEONE.acceptedSchedule
-      : individualAcceptedRows(LAST_ONEONE, '1/1'))
-    : [];
+  const rows = hasAcceptedOneOne() ? individualAcceptedRows(LAST_ONEONE, '1/1') : [];
   downloadAcceptedScheduleCsv(rows, 'bartokkonzi_accepted_1_1.csv');
 });
 
@@ -9133,16 +11522,20 @@ function ensureRpianoMatrix(){
   if(emptyHours && SEED.rpiano && SEED.rpiano.hours && Object.keys(SEED.rpiano.hours).length){
     DB.rpiano = JSON.parse(JSON.stringify(SEED.rpiano));
   }
+  ensureMatrixRefTeacherColumns(DB.rpiano);
   (DB.rpiano.columns || []).forEach(c => migrateRoomLock(c, {defaultOn:false}));
   migrateStudentRooms(DB.rpiano);
   return DB.rpiano;
 }
 function setRpianoHours(studentId, teacherId, hours){
   ensureRpianoMatrix();
+  const prev = parseOneOneHours(((DB.rpiano.hours || {})[studentId] || {})[teacherId]);
   DB.rpiano.hours[studentId] = DB.rpiano.hours[studentId] || {};
   const n = parseOneOneHours(hours);
   if(!n) delete DB.rpiano.hours[studentId][teacherId];
   else DB.rpiano.hours[studentId][teacherId] = n;
+  if(!Object.keys(DB.rpiano.hours[studentId] || {}).length) delete DB.rpiano.hours[studentId];
+  if(prev !== n) dropIndividualMatrixSlot('rpiano', studentId, teacherId);
 }
 function renderRpianoMatrix(){
   renderHoursMatrixPanel({
@@ -9159,16 +11552,15 @@ function renderRpianoMatrix(){
 function renderRpianoGrid(){
   renderTeacherWeekGrid(
     document.getElementById('rpianoGrid'),
-    document.getElementById('rpianoTeacherFilter'),
     LAST_RPIANO,
-    '<p class="dataio-hint" style="margin:0">Accept 1/1, then Generate Required Piano. Pick a teacher to see grey accepted blocks, gold 1/1, and teal Required Piano.</p>',
+    '<p class="dataio-hint" style="margin:0">No lessons yet for the checked teachers. Fill the matrix and Generate.</p>',
     'rpiano'
   );
 }
 function renderRpianoTab(){
   updateRpianoTabLock();
   ensureRpianoMatrix();
-  fillIndividualGenerateTeacherSelect(document.getElementById('rpianoGenerateTeacher'), DB.rpiano);
+  syncIndividualTeacherSelection('rpiano', DB.rpiano, LAST_RPIANO);
   const summary = document.getElementById('rpianoSummary');
   const tag = document.getElementById('rpianoStatusTag');
   const scheduled = (LAST_RPIANO && LAST_RPIANO.scheduled) || [];
@@ -9218,7 +11610,7 @@ function renderRpianoTab(){
     panel: 'rpianoAcceptedSchedulePanel',
     table: 'rpianoAcceptedScheduleTable',
     tag: 'rpianoAcceptedScheduleTag'
-  }, hasAcceptedRpiano() ? (LAST_RPIANO.acceptedSchedule || individualAcceptedRows(LAST_RPIANO, 'piano')) : []);
+  }, hasAcceptedRpiano() ? individualAcceptedRows(LAST_RPIANO, 'piano') : []);
 }
 function setRpianoGenerateBusy(busy){
   setSearchUiLock(busy);
@@ -9228,8 +11620,8 @@ function setRpianoGenerateBusy(busy){
   btn.disabled = busy || !hasAcceptedOneOne();
   const attempts = document.getElementById('rpianoSearchAttempts');
   if(attempts) attempts.disabled = !!busy;
-  const teacher = document.getElementById('rpianoGenerateTeacher');
-  if(teacher) teacher.disabled = !!busy;
+  const pickBtn = document.getElementById(individualTeachersBtnId('rpiano'));
+  if(pickBtn) pickBtn.disabled = !!busy || !hasAcceptedOneOne();
 }
 function runRpianoGenerate(){
   if(SEARCH_UI_LOCK) return;
@@ -9238,34 +11630,35 @@ function runRpianoGenerate(){
     return;
   }
   ensureRpianoMatrix();
-  const scopeTeacherId = (document.getElementById('rpianoGenerateTeacher') || {}).value || '';
-  const assignments = assignmentsForGenerate(DB.rpiano, scopeTeacherId);
+  const scopeTeacherIds = getIndividualGenerateTeacherIds('rpiano');
+  const assignments = assignmentsForGenerate(DB.rpiano, scopeTeacherIds);
+  if(!scopeTeacherIds.length){
+    alert('Check at least one teacher.');
+    return;
+  }
   if(!assignments.length){
-    alert(scopeTeacherId
-      ? 'That teacher has no Required Piano hours in the matrix.'
-      : 'The Required Piano matrix is empty. Fill hours in the table (1 = 60 min).');
+    alert('The checked teachers have no Required Piano hours in the matrix.');
     return;
   }
   const attemptsN = readOneOneSearchAttempts('rpiano');
   const maxTries = oneOneSearchMaxTries(attemptsN);
-  const who = scopeTeacherId ? (teacherName(scopeTeacherId) || scopeTeacherId) : '';
+  const who = individualScopeLabel(DB.rpiano, scopeTeacherIds);
   resetSearchCancel();
   setRpianoGenerateBusy(true);
   openSearchLive(who ? `Generate Required Piano · ${who}` : 'Generate Required Piano');
   searchLiveSay(`${attemptsN} distinct layout(s); up to ${maxTries} tries. Packing into leftover holes around the accepted week and 1/1.`, 'info');
   if(who) searchLiveSay(`Only ${who} — other piano teachers stay.`, 'info');
-  setSearchLiveProgress(0, maxTries, 'Starting…');
+  setSearchLiveProgress(0, attemptsN, searchLiveIndividualCount(0, attemptsN, 0, maxTries));
   (async () => {
     try {
-      const scoped = await generateIndividualScopedAsync('rpiano', scopeTeacherId, (done, total, label) => {
+      const scoped = await generateIndividualScopedAsync('rpiano', scopeTeacherIds, (done, total, label) => {
         setSearchLiveProgress(done, total, label);
       });
       if(!(scoped.variants || []).length){
         searchLiveSay(SEARCH_CANCELLED ? 'Stopped before a layout was kept.' : 'No layout produced.', 'warn');
         return;
       }
-      const viewId = scopeTeacherId || (document.getElementById('rpianoTeacherFilter') || {}).value;
-      applyIndividualSearch('rpiano', scoped.variants, viewId, scopeTeacherId);
+      applyIndividualSearch('rpiano', scoped.variants, scopeTeacherIds, scopeTeacherIds);
       finishIndividualGeneratePaint('rpiano');
       setSearchLiveHeadline('Done');
       searchLiveSay('Search finished. The grid shows the best layout.', 'ok');
@@ -9288,13 +11681,16 @@ function acceptRpianoSchedule(){
   }
   LAST_RPIANO.accepted = true;
   LAST_RPIANO.acceptedAt = new Date().toISOString();
-  LAST_RPIANO.acceptedSchedule = individualAcceptedRows(LAST_RPIANO, 'piano');
+  compactIndividualVariants(LAST_RPIANO);
+  refreshIndividualAcceptedSnapshot(LAST_RPIANO, 'rpiano');
   LAST_RPIANO.dragUndo = [];
   LAST_RPIANO.dragBaseline = cloneLessonSlots(LAST_RPIANO.scheduled);
+  DB.rpianoState = LAST_RPIANO;
   renderRpianoTab();
   renderOneOneTab();
   if(LAST_RESULT) renderGrid();
   markWorkDirty();
+  flushAutosave();
   alert('Required Piano accepted — those slots are frozen.');
 }
 
@@ -9305,22 +11701,8 @@ document.getElementById('rpianoVariantSelect').addEventListener('change', (e) =>
   selectIndividualVariant('rpiano', parseInt(e.target.value, 10) || 0);
 });
 document.getElementById('rpianoMatrixFilter').addEventListener('input', renderRpianoMatrix);
-document.getElementById('rpianoTeacherFilter').addEventListener('change', () => {
-  LAST_RPIANO = LAST_RPIANO || {scheduled: [], unresolved: []};
-  LAST_RPIANO.viewTeacherId = document.getElementById('rpianoTeacherFilter').value;
-  renderRpianoGrid();
-});
-document.getElementById('rpianoGenerateTeacher').addEventListener('change', () => {
-  const btn = document.getElementById('rpianoGenerateBtn');
-  if(btn && btn.textContent !== 'Generating…') btn.textContent = individualGenerateBtnLabel('rpiano');
-  syncIndividualWeekFromGenerate('rpiano');
-});
 document.getElementById('exportRpianoAcceptedBtn').addEventListener('click', () => {
-  const rows = hasAcceptedRpiano()
-    ? ((LAST_RPIANO.acceptedSchedule && LAST_RPIANO.acceptedSchedule.length)
-      ? LAST_RPIANO.acceptedSchedule
-      : individualAcceptedRows(LAST_RPIANO, 'piano'))
-    : [];
+  const rows = hasAcceptedRpiano() ? individualAcceptedRows(LAST_RPIANO, 'piano') : [];
   downloadAcceptedScheduleCsv(rows, 'bartokkonzi_accepted_rpiano.csv');
 });
 
@@ -9445,6 +11827,16 @@ function restoreAutosaveIfAny(){
     return false;
   }
 }
+function replaceBrowserAutosave(){
+  try {
+    localStorage.removeItem(AUTOSAVE_KEY);
+    localStorage.removeItem(AUTOSAVE_META_KEY);
+  } catch(e){}
+  markWorkClean();
+  const note = document.getElementById('autosaveRestoreNote');
+  if(note) note.style.display = 'none';
+  alert('Browser autosave now matches what is on screen. Refresh will reopen this version.');
+}
 function discardAutosaveAndReloadSeed(){
   if(!confirm('Clear every table and drop this browser’s autosave? Small groups and the timetable will be cleared. Load Google Sheets again to fill the planner.')) return;
   try {
@@ -9496,7 +11888,9 @@ document.getElementById('clearFixedPinsBtn').addEventListener('click', clearAllF
 document.getElementById('clearFixedPinsBtnLessons').addEventListener('click', clearAllFixedPins);
 document.getElementById('clearFixedPinsBtnSmallGroups').addEventListener('click', clearAllFixedPins);
 document.getElementById('discardAutosaveBtn').addEventListener('click', discardAutosaveAndReloadSeed);
-['reportClassFilter','reportStudentFilter','reportMuclassFilter','reportRoomFilter','reportTeacherFilter','reportKindFilter','reportShowClassReservations'].forEach(id => {
+const replaceAutosaveBtn = document.getElementById('replaceAutosaveBtn');
+if(replaceAutosaveBtn) replaceAutosaveBtn.addEventListener('click', replaceBrowserAutosave);
+['reportClassFilter','reportStudentFilter','reportMuclassFilter','reportRoomFilter','reportTeacherFilter','reportKindFilter','reportShowClassReservations','reportShowRpiano'].forEach(id => {
   const el = document.getElementById(id);
   if(!el) return;
   el.addEventListener('change', () => {
@@ -9510,6 +11904,26 @@ document.getElementById('reportClearBtn').addEventListener('click', () => {
 });
 document.getElementById('reportCsvBtn').addEventListener('click', downloadReportCsv);
 document.getElementById('reportPrintBtn').addEventListener('click', printReports);
+const reportBatchPdfBtn = document.getElementById('reportBatchPdfBtn');
+if(reportBatchPdfBtn) reportBatchPdfBtn.addEventListener('click', openReportBatchModal);
+const reportFullPdfBtn = document.getElementById('reportFullPdfBtn');
+if(reportFullPdfBtn) reportFullPdfBtn.addEventListener('click', () => exportStandardWeeklyPdfPack());
+const reportBatchScopeEl = document.getElementById('reportBatchScope');
+if(reportBatchScopeEl) reportBatchScopeEl.addEventListener('change', fillReportBatchPickList);
+const reportBatchShowRpianoEl = document.getElementById('reportBatchShowRpiano');
+if(reportBatchShowRpianoEl) reportBatchShowRpianoEl.addEventListener('change', () => {
+  const main = document.getElementById('reportShowRpiano');
+  if(main) main.checked = !!reportBatchShowRpianoEl.checked;
+  fillReportBatchPickList();
+});
+const reportBatchSelectAllBtn = document.getElementById('reportBatchSelectAllBtn');
+if(reportBatchSelectAllBtn) reportBatchSelectAllBtn.addEventListener('click', () => setReportBatchChecks(true));
+const reportBatchSelectNoneBtn = document.getElementById('reportBatchSelectNoneBtn');
+if(reportBatchSelectNoneBtn) reportBatchSelectNoneBtn.addEventListener('click', () => setReportBatchChecks(false));
+const reportBatchCancelBtn = document.getElementById('reportBatchCancelBtn');
+if(reportBatchCancelBtn) reportBatchCancelBtn.addEventListener('click', () => setModalOverlay('reportBatchPdfOverlay', false));
+const reportBatchGoBtn = document.getElementById('reportBatchGoBtn');
+if(reportBatchGoBtn) reportBatchGoBtn.addEventListener('click', runReportBatchExport);
 window.addEventListener('pagehide', flushAutosave);
 window.addEventListener('beforeunload', flushAutosave);
 

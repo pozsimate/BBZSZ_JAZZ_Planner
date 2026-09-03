@@ -325,7 +325,7 @@ function runScenario(api, seed, rng, profile){
     if(api.pendingAcceptTab() !== 'oneone') errors.push('1/1 drag did not lock other tabs');
     dragMany(api, rng, one.scheduled, 'oneone', nOneDrags, errors, '1/1-drag');
     api.acceptOneOneSchedule();
-    if(!api.hasAcceptedRpiano()) errors.push('re-Accept 1/1 dropped Required Piano (should only drop on Generate 1/1)');
+    if(!api.hasAcceptedRpiano()) errors.push('re-Accept 1/1 dropped Required Piano (piano should stay on file)');
     if(!api.canOpenRpiano()) errors.push('re-Accept 1/1 left Required Piano tab locked');
     freezeMatches(api, one.scheduled, api.LAST_ONEONE && api.LAST_ONEONE.acceptedSchedule, '1/1-after-drag', errors);
     const piano2 = api.scheduleAllOneToOne({
