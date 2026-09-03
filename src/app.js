@@ -42,7 +42,10 @@ function setEditorUnlocked(on){
     if(on) sessionStorage.setItem(EDITOR_UNLOCK_KEY, EDITOR_PASSWORD_SHA256);
     else sessionStorage.removeItem(EDITOR_UNLOCK_KEY);
   } catch(e){}
-  try { document.body.classList.toggle('is-editor-unlocked', !!on); } catch(e){}
+  try {
+    document.body.classList.toggle('is-editor-unlocked', !!on);
+    document.body.classList.toggle('is-viewer-gated', editorGateActive() && !on);
+  } catch(e){}
   updateViewerGateUi();
   updateAllTabLocks();
 }
@@ -136,7 +139,10 @@ function updateViewerGateUi(){
     lockBtn.style.display = (editorGateActive() && unlocked) ? '' : 'none';
     lockBtn.disabled = false;
   }
-  try { document.body.classList.toggle('is-editor-unlocked', unlocked && editorGateActive()); } catch(e){}
+  try {
+    document.body.classList.toggle('is-editor-unlocked', unlocked && editorGateActive());
+    document.body.classList.toggle('is-viewer-gated', editorGateActive() && !unlocked);
+  } catch(e){}
 }
 function openViewerUnlockModal(){
   try {
