@@ -1335,32 +1335,42 @@
       align-self:flex-start;
     }
 
-    /* Reports week grid: stack days full-width (blocks already show times) */
+    /* Reports week grid: keep 5-day row, swipe horizontally */
     #tab-reports .grid-wrap{
-      overflow-x:visible; padding:4px;
+      overflow-x:auto;
+      overflow-y:hidden;
+      -webkit-overflow-scrolling:touch;
+      scroll-snap-type:x proximity;
+      padding:4px;
       border-radius:14px;
+      overscroll-behavior-x:contain;
     }
     #tab-reports .cal-wrap{
-      min-width:0; width:100%;
-      display:grid;
-      grid-template-columns:36px minmax(0, 1fr);
+      min-width:720px;
+      width:max-content;
+      display:flex;
     }
     #tab-reports .cal-timeaxis{
-      width:36px; flex:none;
+      width:40px; flex:0 0 40px;
+      position:sticky; left:0; z-index:3;
+      background:var(--surface-soft);
     }
     #tab-reports .cal-timeaxis .tick{ right:4px; font-size:9px; }
     #tab-reports .cal-days{
-      display:flex; flex-direction:column; min-width:0;
+      display:flex; flex:1; min-width:0;
     }
     #tab-reports .cal-day{
-      min-width:0; width:100%;
-      border-right:none;
-      border-bottom:1px solid var(--border);
+      flex:0 0 min(70vw, 160px);
+      min-width:min(70vw, 160px);
+      width:auto;
+      border-right:1px solid var(--border-soft);
+      border-bottom:none;
+      scroll-snap-align:start;
     }
-    #tab-reports .cal-day:last-child{ border-bottom:none; }
+    #tab-reports .cal-day:last-child{ border-right:none; }
     #tab-reports .cal-day-header{
       position:sticky; top:0; z-index:2;
-      font-size:13px; height:40px;
+      font-size:12.5px; height:36px;
     }
     #tab-reports .cal-block{
       font-size:12px; padding:6px 8px; border-radius:8px;
