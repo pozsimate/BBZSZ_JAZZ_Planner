@@ -1250,25 +1250,36 @@
     nav.tabs{
       margin:0 12px 12px 12px; gap:8px;
       flex-direction:column; align-items:stretch;
+      min-width:0; max-width:100%;
+      box-sizing:border-box;
     }
     .tabs-left,
     .tabs-right{
-      width:100%; max-width:100%;
-      flex-wrap:nowrap; overflow-x:auto; overflow-y:hidden;
-      -webkit-overflow-scrolling:touch;
-      gap:4px; padding:4px;
+      width:100%; max-width:100%; min-width:0;
+      box-sizing:border-box;
+      flex-wrap:wrap;
+      overflow:hidden;
+      gap:4px; padding:6px;
+      border-radius:16px; /* rounded rect — pill radius clips wrapped labels oddly */
       scrollbar-width:thin;
     }
     .tabs-left button,
     .tabs-right .tab-btn{
-      flex:0 0 auto; white-space:nowrap;
-      padding:10px 14px; font-size:12.5px; min-height:40px;
+      flex:0 1 auto;
+      white-space:normal;
+      text-align:center;
+      line-height:1.2;
+      max-width:100%;
+      padding:10px 12px; font-size:12.5px; min-height:40px;
+      box-sizing:border-box;
     }
 
     /* Public locked view: only Reports (+ unlock) — hide locked editing tabs */
     body.is-viewer-gated .tabs-left{ display:none; }
     body.is-viewer-gated .tabs-right{
       justify-content:flex-start;
+      width:auto; max-width:100%;
+      align-self:flex-start;
     }
     body.is-viewer-gated .tab-btn.is-viewer-locked{ display:none; }
 
@@ -1286,22 +1297,32 @@
     }
     .btn.small{ padding:10px 14px; font-size:13.5px; }
 
-    .report-toolbar{ padding:12px; gap:10px; margin-bottom:12px; }
+    .report-toolbar{
+      padding:12px; gap:10px; margin-bottom:12px;
+      overflow:hidden; min-width:0; box-sizing:border-box;
+    }
     .report-filters{
       grid-template-columns:1fr;
       gap:8px;
+      min-width:0;
     }
+    .report-field{ min-width:0; max-width:100%; }
     .report-field select,
     .report-filters select{
       min-height:44px; font-size:16px; /* iOS: avoid zoom-on-focus */
+      max-width:100%;
     }
-    .report-toggles{ gap:8px; }
+    .report-toggles{ gap:8px; min-width:0; }
     .report-toggle{
-      flex:1 1 calc(50% - 8px); min-height:44px;
+      flex:1 1 100%; min-height:44px; min-width:0;
+      max-width:100%;
       padding:8px 12px; align-items:flex-start;
+      box-sizing:border-box;
+      overflow:hidden;
     }
     .report-toggle-text{
       white-space:normal; line-height:1.25;
+      overflow-wrap:anywhere; word-break:break-word;
     }
     .report-actions{
       flex-direction:column; align-items:stretch; gap:8px;
