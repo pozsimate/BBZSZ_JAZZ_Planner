@@ -35804,7 +35804,7 @@
  },
  "oneToOneState": {
   "viewTeacherIds": [
-   "TEAC16"
+   "TEAC9"
   ],
   "scheduled": [
    {
@@ -37161,8 +37161,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 7,
-    "_totalCols": 11
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC20-ST73",
@@ -37253,8 +37253,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 7,
-    "_totalCols": 11
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC20-ST66",
@@ -37437,8 +37437,8 @@
     "room": "",
     "source": "oneone",
     "duration": 90,
-    "_col": 5,
-    "_totalCols": 11
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC20-ST70",
@@ -37506,8 +37506,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 7,
-    "_totalCols": 11
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC17-ST48",
@@ -37644,8 +37644,8 @@
     "room": "",
     "source": "oneone",
     "duration": 90,
-    "_col": 7,
-    "_totalCols": 11
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC7-ST20",
@@ -37667,8 +37667,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 5,
-    "_totalCols": 11
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC10-ST35",
@@ -38069,8 +38069,8 @@
     "teacherId": "TEAC16",
     "teacher": "Kapolcsi",
     "day": "THU",
-    "start": 660,
-    "end": 720,
+    "start": 675,
+    "end": 735,
     "studentCount": 1,
     "studentNames": [
      "Sztehlo Marton"
@@ -38092,8 +38092,8 @@
     "teacherId": "TEAC16",
     "teacher": "Kapolcsi",
     "day": "THU",
-    "start": 720,
-    "end": 780,
+    "start": 735,
+    "end": 795,
     "studentCount": 1,
     "studentNames": [
      "Busa Kincso"
@@ -38154,21 +38154,21 @@
     "_totalCols": 7
    },
    {
-    "lessonId": "O2O-TEAC16-ST52",
-    "name": "Molnar Aurel 1/1",
+    "lessonId": "O2O-TEAC16-ST60",
+    "name": "Boni Jozsef 1/1",
     "group": "1/1",
     "groupId": "",
     "teacherId": "TEAC16",
     "teacher": "Kapolcsi",
     "day": "THU",
-    "start": 780,
-    "end": 840,
+    "start": 795,
+    "end": 855,
     "studentCount": 1,
     "studentNames": [
-     "Molnar Aurel"
+     "Boni Jozsef"
     ],
-    "studentId": "ST52",
-    "studentIds": "ST52",
+    "studentId": "ST60",
+    "studentIds": "ST60",
     "roomId": "",
     "room": "",
     "source": "oneone",
@@ -38196,8 +38196,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 4,
-    "_totalCols": 7
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC4-ST11",
@@ -38223,21 +38223,21 @@
     "_totalCols": 7
    },
    {
-    "lessonId": "O2O-TEAC16-ST60",
-    "name": "Boni Jozsef 1/1",
+    "lessonId": "O2O-TEAC16-ST52",
+    "name": "Molnar Aurel 1/1",
     "group": "1/1",
     "groupId": "",
     "teacherId": "TEAC16",
     "teacher": "Kapolcsi",
-    "day": "THU",
-    "start": 840,
-    "end": 900,
+    "day": "FRI",
+    "start": 795,
+    "end": 855,
     "studentCount": 1,
     "studentNames": [
-     "Boni Jozsef"
+     "Molnar Aurel"
     ],
-    "studentId": "ST60",
-    "studentIds": "ST60",
+    "studentId": "ST52",
+    "studentIds": "ST52",
     "roomId": "",
     "room": "",
     "source": "oneone",
@@ -38322,8 +38322,8 @@
     "teacherId": "TEAC16",
     "teacher": "Kapolcsi",
     "day": "THU",
-    "start": 900,
-    "end": 960,
+    "start": 855,
+    "end": 915,
     "studentCount": 1,
     "studentNames": [
      "Polyak Kitti"
@@ -38506,8 +38506,8 @@
     "teacherId": "TEAC16",
     "teacher": "Kapolcsi",
     "day": "FRI",
-    "start": 495,
-    "end": 555,
+    "start": 855,
+    "end": 915,
     "studentCount": 1,
     "studentNames": [
      "Szabo David"
@@ -38587,8 +38587,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 2,
-    "_totalCols": 10
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC24-ST73",
@@ -38771,8 +38771,8 @@
     "room": "",
     "source": "oneone",
     "duration": 120,
-    "_col": 2,
-    "_totalCols": 10
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC10-ST34",
@@ -38909,8 +38909,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 4,
-    "_totalCols": 10
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC11-ST33",
@@ -39093,8 +39093,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 8,
-    "_totalCols": 10
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC11-ST32",
@@ -41437,8 +41437,8 @@
     "teacher": "Kapolcsi",
     "teacherId": "TEAC16",
     "day": "THU",
-    "start": "11:00",
-    "end": "12:00",
+    "start": "11:15",
+    "end": "12:15",
     "duration": 60,
     "roomId": "",
     "room": "",
@@ -41457,34 +41457,14 @@
     "teacher": "Kapolcsi",
     "teacherId": "TEAC16",
     "day": "THU",
-    "start": "12:00",
-    "end": "13:00",
+    "start": "12:15",
+    "end": "13:15",
     "duration": 60,
     "roomId": "",
     "room": "",
     "studentCount": 1,
     "students": "Busa Kincso",
     "studentIds": "ST63",
-    "status": "scheduled",
-    "note": ""
-   },
-   {
-    "lessonId": "O2O-TEAC16-ST52",
-    "name": "Molnar Aurel 1/1",
-    "kind": "1/1",
-    "group": "1/1",
-    "groupId": "",
-    "teacher": "Kapolcsi",
-    "teacherId": "TEAC16",
-    "day": "THU",
-    "start": "13:00",
-    "end": "14:00",
-    "duration": 60,
-    "roomId": "",
-    "room": "",
-    "studentCount": 1,
-    "students": "Molnar Aurel",
-    "studentIds": "ST52",
     "status": "scheduled",
     "note": ""
    },
@@ -41529,6 +41509,26 @@
     "note": ""
    },
    {
+    "lessonId": "O2O-TEAC16-ST60",
+    "name": "Boni Jozsef 1/1",
+    "kind": "1/1",
+    "group": "1/1",
+    "groupId": "",
+    "teacher": "Kapolcsi",
+    "teacherId": "TEAC16",
+    "day": "THU",
+    "start": "13:15",
+    "end": "14:15",
+    "duration": 60,
+    "roomId": "",
+    "room": "",
+    "studentCount": 1,
+    "students": "Boni Jozsef",
+    "studentIds": "ST60",
+    "status": "scheduled",
+    "note": ""
+   },
+   {
     "lessonId": "O2O-TEAC18-ST61",
     "name": "Okros Jozsef Karoly 1/1",
     "kind": "1/1",
@@ -41549,26 +41549,6 @@
     "note": ""
    },
    {
-    "lessonId": "O2O-TEAC16-ST60",
-    "name": "Boni Jozsef 1/1",
-    "kind": "1/1",
-    "group": "1/1",
-    "groupId": "",
-    "teacher": "Kapolcsi",
-    "teacherId": "TEAC16",
-    "day": "THU",
-    "start": "14:00",
-    "end": "15:00",
-    "duration": 60,
-    "roomId": "",
-    "room": "",
-    "studentCount": 1,
-    "students": "Boni Jozsef",
-    "studentIds": "ST60",
-    "status": "scheduled",
-    "note": ""
-   },
-   {
     "lessonId": "O2O-TEAC4-ST11",
     "name": "Szekeres Szabolcs 1/1",
     "kind": "1/1",
@@ -41585,6 +41565,26 @@
     "studentCount": 1,
     "students": "Szekeres Szabolcs",
     "studentIds": "ST11",
+    "status": "scheduled",
+    "note": ""
+   },
+   {
+    "lessonId": "O2O-TEAC16-ST53",
+    "name": "Polyak Kitti 1/1",
+    "kind": "1/1",
+    "group": "1/1",
+    "groupId": "",
+    "teacher": "Kapolcsi",
+    "teacherId": "TEAC16",
+    "day": "THU",
+    "start": "14:15",
+    "end": "15:15",
+    "duration": 60,
+    "roomId": "",
+    "room": "",
+    "studentCount": 1,
+    "students": "Polyak Kitti",
+    "studentIds": "ST53",
     "status": "scheduled",
     "note": ""
    },
@@ -41625,26 +41625,6 @@
     "studentCount": 1,
     "students": "Feher Csongor",
     "studentIds": "ST10",
-    "status": "scheduled",
-    "note": ""
-   },
-   {
-    "lessonId": "O2O-TEAC16-ST53",
-    "name": "Polyak Kitti 1/1",
-    "kind": "1/1",
-    "group": "1/1",
-    "groupId": "",
-    "teacher": "Kapolcsi",
-    "teacherId": "TEAC16",
-    "day": "THU",
-    "start": "15:00",
-    "end": "16:00",
-    "duration": 60,
-    "roomId": "",
-    "room": "",
-    "studentCount": 1,
-    "students": "Polyak Kitti",
-    "studentIds": "ST53",
     "status": "scheduled",
     "note": ""
    },
@@ -41805,26 +41785,6 @@
     "studentCount": 1,
     "students": "Feher Csongor",
     "studentIds": "ST10",
-    "status": "scheduled",
-    "note": ""
-   },
-   {
-    "lessonId": "O2O-TEAC16-ST62",
-    "name": "Szabo David 1/1",
-    "kind": "1/1",
-    "group": "1/1",
-    "groupId": "",
-    "teacher": "Kapolcsi",
-    "teacherId": "TEAC16",
-    "day": "FRI",
-    "start": "08:15",
-    "end": "09:15",
-    "duration": 60,
-    "roomId": "",
-    "room": "",
-    "studentCount": 1,
-    "students": "Szabo David",
-    "studentIds": "ST62",
     "status": "scheduled",
     "note": ""
    },
@@ -42289,6 +42249,26 @@
     "note": ""
    },
    {
+    "lessonId": "O2O-TEAC16-ST52",
+    "name": "Molnar Aurel 1/1",
+    "kind": "1/1",
+    "group": "1/1",
+    "groupId": "",
+    "teacher": "Kapolcsi",
+    "teacherId": "TEAC16",
+    "day": "FRI",
+    "start": "13:15",
+    "end": "14:15",
+    "duration": 60,
+    "roomId": "",
+    "room": "",
+    "studentCount": 1,
+    "students": "Molnar Aurel",
+    "studentIds": "ST52",
+    "status": "scheduled",
+    "note": ""
+   },
+   {
     "lessonId": "O2O-TEAC9-ST20",
     "name": "Cseke Timea 1/1",
     "kind": "1/1",
@@ -42445,6 +42425,26 @@
     "studentCount": 1,
     "students": "Kovacs Hunor",
     "studentIds": "ST18",
+    "status": "scheduled",
+    "note": ""
+   },
+   {
+    "lessonId": "O2O-TEAC16-ST62",
+    "name": "Szabo David 1/1",
+    "kind": "1/1",
+    "group": "1/1",
+    "groupId": "",
+    "teacher": "Kapolcsi",
+    "teacherId": "TEAC16",
+    "day": "FRI",
+    "start": "14:15",
+    "end": "15:15",
+    "duration": 60,
+    "roomId": "",
+    "room": "",
+    "studentCount": 1,
+    "students": "Szabo David",
+    "studentIds": "ST62",
     "status": "scheduled",
     "note": ""
    },
@@ -44282,8 +44282,8 @@
       "room": "",
       "source": "oneone",
       "duration": 90,
-      "_col": 5,
-      "_totalCols": 11
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC20-ST70",
@@ -44489,8 +44489,8 @@
       "room": "",
       "source": "oneone",
       "duration": 90,
-      "_col": 7,
-      "_totalCols": 11
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC7-ST20",
@@ -44914,8 +44914,8 @@
       "teacherId": "TEAC16",
       "teacher": "Kapolcsi",
       "day": "THU",
-      "start": 660,
-      "end": 720,
+      "start": 675,
+      "end": 735,
       "studentCount": 1,
       "studentNames": [
        "Sztehlo Marton"
@@ -44927,7 +44927,7 @@
       "source": "oneone",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 2
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC16-ST63",
@@ -44937,8 +44937,8 @@
       "teacherId": "TEAC16",
       "teacher": "Kapolcsi",
       "day": "THU",
-      "start": 720,
-      "end": 780,
+      "start": 735,
+      "end": 795,
       "studentCount": 1,
       "studentNames": [
        "Busa Kincso"
@@ -44950,7 +44950,7 @@
       "source": "oneone",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 2
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC19-ST72",
@@ -44999,27 +44999,27 @@
       "_totalCols": 7
      },
      {
-      "lessonId": "O2O-TEAC16-ST52",
-      "name": "Molnar Aurel 1/1",
+      "lessonId": "O2O-TEAC16-ST60",
+      "name": "Boni Jozsef 1/1",
       "group": "1/1",
       "groupId": "",
       "teacherId": "TEAC16",
       "teacher": "Kapolcsi",
       "day": "THU",
-      "start": 780,
-      "end": 840,
+      "start": 795,
+      "end": 855,
       "studentCount": 1,
       "studentNames": [
-       "Molnar Aurel"
+       "Boni Jozsef"
       ],
-      "studentId": "ST52",
-      "studentIds": "ST52",
+      "studentId": "ST60",
+      "studentIds": "ST60",
       "roomId": "",
       "room": "",
       "source": "oneone",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 2
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC18-ST61",
@@ -45041,8 +45041,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 4,
-      "_totalCols": 7
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC4-ST11",
@@ -45068,21 +45068,21 @@
       "_totalCols": 7
      },
      {
-      "lessonId": "O2O-TEAC16-ST60",
-      "name": "Boni Jozsef 1/1",
+      "lessonId": "O2O-TEAC16-ST52",
+      "name": "Molnar Aurel 1/1",
       "group": "1/1",
       "groupId": "",
       "teacherId": "TEAC16",
       "teacher": "Kapolcsi",
-      "day": "THU",
-      "start": 840,
-      "end": 900,
+      "day": "FRI",
+      "start": 795,
+      "end": 855,
       "studentCount": 1,
       "studentNames": [
-       "Boni Jozsef"
+       "Molnar Aurel"
       ],
-      "studentId": "ST60",
-      "studentIds": "ST60",
+      "studentId": "ST52",
+      "studentIds": "ST52",
       "roomId": "",
       "room": "",
       "source": "oneone",
@@ -45167,8 +45167,8 @@
       "teacherId": "TEAC16",
       "teacher": "Kapolcsi",
       "day": "THU",
-      "start": 900,
-      "end": 960,
+      "start": 855,
+      "end": 915,
       "studentCount": 1,
       "studentNames": [
        "Polyak Kitti"
@@ -45351,8 +45351,8 @@
       "teacherId": "TEAC16",
       "teacher": "Kapolcsi",
       "day": "FRI",
-      "start": 495,
-      "end": 555,
+      "start": 855,
+      "end": 915,
       "studentCount": 1,
       "studentNames": [
        "Szabo David"
@@ -45432,8 +45432,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 2,
-      "_totalCols": 10
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC24-ST73",
@@ -46315,8 +46315,6 @@
   ],
   "selectedIndex": 0,
   "inputFingerprint": "{\"kind\":\"oneone\",\"scopeTeacherIds\":[\"TEAC16\"],\"kept\":[[\"O2O-TEAC17-ST49\",\"MON\",570,660,\"TEAC17\"],[\"O2O-TEAC10-ST32\",\"MON\",600,660,\"TEAC10\"],[\"O2O-TEAC14-ST62\",\"MON\",645,705,\"TEAC14\"],[\"O2O-TEAC10-ST40\",\"MON\",660,780,\"TEAC10\"],[\"O2O-TEAC1-ST6\",\"MON\",690,750,\"TEAC1\"],[\"O2O-TEAC14-ST55\",\"MON\",705,795,\"TEAC14\"],[\"O2O-TEAC22-ST18\",\"MON\",720,780,\"TEAC22\"],[\"O2O-TEAC10-ST42\",\"MON\",780,900,\"TEAC10\"],[\"O2O-TEAC15-ST51\",\"MON\",780,870,\"TEAC15\"],[\"O2O-TEAC22-ST15\",\"MON\",780,840,\"TEAC22\"],[\"O2O-TEAC1-ST5\",\"MON\",840,930,\"TEAC1\"],[\"O2O-TEAC22-ST19\",\"MON\",840,870,\"TEAC22\"],[\"O2O-TEAC9-ST21\",\"MON\",855,975,\"TEAC9\"],[\"O2O-TEAC22-ST12\",\"MON\",870,930,\"TEAC22\"],[\"O2O-TEAC10-ST36\",\"MON\",900,1020,\"TEAC10\"],[\"O2O-TEAC1-ST4\",\"MON\",930,1020,\"TEAC1\"],[\"O2O-TEAC22-ST13\",\"MON\",930,960,\"TEAC22\"],[\"O2O-TEAC22-ST11\",\"MON\",960,990,\"TEAC22\"],[\"O2O-TEAC9-ST24\",\"MON\",975,1035,\"TEAC9\"],[\"O2O-TEAC22-ST16\",\"MON\",990,1020,\"TEAC22\"],[\"O2O-TEAC10-ST33\",\"MON\",1020,1140,\"TEAC10\"],[\"O2O-TEAC1-ST9\",\"MON\",1020,1080,\"TEAC1\"],[\"O2O-TEAC22-ST17\",\"MON\",1020,1050,\"TEAC22\"],[\"O2O-TEAC9-ST25\",\"MON\",1035,1095,\"TEAC9\"],[\"O2O-TEAC9-ST27\",\"MON\",1095,1155,\"TEAC9\"],[\"O2O-TEAC8-ST22\",\"TUE\",600,720,\"TEAC8\"],[\"O2O-TEAC2-ST4\",\"TUE\",630,720,\"TEAC2\"],[\"O2O-TEAC4-ST15\",\"TUE\",690,810,\"TEAC4\"],[\"O2O-TEAC8-ST29\",\"TUE\",720,780,\"TEAC8\"],[\"O2O-TEAC14-ST56\",\"TUE\",720,810,\"TEAC14\"],[\"O2O-TEAC8-ST25\",\"TUE\",780,840,\"TEAC8\"],[\"O2O-TEAC19-ST74\",\"TUE\",810,930,\"TEAC19\"],[\"O2O-TEAC4-ST19\",\"TUE\",810,870,\"TEAC4\"],[\"O2O-TEAC14-ST53\",\"TUE\",810,870,\"TEAC14\"],[\"O2O-TEAC8-ST26\",\"TUE\",840,900,\"TEAC8\"],[\"O2O-TEAC1-ST3\",\"TUE\",855,1035,\"TEAC1\"],[\"O2O-TEAC20-ST69\",\"TUE\",870,930,\"TEAC20\"],[\"O2O-TEAC4-ST16\",\"TUE\",870,930,\"TEAC4\"],[\"O2O-TEAC14-ST58\",\"TUE\",870,930,\"TEAC14\"],[\"O2O-TEAC8-ST27\",\"TUE\",900,960,\"TEAC8\"],[\"O2O-TEAC20-ST76\",\"TUE\",930,990,\"TEAC20\"],[\"O2O-TEAC19-ST71\",\"TUE\",930,1050,\"TEAC19\"],[\"O2O-TEAC6-ST17\",\"TUE\",930,990,\"TEAC6\"],[\"O2O-TEAC14-ST59\",\"TUE\",930,990,\"TEAC14\"],[\"O2O-TEAC6-ST16\",\"TUE\",990,1050,\"TEAC6\"],[\"O2O-TEAC14-ST54\",\"TUE\",990,1050,\"TEAC14\"],[\"O2O-TEAC1-ST8\",\"TUE\",1035,1095,\"TEAC1\"],[\"O2O-TEAC6-ST18\",\"TUE\",1080,1140,\"TEAC6\"],[\"O2O-TEAC2-ST5\",\"TUE\",1095,1185,\"TEAC2\"],[\"O2O-TEAC6-ST12\",\"TUE\",1140,1200,\"TEAC6\"],[\"O2O-TEAC14-ST52\",\"WED\",495,555,\"TEAC14\"],[\"O2O-TEAC1-ST6-2\",\"WED\",520,580,\"TEAC1\"],[\"O2O-TEAC13-ST46\",\"WED\",540,720,\"TEAC13\"],[\"O2O-TEAC14-ST57\",\"WED\",555,645,\"TEAC14\"],[\"O2O-TEAC1-ST7\",\"WED\",580,640,\"TEAC1\"],[\"O2O-TEAC10-ST37-2\",\"WED\",600,660,\"TEAC10\"],[\"O2O-TEAC19-ST70\",\"WED\",600,720,\"TEAC19\"],[\"O2O-TEAC17-ST55\",\"WED\",600,690,\"TEAC17\"],[\"O2O-TEAC7-ST29\",\"WED\",610,670,\"TEAC7\"],[\"O2O-TEAC20-ST73\",\"WED\",630,690,\"TEAC20\"],[\"O2O-TEAC4-ST14\",\"WED\",640,760,\"TEAC4\"],[\"O2O-TEAC10-ST38\",\"WED\",660,780,\"TEAC10\"],[\"O2O-TEAC7-ST30\",\"WED\",670,730,\"TEAC7\"],[\"O2O-TEAC20-ST66\",\"WED\",690,750,\"TEAC20\"],[\"O2O-TEAC17-ST56\",\"WED\",690,780,\"TEAC17\"],[\"O2O-TEAC19-ST69\",\"WED\",720,840,\"TEAC19\"],[\"O2O-TEAC13-ST45\",\"WED\",720,900,\"TEAC13\"],[\"O2O-TEAC20-ST75\",\"WED\",750,810,\"TEAC20\"],[\"O2O-TEAC10-ST41\",\"WED\",780,900,\"TEAC10\"],[\"O2O-TEAC17-ST59\",\"WED\",780,840,\"TEAC17\"],[\"O2O-TEAC18-ST57\",\"WED\",790,880,\"TEAC18\"],[\"O2O-TEAC20-ST70\",\"WED\",810,870,\"TEAC20\"],[\"O2O-TEAC5-ST11\",\"WED\",810,870,\"TEAC5\"],[\"O2O-TEAC7-ST26\",\"WED\",820,880,\"TEAC7\"],[\"O2O-TEAC17-ST48\",\"WED\",840,900,\"TEAC17\"],[\"O2O-TEAC12-ST43\",\"WED\",870,1050,\"TEAC12\"],[\"O2O-TEAC20-ST65\",\"WED\",870,930,\"TEAC20\"],[\"O2O-TEAC5-ST19\",\"WED\",870,930,\"TEAC5\"],[\"O2O-TEAC3-ST6\",\"WED\",870,930,\"TEAC3\"],[\"O2O-TEAC18-ST51\",\"WED\",880,970,\"TEAC18\"],[\"O2O-TEAC7-ST20\",\"WED\",880,940,\"TEAC7\"],[\"O2O-TEAC10-ST35\",\"WED\",900,1020,\"TEAC10\"],[\"O2O-TEAC13-ST67\",\"WED\",900,960,\"TEAC13\"],[\"O2O-TEAC17-ST61\",\"WED\",900,960,\"TEAC17\"],[\"O2O-TEAC5-ST17\",\"WED\",930,990,\"TEAC5\"],[\"O2O-TEAC1-ST1\",\"WED\",930,1050,\"TEAC1\"],[\"O2O-TEAC3-ST9\",\"WED\",930,990,\"TEAC3\"],[\"O2O-TEAC17-ST60\",\"WED\",960,1020,\"TEAC17\"],[\"O2O-TEAC5-ST15\",\"WED\",990,1050,\"TEAC5\"],[\"O2O-TEAC3-ST7\",\"WED\",990,1050,\"TEAC3\"],[\"O2O-TEAC10-ST32-2\",\"WED\",1020,1080,\"TEAC10\"],[\"O2O-TEAC12-ST44\",\"WED\",1050,1230,\"TEAC12\"],[\"O2O-TEAC5-ST14\",\"WED\",1050,1110,\"TEAC5\"],[\"O2O-TEAC3-ST8\",\"WED\",1050,1110,\"TEAC3\"],[\"O2O-TEAC5-ST13\",\"WED\",1110,1170,\"TEAC5\"],[\"O2O-TEAC13-ST47\",\"THU\",480,660,\"TEAC13\"],[\"O2O-TEAC14-ST48\",\"THU\",495,555,\"TEAC14\"],[\"O2O-TEAC4-ST18\",\"THU\",600,660,\"TEAC4\"],[\"O2O-TEAC19-ST72\",\"THU\",780,900,\"TEAC19\"],[\"O2O-TEAC4-ST13\",\"THU\",780,840,\"TEAC4\"],[\"O2O-TEAC18-ST61\",\"THU\",810,870,\"TEAC18\"],[\"O2O-TEAC4-ST11\",\"THU\",840,900,\"TEAC4\"],[\"O2O-TEAC19-ST66\",\"THU\",900,1020,\"TEAC19\"],[\"O2O-TEAC4-ST10\",\"THU\",900,960,\"TEAC4\"],[\"O2O-TEAC1-ST7-2\",\"THU\",900,960,\"TEAC1\"],[\"O2O-TEAC4-ST12\",\"THU\",960,1020,\"TEAC4\"],[\"O2O-TEAC1-ST2\",\"THU\",960,1080,\"TEAC1\"],[\"O2O-TEAC19-ST67\",\"THU\",1020,1140,\"TEAC19\"],[\"O2O-TEAC15-ST54\",\"THU\",1020,1080,\"TEAC15\"],[\"O2O-TEAC22-ST14\",\"THU\",1050,1110,\"TEAC22\"],[\"O2O-TEAC15-ST58\",\"THU\",1080,1140,\"TEAC15\"],[\"O2O-TEAC22-ST10\",\"THU\",1110,1140,\"TEAC22\"],[\"O2O-TEAC9-ST28\",\"FRI\",510,570,\"TEAC9\"],[\"O2O-TEAC11-ST39\",\"FRI\",520,580,\"TEAC11\"],[\"O2O-TEAC18-ST62\",\"FRI\",570,630,\"TEAC18\"],[\"O2O-TEAC24-ST73\",\"FRI\",570,630,\"TEAC24\"],[\"O2O-TEAC9-ST30\",\"FRI\",570,690,\"TEAC9\"],[\"O2O-TEAC11-ST34\",\"FRI\",580,640,\"TEAC11\"],[\"O2O-TEAC10-ST37\",\"FRI\",600,660,\"TEAC10\"],[\"O2O-TEAC19-ST75\",\"FRI\",600,720,\"TEAC19\"],[\"O2O-TEAC8-ST29-2\",\"FRI\",600,660,\"TEAC8\"],[\"O2O-TEAC24-ST70\",\"FRI\",630,690,\"TEAC24\"],[\"O2O-TEAC7-ST23\",\"FRI\",630,750,\"TEAC7\"],[\"O2O-TEAC10-ST34\",\"FRI\",660,780,\"TEAC10\"],[\"O2O-TEAC8-ST28\",\"FRI\",660,780,\"TEAC8\"],[\"O2O-TEAC24-ST66\",\"FRI\",690,750,\"TEAC24\"],[\"O2O-TEAC19-ST65\",\"FRI\",720,840,\"TEAC19\"],[\"O2O-TEAC5-ST12\",\"FRI\",735,795,\"TEAC5\"],[\"O2O-TEAC7-ST22\",\"FRI\",750,810,\"TEAC7\"],[\"O2O-TEAC11-ST33\",\"FRI\",750,810,\"TEAC11\"],[\"O2O-TEAC24-ST75\",\"FRI\",750,810,\"TEAC24\"],[\"O2O-TEAC9-ST23\",\"FRI\",750,810,\"TEAC9\"],[\"O2O-TEAC10-ST31\",\"FRI\",780,900,\"TEAC10\"],[\"O2O-TEAC8-ST24\",\"FRI\",780,840,\"TEAC8\"],[\"O2O-TEAC5-ST10\",\"FRI\",795,855,\"TEAC5\"],[\"O2O-TEAC9-ST20\",\"FRI\",810,870,\"TEAC9\"],[\"O2O-TEAC7-ST21\",\"FRI\",810,870,\"TEAC7\"],[\"O2O-TEAC11-ST32\",\"FRI\",810,870,\"TEAC11\"],[\"O2O-TEAC24-ST68\",\"FRI\",810,840,\"TEAC24\"],[\"O2O-TEAC15-ST49\",\"FRI\",825,915,\"TEAC15\"],[\"O2O-TEAC19-ST73\",\"FRI\",840,960,\"TEAC19\"],[\"O2O-TEAC24-ST65\",\"FRI\",840,900,\"TEAC24\"],[\"O2O-TEAC5-ST18\",\"FRI\",855,915,\"TEAC5\"],[\"O2O-TEAC11-ST40\",\"FRI\",870,930,\"TEAC11\"],[\"O2O-TEAC10-ST39\",\"FRI\",900,1020,\"TEAC10\"],[\"O2O-TEAC24-ST69\",\"FRI\",900,960,\"TEAC24\"],[\"O2O-TEAC11-ST38\",\"FRI\",930,990,\"TEAC11\"],[\"O2O-TEAC19-ST68\",\"FRI\",960,1080,\"TEAC19\"],[\"O2O-TEAC24-ST71\",\"FRI\",960,990,\"TEAC24\"],[\"O2O-TEAC11-ST37\",\"FRI\",990,1050,\"TEAC11\"],[\"O2O-TEAC24-ST74\",\"FRI\",990,1020,\"TEAC24\"],[\"O2O-TEAC24-ST72\",\"FRI\",1020,1050,\"TEAC24\"],[\"O2O-TEAC24-ST67\",\"FRI\",1050,1080,\"TEAC24\"]],\"accepted\":[[\"LES34\",\"MON\",\"08:00\",\"09:30\",\"TEAC4\"],[\"LES20\",\"MON\",\"08:00\",\"09:30\",\"TEAC2\"],[\"SG5\",\"MON\",\"09:30\",\"11:00\",\"TEAC4\"],[\"LES25\",\"MON\",\"09:30\",\"11:00\",\"TEAC2\"],[\"LES13\",\"MON\",\"09:50\",\"11:20\",\"TEAC15\"],[\"SG7\",\"MON\",\"11:00\",\"12:30\",\"TEAC4\"],[\"LES23\",\"MON\",\"11:00\",\"12:30\",\"TEAC2\"],[\"LES16\",\"MON\",\"11:30\",\"13:00\",\"TEAC15\"],[\"LES19\",\"MON\",\"12:30\",\"14:00\",\"TEAC2\"],[\"SG15\",\"MON\",\"12:30\",\"14:00\",\"TEAC1\"],[\"LES5\",\"MON\",\"14:30\",\"15:15\",\"TEAC2\"],[\"LES27\",\"MON\",\"15:00\",\"15:45\",\"TEAC15\"],[\"LES29\",\"MON\",\"15:15\",\"16:00\",\"TEAC2\"],[\"LES37\",\"MON\",\"16:00\",\"17:30\",\"TEAC15\"],[\"SG1\",\"MON\",\"16:00\",\"17:30\",\"TEAC2\"],[\"LES4\",\"MON\",\"17:30\",\"18:15\",\"TEAC2\"],[\"LES14\",\"MON\",\"17:30\",\"18:15\",\"TEAC15\"],[\"SG10\",\"MON\",\"18:15\",\"19:45\",\"TEAC2\"],[\"LES35\",\"TUE\",\"10:00\",\"11:30\",\"TEAC4\"],[\"LES36\",\"TUE\",\"12:00\",\"13:30\",\"TEAC19\"],[\"LES38\",\"TUE\",\"12:00\",\"13:30\",\"TEAC6\"],[\"LES6\",\"TUE\",\"13:30\",\"15:00\",\"TEAC6\"],[\"LES33\",\"TUE\",\"13:45\",\"14:30\",\"TEAC2\"],[\"LES30\",\"TUE\",\"14:30\",\"15:15\",\"TEAC2\"],[\"LES3\",\"TUE\",\"15:15\",\"16:00\",\"TEAC2\"],[\"SG18\",\"TUE\",\"16:30\",\"18:00\",\"TEAC20\"],[\"LES32\",\"TUE\",\"16:45\",\"17:30\",\"TEAC2\"],[\"LES26\",\"TUE\",\"17:30\",\"18:15\",\"TEAC2\"],[\"SG17\",\"TUE\",\"18:15\",\"19:45\",\"TEAC20\"],[\"SG14\",\"WED\",\"09:10\",\"10:40\",\"TEAC4\"],[\"SG16\",\"WED\",\"10:40\",\"12:10\",\"TEAC1\"],[\"LES12\",\"WED\",\"12:10\",\"13:40\",\"TEAC7\"],[\"SG13\",\"WED\",\"12:20\",\"13:50\",\"TEAC1\"],[\"SG9\",\"WED\",\"14:00\",\"15:30\",\"TEAC1\"],[\"SG12\",\"WED\",\"15:30\",\"17:00\",\"TEAC20\"],[\"SG2\",\"WED\",\"17:00\",\"18:30\",\"TEAC18\"],[\"SG3\",\"WED\",\"18:30\",\"20:00\",\"TEAC3\"],[\"SG6\",\"THU\",\"11:00\",\"12:30\",\"TEAC4\"],[\"LES9\",\"THU\",\"11:00\",\"12:30\",\"TEAC21\"],[\"LES10\",\"THU\",\"12:30\",\"14:00\",\"TEAC21\"],[\"SG11\",\"THU\",\"14:30\",\"16:00\",\"TEAC15\"],[\"LES39\",\"THU\",\"16:00\",\"17:30\",\"TEAC22\"],[\"LES22\",\"THU\",\"16:50\",\"17:35\",\"TEAC18\"],[\"LES28\",\"THU\",\"17:35\",\"18:20\",\"TEAC18\"],[\"LES2\",\"THU\",\"18:20\",\"19:05\",\"TEAC18\"],[\"LES1\",\"FRI\",\"08:00\",\"09:30\",\"TEAC18\"],[\"LES15\",\"FRI\",\"09:50\",\"11:20\",\"TEAC15\"],[\"SG4\",\"FRI\",\"10:40\",\"12:10\",\"TEAC11\"],[\"LES24\",\"FRI\",\"10:45\",\"12:15\",\"TEAC18\"],[\"LES17\",\"FRI\",\"11:30\",\"12:15\",\"TEAC15\"],[\"LES18\",\"FRI\",\"12:15\",\"13:45\",\"TEAC15\"],[\"LES21\",\"FRI\",\"12:15\",\"13:00\",\"TEAC18\"],[\"LES7\",\"FRI\",\"13:00\",\"14:30\",\"TEAC18\"],[\"LES8\",\"FRI\",\"14:30\",\"16:00\",\"TEAC21\"],[\"LES11\",\"FRI\",\"15:00\",\"15:45\",\"TEAC7\"],[\"SG8\",\"FRI\",\"16:00\",\"17:30\",\"TEAC3\"]],\"oneone\":null,\"hours\":{\"ST1\":{\"TEAC1\":2},\"ST2\":{\"TEAC1\":2},\"ST3\":{\"TEAC1\":3},\"ST4\":{\"TEAC1\":1.5,\"TEAC2\":1.5},\"ST5\":{\"TEAC1\":1.5,\"TEAC2\":1.5},\"ST6\":{\"TEAC1\":2,\"TEAC3\":1},\"ST7\":{\"TEAC1\":2,\"TEAC3\":1},\"ST8\":{\"TEAC1\":1,\"TEAC3\":1},\"ST9\":{\"TEAC1\":1,\"TEAC3\":1},\"ST10\":{\"TEAC4\":1,\"TEAC5\":1,\"TEAC22\":0.5},\"ST11\":{\"TEAC4\":1,\"TEAC5\":1,\"TEAC22\":0.5},\"ST12\":{\"TEAC4\":1,\"TEAC5\":1,\"TEAC6\":1,\"TEAC22\":1},\"ST13\":{\"TEAC4\":1,\"TEAC5\":1,\"TEAC22\":0.5},\"ST14\":{\"TEAC4\":2,\"TEAC5\":1,\"TEAC22\":1},\"ST15\":{\"TEAC4\":2,\"TEAC5\":1,\"TEAC22\":1},\"ST16\":{\"TEAC4\":1,\"TEAC6\":1,\"TEAC22\":0.5},\"ST17\":{\"TEAC6\":1,\"TEAC22\":0.5,\"TEAC5\":1},\"ST18\":{\"TEAC4\":1,\"TEAC5\":1,\"TEAC6\":1,\"TEAC22\":1},\"ST19\":{\"TEAC4\":1,\"TEAC5\":1,\"TEAC22\":0.5},\"ST20\":{\"TEAC7\":1,\"TEAC9\":1},\"ST21\":{\"TEAC7\":1,\"TEAC9\":2},\"ST22\":{\"TEAC7\":1,\"TEAC8\":2},\"ST23\":{\"TEAC7\":2,\"TEAC9\":1},\"ST24\":{\"TEAC8\":1,\"TEAC9\":1},\"ST25\":{\"TEAC8\":1,\"TEAC9\":1},\"ST26\":{\"TEAC8\":1,\"TEAC7\":1},\"ST27\":{\"TEAC8\":1,\"TEAC9\":1},\"ST28\":{\"TEAC8\":2,\"TEAC9\":1},\"ST29\":{\"TEAC8\":2,\"TEAC7\":1},\"ST30\":{\"TEAC7\":1,\"TEAC9\":2},\"ST31\":{\"TEAC10\":2},\"ST32\":{\"TEAC10\":2,\"TEAC11\":1},\"ST33\":{\"TEAC10\":2,\"TEAC11\":1},\"ST34\":{\"TEAC10\":2,\"TEAC11\":1},\"ST35\":{\"TEAC10\":2},\"ST36\":{\"TEAC10\":2},\"ST37\":{\"TEAC10\":2,\"TEAC11\":1},\"ST38\":{\"TEAC10\":2,\"TEAC11\":1},\"ST39\":{\"TEAC10\":2,\"TEAC11\":1},\"ST40\":{\"TEAC10\":2,\"TEAC11\":1},\"ST41\":{\"TEAC10\":2},\"ST42\":{\"TEAC10\":2},\"ST43\":{\"TEAC12\":3},\"ST44\":{\"TEAC12\":3},\"ST45\":{\"TEAC13\":3},\"ST46\":{\"TEAC13\":3},\"ST47\":{\"TEAC13\":3},\"ST48\":{\"TEAC14\":1,\"TEAC17\":1},\"ST49\":{\"TEAC15\":1.5,\"TEAC17\":1.5},\"ST51\":{\"TEAC18\":1.5,\"TEAC15\":1.5},\"ST52\":{\"TEAC14\":1,\"TEAC16\":1},\"ST53\":{\"TEAC14\":1,\"TEAC16\":1},\"ST54\":{\"TEAC14\":1,\"TEAC15\":1},\"ST55\":{\"TEAC14\":1.5,\"TEAC17\":1.5},\"ST56\":{\"TEAC14\":1.5,\"TEAC17\":1.5},\"ST57\":{\"TEAC14\":1.5,\"TEAC18\":1.5},\"ST58\":{\"TEAC14\":1,\"TEAC15\":1},\"ST59\":{\"TEAC14\":1,\"TEAC17\":1},\"ST60\":{\"TEAC17\":1,\"TEAC16\":1},\"ST61\":{\"TEAC18\":1,\"TEAC17\":1},\"ST62\":{\"TEAC14\":1,\"TEAC16\":1,\"TEAC18\":1},\"ST63\":{\"TEAC16\":1},\"ST64\":{\"TEAC16\":1},\"ST65\":{\"TEAC19\":2,\"TEAC20\":1,\"TEAC24\":1},\"ST66\":{\"TEAC19\":2,\"TEAC20\":1,\"TEAC24\":1},\"ST67\":{\"TEAC19\":2,\"TEAC13\":1,\"TEAC24\":0.5},\"ST68\":{\"TEAC19\":2,\"TEAC24\":0.5},\"ST69\":{\"TEAC19\":2,\"TEAC20\":1,\"TEAC24\":1},\"ST70\":{\"TEAC19\":2,\"TEAC20\":1,\"TEAC24\":1},\"ST71\":{\"TEAC19\":2,\"TEAC24\":0.5},\"ST72\":{\"TEAC19\":2,\"TEAC24\":0.5},\"ST73\":{\"TEAC19\":2,\"TEAC20\":1,\"TEAC24\":1},\"ST74\":{\"TEAC19\":2,\"TEAC24\":0.5},\"ST75\":{\"TEAC19\":2,\"TEAC20\":1,\"TEAC24\":1},\"ST76\":{\"TEAC20\":1}},\"rooms\":[[\"TEAC1\",\"\"],[\"TEAC2\",\"\"],[\"TEAC3\",\"\"],[\"TEAC4\",\"ROOM2\"],[\"TEAC5\",\"ROOM2\"],[\"TEAC6\",\"ROOM2\"],[\"TEAC22\",\"\"],[\"TEAC7\",\"\"],[\"TEAC8\",\"\"],[\"TEAC9\",\"\"],[\"TEAC10\",\"\"],[\"TEAC11\",\"\"],[\"TEAC12\",\"\"],[\"TEAC13\",\"\"],[\"TEAC14\",\"\"],[\"TEAC16\",\"\"],[\"TEAC18\",\"\"],[\"TEAC15\",\"\"],[\"TEAC17\",\"\"],[\"TEAC19\",\"\"],[\"TEAC20\",\"\"],[\"TEAC21\",\"\"],[\"TEAC23\",\"\"],[\"TEAC24\",\"\"],[\"TEAC25\",\"\"]],\"studentRooms\":[[\"ST1\",\"\"],[\"ST10\",\"ROOM2\"],[\"ST11\",\"ROOM2\"],[\"ST12\",\"ROOM2\"],[\"ST13\",\"ROOM2\"],[\"ST14\",\"ROOM2\"],[\"ST15\",\"ROOM2\"],[\"ST16\",\"ROOM2\"],[\"ST17\",\"ROOM2\"],[\"ST18\",\"ROOM2\"],[\"ST19\",\"ROOM2\"],[\"ST2\",\"\"],[\"ST20\",\"\"],[\"ST21\",\"\"],[\"ST22\",\"\"],[\"ST23\",\"\"],[\"ST24\",\"\"],[\"ST25\",\"\"],[\"ST26\",\"\"],[\"ST27\",\"\"],[\"ST28\",\"\"],[\"ST29\",\"\"],[\"ST3\",\"\"],[\"ST30\",\"\"],[\"ST31\",\"\"],[\"ST32\",\"\"],[\"ST33\",\"\"],[\"ST34\",\"\"],[\"ST35\",\"\"],[\"ST36\",\"\"],[\"ST37\",\"\"],[\"ST38\",\"\"],[\"ST39\",\"\"],[\"ST4\",\"\"],[\"ST40\",\"\"],[\"ST41\",\"\"],[\"ST42\",\"\"],[\"ST43\",\"\"],[\"ST44\",\"\"],[\"ST45\",\"\"],[\"ST46\",\"\"],[\"ST47\",\"\"],[\"ST48\",\"\"],[\"ST49\",\"\"],[\"ST5\",\"\"],[\"ST51\",\"\"],[\"ST52\",\"\"],[\"ST53\",\"\"],[\"ST54\",\"\"],[\"ST55\",\"\"],[\"ST56\",\"\"],[\"ST57\",\"\"],[\"ST58\",\"\"],[\"ST59\",\"\"],[\"ST6\",\"\"],[\"ST60\",\"\"],[\"ST61\",\"\"],[\"ST62\",\"\"],[\"ST63\",\"\"],[\"ST64\",\"\"],[\"ST65\",\"\"],[\"ST66\",\"\"],[\"ST67\",\"\"],[\"ST68\",\"\"],[\"ST69\",\"\"],[\"ST7\",\"\"],[\"ST70\",\"\"],[\"ST71\",\"\"],[\"ST72\",\"\"],[\"ST73\",\"\"],[\"ST74\",\"\"],[\"ST75\",\"\"],[\"ST76\",\"\"],[\"ST8\",\"\"],[\"ST9\",\"\"]],\"teacherAvail\":[[\"TEAC1\",\"MON\",\"10:00\",\"18:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC1\",\"THU\",\"15:00\",\"18:00\",\"AVAILABLE\",\"O2O\"],[\"TEAC1\",\"TUE\",\"14:00\",\"18:35\",\"AVAILABLE\",\"O2O\"],[\"TEAC1\",\"WED\",\"08:00\",\"18:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC10\",\"FRI\",\"10:00\",\"17:00\",\"FALLBACK\",\"ALL\"],[\"TEAC10\",\"MON\",\"10:00\",\"19:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC10\",\"WED\",\"10:00\",\"18:00\",\"FALLBACK\",\"ALL\"],[\"TEAC11\",\"FRI\",\"08:00\",\"18:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC12\",\"WED\",\"14:30\",\"20:30\",\"AVAILABLE\",\"ALL\"],[\"TEAC13\",\"THU\",\"08:00\",\"16:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC13\",\"TUE\",\"08:00\",\"16:00\",\"PREFERRED\",\"ALL\"],[\"TEAC13\",\"WED\",\"08:00\",\"16:00\",\"PREFERRED\",\"ALL\"],[\"TEAC14\",\"MON\",\"08:00\",\"14:00\",\"PREFERRED\",\"ALL\"],[\"TEAC14\",\"THU\",\"08:00\",\"14:00\",\"FALLBACK\",\"ALL\"],[\"TEAC14\",\"TUE\",\"08:00\",\"18:00\",\"PREFERRED\",\"ALL\"],[\"TEAC14\",\"WED\",\"08:00\",\"18:00\",\"PREFERRED\",\"ALL\"],[\"TEAC15\",\"FRI\",\"09:00\",\"17:45\",\"AVAILABLE\",\"ALL\"],[\"TEAC15\",\"MON\",\"09:50\",\"18:15\",\"AVAILABLE\",\"ALL\"],[\"TEAC15\",\"THU\",\"10:00\",\"19:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC16\",\"FRI\",\"08:00\",\"16:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC16\",\"THU\",\"\",\"\",\"AVAILABLE\",\"ALL\"],[\"TEAC17\",\"MON\",\"08:00\",\"20:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC17\",\"WED\",\"08:00\",\"20:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC18\",\"FRI\",\"08:00\",\"16:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC18\",\"THU\",\"\",\"19:05\",\"AVAILABLE\",\"ALL\"],[\"TEAC18\",\"WED\",\"10:00\",\"18:40\",\"AVAILABLE\",\"ALL\"],[\"TEAC19\",\"FRI\",\"10:00\",\"18:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC19\",\"THU\",\"11:00\",\"19:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC19\",\"TUE\",\"12:00\",\"19:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC19\",\"WED\",\"10:00\",\"14:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC2\",\"MON\",\"\",\"\",\"AVAILABLE\",\"ALL\"],[\"TEAC2\",\"TUE\",\"\",\"\",\"AVAILABLE\",\"ALL\"],[\"TEAC20\",\"TUE\",\"13:30\",\"20:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC20\",\"WED\",\"09:00\",\"17:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC22\",\"MON\",\"12:00\",\"19:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC22\",\"THU\",\"12:00\",\"19:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC24\",\"FRI\",\"09:00\",\"\",\"AVAILABLE\",\"ALL\"],[\"TEAC3\",\"FRI\",\"12:00\",\"20:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC3\",\"WED\",\"12:00\",\"20:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC4\",\"MON\",\"08:00\",\"13:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC4\",\"THU\",\"10:00\",\"18:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC4\",\"TUE\",\"10:00\",\"18:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC4\",\"WED\",\"09:00\",\"13:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC5\",\"FRI\",\"10:00\",\"16:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC5\",\"WED\",\"13:00\",\"20:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC6\",\"TUE\",\"12:00\",\"20:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC7\",\"FRI\",\"09:30\",\"16:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC7\",\"MON\",\"12:00\",\"16:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC7\",\"WED\",\"09:30\",\"16:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC8\",\"FRI\",\"10:00\",\"15:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC8\",\"TUE\",\"10:00\",\"16:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC9\",\"FRI\",\"\",\"16:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC9\",\"MON\",\"\",\"\",\"AVAILABLE\",\"ALL\"]]}",
-  "acceptedAt": "2026-09-04T10:39:25.222Z",
-  "dragUndo": [],
   "dragBaseline": [
    {
     "lessonId": "O2O-TEAC17-ST49",
@@ -46909,14 +46907,14 @@
    {
     "lessonId": "O2O-TEAC16-ST64",
     "day": "THU",
-    "start": 660,
-    "end": 720
+    "start": 675,
+    "end": 735
    },
    {
     "lessonId": "O2O-TEAC16-ST63",
     "day": "THU",
-    "start": 720,
-    "end": 780
+    "start": 735,
+    "end": 795
    },
    {
     "lessonId": "O2O-TEAC19-ST72",
@@ -46931,10 +46929,10 @@
     "end": 840
    },
    {
-    "lessonId": "O2O-TEAC16-ST52",
+    "lessonId": "O2O-TEAC16-ST60",
     "day": "THU",
-    "start": 780,
-    "end": 840
+    "start": 795,
+    "end": 855
    },
    {
     "lessonId": "O2O-TEAC18-ST61",
@@ -46949,10 +46947,10 @@
     "end": 900
    },
    {
-    "lessonId": "O2O-TEAC16-ST60",
-    "day": "THU",
-    "start": 840,
-    "end": 900
+    "lessonId": "O2O-TEAC16-ST52",
+    "day": "FRI",
+    "start": 795,
+    "end": 855
    },
    {
     "lessonId": "O2O-TEAC19-ST66",
@@ -46975,8 +46973,8 @@
    {
     "lessonId": "O2O-TEAC16-ST53",
     "day": "THU",
-    "start": 900,
-    "end": 960
+    "start": 855,
+    "end": 915
    },
    {
     "lessonId": "O2O-TEAC4-ST12",
@@ -47023,8 +47021,8 @@
    {
     "lessonId": "O2O-TEAC16-ST62",
     "day": "FRI",
-    "start": 495,
-    "end": 555
+    "start": 855,
+    "end": 915
    },
    {
     "lessonId": "O2O-TEAC9-ST28",
@@ -47272,7 +47270,9 @@
     "start": 1050,
     "end": 1080
    }
-  ]
+  ],
+  "dragUndo": [],
+  "acceptedAt": "2026-09-04T10:52:54.678Z"
  },
  "rpianoState": {
   "viewTeacherIds": [
@@ -47667,8 +47667,8 @@
     "room": "",
     "source": "rpiano",
     "duration": 60,
-    "_col": 8,
-    "_totalCols": 11
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "RP-TEAC14-ST69",
@@ -47713,8 +47713,8 @@
     "room": "",
     "source": "rpiano",
     "duration": 60,
-    "_col": 8,
-    "_totalCols": 11
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "RP-TEAC18-ST70",
@@ -47736,8 +47736,8 @@
     "room": "",
     "source": "rpiano",
     "duration": 60,
-    "_col": 6,
-    "_totalCols": 11
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "RP-TEAC14-ST41",
@@ -47970,8 +47970,8 @@
     "_totalCols": 5
    },
    {
-    "lessonId": "RP-TEAC18-ST45",
-    "name": "Ciuca Valentin piano",
+    "lessonId": "RP-TEAC18-ST46",
+    "name": "Fleischer Bence piano",
     "group": "piano",
     "groupId": "",
     "teacherId": "TEAC18",
@@ -47981,33 +47981,10 @@
     "end": 660,
     "studentCount": 1,
     "studentNames": [
-     "Ciuca Valentin"
+     "Fleischer Bence"
     ],
-    "studentId": "ST45",
-    "studentIds": "ST45",
-    "roomId": "",
-    "room": "",
-    "source": "rpiano",
-    "duration": 60,
-    "_col": 2,
-    "_totalCols": 5
-   },
-   {
-    "lessonId": "RP-TEAC16-ST75",
-    "name": "Kele Andras piano",
-    "group": "piano",
-    "groupId": "",
-    "teacherId": "TEAC16",
-    "teacher": "Kapolcsi",
-    "day": "THU",
-    "start": 600,
-    "end": 660,
-    "studentCount": 1,
-    "studentNames": [
-     "Kele Andras"
-    ],
-    "studentId": "ST75",
-    "studentIds": "ST75",
+    "studentId": "ST46",
+    "studentIds": "ST46",
     "roomId": "",
     "room": "",
     "source": "rpiano",
@@ -48062,27 +48039,27 @@
     "_totalCols": 1
    },
    {
-    "lessonId": "RP-TEAC18-ST16",
-    "name": "Hajnal Balazs piano",
+    "lessonId": "RP-TEAC18-ST45",
+    "name": "Ciuca Valentin piano",
     "group": "piano",
     "groupId": "",
     "teacherId": "TEAC18",
     "teacher": "HorvathG",
     "day": "THU",
     "start": 870,
-    "end": 900,
+    "end": 930,
     "studentCount": 1,
     "studentNames": [
-     "Hajnal Balazs"
+     "Ciuca Valentin"
     ],
-    "studentId": "ST16",
-    "studentIds": "ST16",
+    "studentId": "ST45",
+    "studentIds": "ST45",
     "roomId": "",
     "room": "",
     "source": "rpiano",
-    "duration": 30,
+    "duration": 60,
     "_col": 0,
-    "_totalCols": 7
+    "_totalCols": 1
    },
    {
     "lessonId": "RP-TEAC21-ST44",
@@ -48108,27 +48085,50 @@
     "_totalCols": 7
    },
    {
-    "lessonId": "RP-TEAC18-ST46",
-    "name": "Fleischer Bence piano",
+    "lessonId": "RP-TEAC16-ST75",
+    "name": "Kele Andras piano",
+    "group": "piano",
+    "groupId": "",
+    "teacherId": "TEAC16",
+    "teacher": "Kapolcsi",
+    "day": "THU",
+    "start": 915,
+    "end": 975,
+    "studentCount": 1,
+    "studentNames": [
+     "Kele Andras"
+    ],
+    "studentId": "ST75",
+    "studentIds": "ST75",
+    "roomId": "",
+    "room": "",
+    "source": "rpiano",
+    "duration": 60,
+    "_col": 0,
+    "_totalCols": 1
+   },
+   {
+    "lessonId": "RP-TEAC18-ST16",
+    "name": "Hajnal Balazs piano",
     "group": "piano",
     "groupId": "",
     "teacherId": "TEAC18",
     "teacher": "HorvathG",
     "day": "THU",
-    "start": 905,
-    "end": 965,
+    "start": 930,
+    "end": 960,
     "studentCount": 1,
     "studentNames": [
-     "Fleischer Bence"
+     "Hajnal Balazs"
     ],
-    "studentId": "ST46",
-    "studentIds": "ST46",
+    "studentId": "ST16",
+    "studentIds": "ST16",
     "roomId": "",
     "room": "",
     "source": "rpiano",
-    "duration": 60,
-    "_col": 6,
-    "_totalCols": 7
+    "duration": 30,
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "RP-TEAC15-ST8",
@@ -48154,29 +48154,6 @@
     "_totalCols": 1
    },
    {
-    "lessonId": "RP-TEAC16-ST22",
-    "name": "Klein Veronika piano",
-    "group": "piano",
-    "groupId": "",
-    "teacherId": "TEAC16",
-    "teacher": "Kapolcsi",
-    "day": "THU",
-    "start": 960,
-    "end": 1020,
-    "studentCount": 1,
-    "studentNames": [
-     "Klein Veronika"
-    ],
-    "studentId": "ST22",
-    "studentIds": "ST22",
-    "roomId": "",
-    "room": "",
-    "source": "rpiano",
-    "duration": 60,
-    "_col": 0,
-    "_totalCols": 1
-   },
-   {
     "lessonId": "RP-TEAC18-ST26",
     "name": "Kaszas Emilia Magdolna piano",
     "group": "piano",
@@ -48184,8 +48161,8 @@
     "teacherId": "TEAC18",
     "teacher": "HorvathG",
     "day": "THU",
-    "start": 980,
-    "end": 1010,
+    "start": 960,
+    "end": 990,
     "studentCount": 1,
     "studentNames": [
      "Kaszas Emilia Magdolna"
@@ -48196,29 +48173,6 @@
     "room": "",
     "source": "rpiano",
     "duration": 30,
-    "_col": 6,
-    "_totalCols": 7
-   },
-   {
-    "lessonId": "RP-TEAC16-ST18",
-    "name": "Kovacs Hunor piano",
-    "group": "piano",
-    "groupId": "",
-    "teacherId": "TEAC16",
-    "teacher": "Kapolcsi",
-    "day": "THU",
-    "start": 1050,
-    "end": 1110,
-    "studentCount": 1,
-    "studentNames": [
-     "Kovacs Hunor"
-    ],
-    "studentId": "ST18",
-    "studentIds": "ST18",
-    "roomId": "",
-    "room": "",
-    "source": "rpiano",
-    "duration": 60,
     "_col": 0,
     "_totalCols": 1
    },
@@ -48230,8 +48184,8 @@
     "teacherId": "TEAC16",
     "teacher": "Kapolcsi",
     "day": "THU",
-    "start": 1110,
-    "end": 1170,
+    "start": 1085,
+    "end": 1145,
     "studentCount": 1,
     "studentNames": [
      "Zwick Zsombor Andras"
@@ -48253,8 +48207,8 @@
     "teacherId": "TEAC16",
     "teacher": "Kapolcsi",
     "day": "THU",
-    "start": 1170,
-    "end": 1200,
+    "start": 1145,
+    "end": 1175,
     "studentCount": 1,
     "studentNames": [
      "Gonczi Simon"
@@ -48265,29 +48219,6 @@
     "room": "",
     "source": "rpiano",
     "duration": 30,
-    "_col": 0,
-    "_totalCols": 1
-   },
-   {
-    "lessonId": "RP-TEAC16-ST40",
-    "name": "Molnar Keve Matyas piano",
-    "group": "piano",
-    "groupId": "",
-    "teacherId": "TEAC16",
-    "teacher": "Kapolcsi",
-    "day": "FRI",
-    "start": 555,
-    "end": 615,
-    "studentCount": 1,
-    "studentNames": [
-     "Molnar Keve Matyas"
-    ],
-    "studentId": "ST40",
-    "studentIds": "ST40",
-    "roomId": "",
-    "room": "",
-    "source": "rpiano",
-    "duration": 60,
     "_col": 0,
     "_totalCols": 1
    },
@@ -48315,6 +48246,75 @@
     "_totalCols": 1
    },
    {
+    "lessonId": "RP-TEAC16-ST18",
+    "name": "Kovacs Hunor piano",
+    "group": "piano",
+    "groupId": "",
+    "teacherId": "TEAC16",
+    "teacher": "Kapolcsi",
+    "day": "FRI",
+    "start": 570,
+    "end": 630,
+    "studentCount": 1,
+    "studentNames": [
+     "Kovacs Hunor"
+    ],
+    "studentId": "ST18",
+    "studentIds": "ST18",
+    "roomId": "",
+    "room": "",
+    "source": "rpiano",
+    "duration": 60,
+    "_col": 0,
+    "_totalCols": 1
+   },
+   {
+    "lessonId": "RP-TEAC16-ST40",
+    "name": "Molnar Keve Matyas piano",
+    "group": "piano",
+    "groupId": "",
+    "teacherId": "TEAC16",
+    "teacher": "Kapolcsi",
+    "day": "FRI",
+    "start": 630,
+    "end": 690,
+    "studentCount": 1,
+    "studentNames": [
+     "Molnar Keve Matyas"
+    ],
+    "studentId": "ST40",
+    "studentIds": "ST40",
+    "roomId": "",
+    "room": "",
+    "source": "rpiano",
+    "duration": 60,
+    "_col": 0,
+    "_totalCols": 1
+   },
+   {
+    "lessonId": "RP-TEAC16-ST22",
+    "name": "Klein Veronika piano",
+    "group": "piano",
+    "groupId": "",
+    "teacherId": "TEAC16",
+    "teacher": "Kapolcsi",
+    "day": "FRI",
+    "start": 690,
+    "end": 750,
+    "studentCount": 1,
+    "studentNames": [
+     "Klein Veronika"
+    ],
+    "studentId": "ST22",
+    "studentIds": "ST22",
+    "roomId": "",
+    "room": "",
+    "source": "rpiano",
+    "duration": 60,
+    "_col": 0,
+    "_totalCols": 1
+   },
+   {
     "lessonId": "RP-TEAC18-ST14",
     "name": "Barcza Vince piano",
     "group": "piano",
@@ -48334,8 +48334,8 @@
     "room": "",
     "source": "rpiano",
     "duration": 60,
-    "_col": 1,
-    "_totalCols": 10
+    "_col": 0,
+    "_totalCols": 1
    }
   ],
   "unresolved": [],
@@ -48942,8 +48942,8 @@
     "note": ""
    },
    {
-    "lessonId": "RP-TEAC18-ST45",
-    "name": "Ciuca Valentin piano",
+    "lessonId": "RP-TEAC18-ST46",
+    "name": "Fleischer Bence piano",
     "kind": "piano",
     "group": "piano",
     "groupId": "",
@@ -48956,28 +48956,8 @@
     "roomId": "",
     "room": "",
     "studentCount": 1,
-    "students": "Ciuca Valentin",
-    "studentIds": "ST45",
-    "status": "scheduled",
-    "note": ""
-   },
-   {
-    "lessonId": "RP-TEAC16-ST75",
-    "name": "Kele Andras piano",
-    "kind": "piano",
-    "group": "piano",
-    "groupId": "",
-    "teacher": "Kapolcsi",
-    "teacherId": "TEAC16",
-    "day": "THU",
-    "start": "10:00",
-    "end": "11:00",
-    "duration": 60,
-    "roomId": "",
-    "room": "",
-    "studentCount": 1,
-    "students": "Kele Andras",
-    "studentIds": "ST75",
+    "students": "Fleischer Bence",
+    "studentIds": "ST46",
     "status": "scheduled",
     "note": ""
    },
@@ -49022,8 +49002,8 @@
     "note": ""
    },
    {
-    "lessonId": "RP-TEAC18-ST16",
-    "name": "Hajnal Balazs piano",
+    "lessonId": "RP-TEAC18-ST45",
+    "name": "Ciuca Valentin piano",
     "kind": "piano",
     "group": "piano",
     "groupId": "",
@@ -49031,13 +49011,13 @@
     "teacherId": "TEAC18",
     "day": "THU",
     "start": "14:30",
-    "end": "15:00",
-    "duration": 30,
+    "end": "15:30",
+    "duration": 60,
     "roomId": "",
     "room": "",
     "studentCount": 1,
-    "students": "Hajnal Balazs",
-    "studentIds": "ST16",
+    "students": "Ciuca Valentin",
+    "studentIds": "ST45",
     "status": "scheduled",
     "note": ""
    },
@@ -49062,22 +49042,42 @@
     "note": ""
    },
    {
-    "lessonId": "RP-TEAC18-ST46",
-    "name": "Fleischer Bence piano",
+    "lessonId": "RP-TEAC16-ST75",
+    "name": "Kele Andras piano",
+    "kind": "piano",
+    "group": "piano",
+    "groupId": "",
+    "teacher": "Kapolcsi",
+    "teacherId": "TEAC16",
+    "day": "THU",
+    "start": "15:15",
+    "end": "16:15",
+    "duration": 60,
+    "roomId": "",
+    "room": "",
+    "studentCount": 1,
+    "students": "Kele Andras",
+    "studentIds": "ST75",
+    "status": "scheduled",
+    "note": ""
+   },
+   {
+    "lessonId": "RP-TEAC18-ST16",
+    "name": "Hajnal Balazs piano",
     "kind": "piano",
     "group": "piano",
     "groupId": "",
     "teacher": "HorvathG",
     "teacherId": "TEAC18",
     "day": "THU",
-    "start": "15:05",
-    "end": "16:05",
-    "duration": 60,
+    "start": "15:30",
+    "end": "16:00",
+    "duration": 30,
     "roomId": "",
     "room": "",
     "studentCount": 1,
-    "students": "Fleischer Bence",
-    "studentIds": "ST46",
+    "students": "Hajnal Balazs",
+    "studentIds": "ST16",
     "status": "scheduled",
     "note": ""
    },
@@ -49102,26 +49102,6 @@
     "note": ""
    },
    {
-    "lessonId": "RP-TEAC16-ST22",
-    "name": "Klein Veronika piano",
-    "kind": "piano",
-    "group": "piano",
-    "groupId": "",
-    "teacher": "Kapolcsi",
-    "teacherId": "TEAC16",
-    "day": "THU",
-    "start": "16:00",
-    "end": "17:00",
-    "duration": 60,
-    "roomId": "",
-    "room": "",
-    "studentCount": 1,
-    "students": "Klein Veronika",
-    "studentIds": "ST22",
-    "status": "scheduled",
-    "note": ""
-   },
-   {
     "lessonId": "RP-TEAC18-ST26",
     "name": "Kaszas Emilia Magdolna piano",
     "kind": "piano",
@@ -49130,34 +49110,14 @@
     "teacher": "HorvathG",
     "teacherId": "TEAC18",
     "day": "THU",
-    "start": "16:20",
-    "end": "16:50",
+    "start": "16:00",
+    "end": "16:30",
     "duration": 30,
     "roomId": "",
     "room": "",
     "studentCount": 1,
     "students": "Kaszas Emilia Magdolna",
     "studentIds": "ST26",
-    "status": "scheduled",
-    "note": ""
-   },
-   {
-    "lessonId": "RP-TEAC16-ST18",
-    "name": "Kovacs Hunor piano",
-    "kind": "piano",
-    "group": "piano",
-    "groupId": "",
-    "teacher": "Kapolcsi",
-    "teacherId": "TEAC16",
-    "day": "THU",
-    "start": "17:30",
-    "end": "18:30",
-    "duration": 60,
-    "roomId": "",
-    "room": "",
-    "studentCount": 1,
-    "students": "Kovacs Hunor",
-    "studentIds": "ST18",
     "status": "scheduled",
     "note": ""
    },
@@ -49170,8 +49130,8 @@
     "teacher": "Kapolcsi",
     "teacherId": "TEAC16",
     "day": "THU",
-    "start": "18:30",
-    "end": "19:30",
+    "start": "18:05",
+    "end": "19:05",
     "duration": 60,
     "roomId": "",
     "room": "",
@@ -49190,34 +49150,14 @@
     "teacher": "Kapolcsi",
     "teacherId": "TEAC16",
     "day": "THU",
-    "start": "19:30",
-    "end": "20:00",
+    "start": "19:05",
+    "end": "19:35",
     "duration": 30,
     "roomId": "",
     "room": "",
     "studentCount": 1,
     "students": "Gonczi Simon",
     "studentIds": "ST42",
-    "status": "scheduled",
-    "note": ""
-   },
-   {
-    "lessonId": "RP-TEAC16-ST40",
-    "name": "Molnar Keve Matyas piano",
-    "kind": "piano",
-    "group": "piano",
-    "groupId": "",
-    "teacher": "Kapolcsi",
-    "teacherId": "TEAC16",
-    "day": "FRI",
-    "start": "09:15",
-    "end": "10:15",
-    "duration": 60,
-    "roomId": "",
-    "room": "",
-    "studentCount": 1,
-    "students": "Molnar Keve Matyas",
-    "studentIds": "ST40",
     "status": "scheduled",
     "note": ""
    },
@@ -49238,6 +49178,66 @@
     "studentCount": 1,
     "students": "Szegszardy Zalan Peter",
     "studentIds": "ST17",
+    "status": "scheduled",
+    "note": ""
+   },
+   {
+    "lessonId": "RP-TEAC16-ST18",
+    "name": "Kovacs Hunor piano",
+    "kind": "piano",
+    "group": "piano",
+    "groupId": "",
+    "teacher": "Kapolcsi",
+    "teacherId": "TEAC16",
+    "day": "FRI",
+    "start": "09:30",
+    "end": "10:30",
+    "duration": 60,
+    "roomId": "",
+    "room": "",
+    "studentCount": 1,
+    "students": "Kovacs Hunor",
+    "studentIds": "ST18",
+    "status": "scheduled",
+    "note": ""
+   },
+   {
+    "lessonId": "RP-TEAC16-ST40",
+    "name": "Molnar Keve Matyas piano",
+    "kind": "piano",
+    "group": "piano",
+    "groupId": "",
+    "teacher": "Kapolcsi",
+    "teacherId": "TEAC16",
+    "day": "FRI",
+    "start": "10:30",
+    "end": "11:30",
+    "duration": 60,
+    "roomId": "",
+    "room": "",
+    "studentCount": 1,
+    "students": "Molnar Keve Matyas",
+    "studentIds": "ST40",
+    "status": "scheduled",
+    "note": ""
+   },
+   {
+    "lessonId": "RP-TEAC16-ST22",
+    "name": "Klein Veronika piano",
+    "kind": "piano",
+    "group": "piano",
+    "groupId": "",
+    "teacher": "Kapolcsi",
+    "teacherId": "TEAC16",
+    "day": "FRI",
+    "start": "11:30",
+    "end": "12:30",
+    "duration": 60,
+    "roomId": "",
+    "room": "",
+    "studentCount": 1,
+    "students": "Klein Veronika",
+    "studentIds": "ST22",
     "status": "scheduled",
     "note": ""
    },
@@ -49653,8 +49653,8 @@
       "room": "",
       "source": "rpiano",
       "duration": 60,
-      "_col": 8,
-      "_totalCols": 11
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "RP-TEAC14-ST69",
@@ -49699,8 +49699,8 @@
       "room": "",
       "source": "rpiano",
       "duration": 60,
-      "_col": 8,
-      "_totalCols": 11
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "RP-TEAC18-ST70",
@@ -49722,8 +49722,8 @@
       "room": "",
       "source": "rpiano",
       "duration": 60,
-      "_col": 6,
-      "_totalCols": 11
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "RP-TEAC14-ST41",
@@ -49956,8 +49956,8 @@
       "_totalCols": 5
      },
      {
-      "lessonId": "RP-TEAC18-ST45",
-      "name": "Ciuca Valentin piano",
+      "lessonId": "RP-TEAC18-ST46",
+      "name": "Fleischer Bence piano",
       "group": "piano",
       "groupId": "",
       "teacherId": "TEAC18",
@@ -49967,33 +49967,10 @@
       "end": 660,
       "studentCount": 1,
       "studentNames": [
-       "Ciuca Valentin"
+       "Fleischer Bence"
       ],
-      "studentId": "ST45",
-      "studentIds": "ST45",
-      "roomId": "",
-      "room": "",
-      "source": "rpiano",
-      "duration": 60,
-      "_col": 2,
-      "_totalCols": 5
-     },
-     {
-      "lessonId": "RP-TEAC16-ST75",
-      "name": "Kele Andras piano",
-      "group": "piano",
-      "groupId": "",
-      "teacherId": "TEAC16",
-      "teacher": "Kapolcsi",
-      "day": "THU",
-      "start": 600,
-      "end": 660,
-      "studentCount": 1,
-      "studentNames": [
-       "Kele Andras"
-      ],
-      "studentId": "ST75",
-      "studentIds": "ST75",
+      "studentId": "ST46",
+      "studentIds": "ST46",
       "roomId": "",
       "room": "",
       "source": "rpiano",
@@ -50048,27 +50025,27 @@
       "_totalCols": 1
      },
      {
-      "lessonId": "RP-TEAC18-ST16",
-      "name": "Hajnal Balazs piano",
+      "lessonId": "RP-TEAC18-ST45",
+      "name": "Ciuca Valentin piano",
       "group": "piano",
       "groupId": "",
       "teacherId": "TEAC18",
       "teacher": "HorvathG",
       "day": "THU",
       "start": 870,
-      "end": 900,
+      "end": 930,
       "studentCount": 1,
       "studentNames": [
-       "Hajnal Balazs"
+       "Ciuca Valentin"
       ],
-      "studentId": "ST16",
-      "studentIds": "ST16",
+      "studentId": "ST45",
+      "studentIds": "ST45",
       "roomId": "",
       "room": "",
       "source": "rpiano",
-      "duration": 30,
+      "duration": 60,
       "_col": 0,
-      "_totalCols": 7
+      "_totalCols": 1
      },
      {
       "lessonId": "RP-TEAC21-ST44",
@@ -50094,27 +50071,50 @@
       "_totalCols": 7
      },
      {
-      "lessonId": "RP-TEAC18-ST46",
-      "name": "Fleischer Bence piano",
+      "lessonId": "RP-TEAC16-ST75",
+      "name": "Kele Andras piano",
+      "group": "piano",
+      "groupId": "",
+      "teacherId": "TEAC16",
+      "teacher": "Kapolcsi",
+      "day": "THU",
+      "start": 915,
+      "end": 975,
+      "studentCount": 1,
+      "studentNames": [
+       "Kele Andras"
+      ],
+      "studentId": "ST75",
+      "studentIds": "ST75",
+      "roomId": "",
+      "room": "",
+      "source": "rpiano",
+      "duration": 60,
+      "_col": 0,
+      "_totalCols": 1
+     },
+     {
+      "lessonId": "RP-TEAC18-ST16",
+      "name": "Hajnal Balazs piano",
       "group": "piano",
       "groupId": "",
       "teacherId": "TEAC18",
       "teacher": "HorvathG",
       "day": "THU",
-      "start": 905,
-      "end": 965,
+      "start": 930,
+      "end": 960,
       "studentCount": 1,
       "studentNames": [
-       "Fleischer Bence"
+       "Hajnal Balazs"
       ],
-      "studentId": "ST46",
-      "studentIds": "ST46",
+      "studentId": "ST16",
+      "studentIds": "ST16",
       "roomId": "",
       "room": "",
       "source": "rpiano",
-      "duration": 60,
-      "_col": 6,
-      "_totalCols": 7
+      "duration": 30,
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "RP-TEAC15-ST8",
@@ -50140,29 +50140,6 @@
       "_totalCols": 1
      },
      {
-      "lessonId": "RP-TEAC16-ST22",
-      "name": "Klein Veronika piano",
-      "group": "piano",
-      "groupId": "",
-      "teacherId": "TEAC16",
-      "teacher": "Kapolcsi",
-      "day": "THU",
-      "start": 960,
-      "end": 1020,
-      "studentCount": 1,
-      "studentNames": [
-       "Klein Veronika"
-      ],
-      "studentId": "ST22",
-      "studentIds": "ST22",
-      "roomId": "",
-      "room": "",
-      "source": "rpiano",
-      "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
-     },
-     {
       "lessonId": "RP-TEAC18-ST26",
       "name": "Kaszas Emilia Magdolna piano",
       "group": "piano",
@@ -50170,8 +50147,8 @@
       "teacherId": "TEAC18",
       "teacher": "HorvathG",
       "day": "THU",
-      "start": 980,
-      "end": 1010,
+      "start": 960,
+      "end": 990,
       "studentCount": 1,
       "studentNames": [
        "Kaszas Emilia Magdolna"
@@ -50182,29 +50159,6 @@
       "room": "",
       "source": "rpiano",
       "duration": 30,
-      "_col": 6,
-      "_totalCols": 7
-     },
-     {
-      "lessonId": "RP-TEAC16-ST18",
-      "name": "Kovacs Hunor piano",
-      "group": "piano",
-      "groupId": "",
-      "teacherId": "TEAC16",
-      "teacher": "Kapolcsi",
-      "day": "THU",
-      "start": 1050,
-      "end": 1110,
-      "studentCount": 1,
-      "studentNames": [
-       "Kovacs Hunor"
-      ],
-      "studentId": "ST18",
-      "studentIds": "ST18",
-      "roomId": "",
-      "room": "",
-      "source": "rpiano",
-      "duration": 60,
       "_col": 0,
       "_totalCols": 1
      },
@@ -50216,8 +50170,8 @@
       "teacherId": "TEAC16",
       "teacher": "Kapolcsi",
       "day": "THU",
-      "start": 1110,
-      "end": 1170,
+      "start": 1085,
+      "end": 1145,
       "studentCount": 1,
       "studentNames": [
        "Zwick Zsombor Andras"
@@ -50239,8 +50193,8 @@
       "teacherId": "TEAC16",
       "teacher": "Kapolcsi",
       "day": "THU",
-      "start": 1170,
-      "end": 1200,
+      "start": 1145,
+      "end": 1175,
       "studentCount": 1,
       "studentNames": [
        "Gonczi Simon"
@@ -50251,29 +50205,6 @@
       "room": "",
       "source": "rpiano",
       "duration": 30,
-      "_col": 0,
-      "_totalCols": 1
-     },
-     {
-      "lessonId": "RP-TEAC16-ST40",
-      "name": "Molnar Keve Matyas piano",
-      "group": "piano",
-      "groupId": "",
-      "teacherId": "TEAC16",
-      "teacher": "Kapolcsi",
-      "day": "FRI",
-      "start": 555,
-      "end": 615,
-      "studentCount": 1,
-      "studentNames": [
-       "Molnar Keve Matyas"
-      ],
-      "studentId": "ST40",
-      "studentIds": "ST40",
-      "roomId": "",
-      "room": "",
-      "source": "rpiano",
-      "duration": 60,
       "_col": 0,
       "_totalCols": 1
      },
@@ -50301,6 +50232,75 @@
       "_totalCols": 1
      },
      {
+      "lessonId": "RP-TEAC16-ST18",
+      "name": "Kovacs Hunor piano",
+      "group": "piano",
+      "groupId": "",
+      "teacherId": "TEAC16",
+      "teacher": "Kapolcsi",
+      "day": "FRI",
+      "start": 570,
+      "end": 630,
+      "studentCount": 1,
+      "studentNames": [
+       "Kovacs Hunor"
+      ],
+      "studentId": "ST18",
+      "studentIds": "ST18",
+      "roomId": "",
+      "room": "",
+      "source": "rpiano",
+      "duration": 60,
+      "_col": 0,
+      "_totalCols": 1
+     },
+     {
+      "lessonId": "RP-TEAC16-ST40",
+      "name": "Molnar Keve Matyas piano",
+      "group": "piano",
+      "groupId": "",
+      "teacherId": "TEAC16",
+      "teacher": "Kapolcsi",
+      "day": "FRI",
+      "start": 630,
+      "end": 690,
+      "studentCount": 1,
+      "studentNames": [
+       "Molnar Keve Matyas"
+      ],
+      "studentId": "ST40",
+      "studentIds": "ST40",
+      "roomId": "",
+      "room": "",
+      "source": "rpiano",
+      "duration": 60,
+      "_col": 0,
+      "_totalCols": 1
+     },
+     {
+      "lessonId": "RP-TEAC16-ST22",
+      "name": "Klein Veronika piano",
+      "group": "piano",
+      "groupId": "",
+      "teacherId": "TEAC16",
+      "teacher": "Kapolcsi",
+      "day": "FRI",
+      "start": 690,
+      "end": 750,
+      "studentCount": 1,
+      "studentNames": [
+       "Klein Veronika"
+      ],
+      "studentId": "ST22",
+      "studentIds": "ST22",
+      "roomId": "",
+      "room": "",
+      "source": "rpiano",
+      "duration": 60,
+      "_col": 0,
+      "_totalCols": 1
+     },
+     {
       "lessonId": "RP-TEAC18-ST14",
       "name": "Barcza Vince piano",
       "group": "piano",
@@ -50320,17 +50320,15 @@
       "room": "",
       "source": "rpiano",
       "duration": 60,
-      "_col": 1,
-      "_totalCols": 10
+      "_col": 0,
+      "_totalCols": 1
      }
     ],
     "unresolved": []
    }
   ],
   "selectedIndex": 0,
-  "inputFingerprint": "{\"kind\":\"rpiano\",\"scopeTeacherIds\":[\"TEAC16\"],\"kept\":[[\"RP-TEAC14-ST73\",\"MON\",525,585,\"TEAC14\"],[\"RP-TEAC14-ST65\",\"MON\",585,645,\"TEAC14\"],[\"RP-TEAC17-ST37\",\"MON\",660,720,\"TEAC17\"],[\"RP-TEAC17-ST38\",\"MON\",750,810,\"TEAC17\"],[\"RP-TEAC17-ST72\",\"MON\",810,840,\"TEAC17\"],[\"RP-TEAC17-ST34\",\"MON\",840,900,\"TEAC17\"],[\"RP-TEAC15-ST27\",\"MON\",870,900,\"TEAC15\"],[\"RP-TEAC17-ST71\",\"MON\",900,930,\"TEAC17\"],[\"RP-TEAC17-ST12\",\"MON\",930,990,\"TEAC17\"],[\"RP-TEAC17-ST21\",\"MON\",990,1050,\"TEAC17\"],[\"RP-TEAC17-ST74\",\"MON\",1050,1080,\"TEAC17\"],[\"RP-TEAC14-ST5\",\"TUE\",600,660,\"TEAC14\"],[\"RP-TEAC14-ST66\",\"TUE\",660,720,\"TEAC14\"],[\"RP-TEAC14-ST35\",\"TUE\",1050,1080,\"TEAC14\"],[\"RP-TEAC17-ST3\",\"WED\",480,540,\"TEAC17\"],[\"RP-TEAC17-ST28\",\"WED\",540,600,\"TEAC17\"],[\"RP-TEAC18-ST33\",\"WED\",610,670,\"TEAC18\"],[\"RP-TEAC14-ST69\",\"WED\",645,705,\"TEAC14\"],[\"RP-TEAC18-ST47\",\"WED\",670,730,\"TEAC18\"],[\"RP-TEAC18-ST70\",\"WED\",730,790,\"TEAC18\"],[\"RP-TEAC14-ST41\",\"WED\",730,760,\"TEAC14\"],[\"RP-TEAC14-ST9\",\"WED\",760,790,\"TEAC14\"],[\"RP-TEAC14-ST15\",\"WED\",790,850,\"TEAC14\"],[\"RP-TEAC14-ST29\",\"WED\",850,910,\"TEAC14\"],[\"RP-TEAC14-ST30\",\"WED\",910,970,\"TEAC14\"],[\"RP-TEAC14-ST39\",\"WED\",970,1030,\"TEAC14\"],[\"RP-TEAC17-ST4\",\"WED\",1020,1080,\"TEAC17\"],[\"RP-TEAC17-ST6\",\"WED\",1080,1140,\"TEAC17\"],[\"RP-TEAC17-ST23\",\"WED\",1140,1200,\"TEAC17\"],[\"RP-TEAC14-ST32\",\"THU\",555,615,\"TEAC14\"],[\"RP-TEAC18-ST45\",\"THU\",600,660,\"TEAC18\"],[\"RP-TEAC21-ST43\",\"THU\",840,900,\"TEAC21\"],[\"RP-TEAC15-ST19\",\"THU\",840,870,\"TEAC15\"],[\"RP-TEAC18-ST16\",\"THU\",870,900,\"TEAC18\"],[\"RP-TEAC21-ST44\",\"THU\",900,960,\"TEAC21\"],[\"RP-TEAC18-ST46\",\"THU\",905,965,\"TEAC18\"],[\"RP-TEAC15-ST8\",\"THU\",960,990,\"TEAC15\"],[\"RP-TEAC18-ST26\",\"THU\",980,1010,\"TEAC18\"],[\"RP-TEAC15-ST17\",\"FRI\",560,590,\"TEAC15\"],[\"RP-TEAC18-ST14\",\"FRI\",870,930,\"TEAC18\"]],\"accepted\":[[\"LES34\",\"MON\",\"08:00\",\"09:30\",\"TEAC4\"],[\"LES20\",\"MON\",\"08:00\",\"09:30\",\"TEAC2\"],[\"SG5\",\"MON\",\"09:30\",\"11:00\",\"TEAC4\"],[\"LES25\",\"MON\",\"09:30\",\"11:00\",\"TEAC2\"],[\"LES13\",\"MON\",\"09:50\",\"11:20\",\"TEAC15\"],[\"SG7\",\"MON\",\"11:00\",\"12:30\",\"TEAC4\"],[\"LES23\",\"MON\",\"11:00\",\"12:30\",\"TEAC2\"],[\"LES16\",\"MON\",\"11:30\",\"13:00\",\"TEAC15\"],[\"LES19\",\"MON\",\"12:30\",\"14:00\",\"TEAC2\"],[\"SG15\",\"MON\",\"12:30\",\"14:00\",\"TEAC1\"],[\"LES5\",\"MON\",\"14:30\",\"15:15\",\"TEAC2\"],[\"LES27\",\"MON\",\"15:00\",\"15:45\",\"TEAC15\"],[\"LES29\",\"MON\",\"15:15\",\"16:00\",\"TEAC2\"],[\"LES37\",\"MON\",\"16:00\",\"17:30\",\"TEAC15\"],[\"SG1\",\"MON\",\"16:00\",\"17:30\",\"TEAC2\"],[\"LES4\",\"MON\",\"17:30\",\"18:15\",\"TEAC2\"],[\"LES14\",\"MON\",\"17:30\",\"18:15\",\"TEAC15\"],[\"SG10\",\"MON\",\"18:15\",\"19:45\",\"TEAC2\"],[\"LES35\",\"TUE\",\"10:00\",\"11:30\",\"TEAC4\"],[\"LES36\",\"TUE\",\"12:00\",\"13:30\",\"TEAC19\"],[\"LES38\",\"TUE\",\"12:00\",\"13:30\",\"TEAC6\"],[\"LES6\",\"TUE\",\"13:30\",\"15:00\",\"TEAC6\"],[\"LES33\",\"TUE\",\"13:45\",\"14:30\",\"TEAC2\"],[\"LES30\",\"TUE\",\"14:30\",\"15:15\",\"TEAC2\"],[\"LES3\",\"TUE\",\"15:15\",\"16:00\",\"TEAC2\"],[\"SG18\",\"TUE\",\"16:30\",\"18:00\",\"TEAC20\"],[\"LES32\",\"TUE\",\"16:45\",\"17:30\",\"TEAC2\"],[\"LES26\",\"TUE\",\"17:30\",\"18:15\",\"TEAC2\"],[\"SG17\",\"TUE\",\"18:15\",\"19:45\",\"TEAC20\"],[\"SG14\",\"WED\",\"09:10\",\"10:40\",\"TEAC4\"],[\"SG16\",\"WED\",\"10:40\",\"12:10\",\"TEAC1\"],[\"LES12\",\"WED\",\"12:10\",\"13:40\",\"TEAC7\"],[\"SG13\",\"WED\",\"12:20\",\"13:50\",\"TEAC1\"],[\"SG9\",\"WED\",\"14:00\",\"15:30\",\"TEAC1\"],[\"SG12\",\"WED\",\"15:30\",\"17:00\",\"TEAC20\"],[\"SG2\",\"WED\",\"17:00\",\"18:30\",\"TEAC18\"],[\"SG3\",\"WED\",\"18:30\",\"20:00\",\"TEAC3\"],[\"SG6\",\"THU\",\"11:00\",\"12:30\",\"TEAC4\"],[\"LES9\",\"THU\",\"11:00\",\"12:30\",\"TEAC21\"],[\"LES10\",\"THU\",\"12:30\",\"14:00\",\"TEAC21\"],[\"SG11\",\"THU\",\"14:30\",\"16:00\",\"TEAC15\"],[\"LES39\",\"THU\",\"16:00\",\"17:30\",\"TEAC22\"],[\"LES22\",\"THU\",\"16:50\",\"17:35\",\"TEAC18\"],[\"LES28\",\"THU\",\"17:35\",\"18:20\",\"TEAC18\"],[\"LES2\",\"THU\",\"18:20\",\"19:05\",\"TEAC18\"],[\"LES1\",\"FRI\",\"08:00\",\"09:30\",\"TEAC18\"],[\"LES15\",\"FRI\",\"09:50\",\"11:20\",\"TEAC15\"],[\"SG4\",\"FRI\",\"10:40\",\"12:10\",\"TEAC11\"],[\"LES24\",\"FRI\",\"10:45\",\"12:15\",\"TEAC18\"],[\"LES17\",\"FRI\",\"11:30\",\"12:15\",\"TEAC15\"],[\"LES18\",\"FRI\",\"12:15\",\"13:45\",\"TEAC15\"],[\"LES21\",\"FRI\",\"12:15\",\"13:00\",\"TEAC18\"],[\"LES7\",\"FRI\",\"13:00\",\"14:30\",\"TEAC18\"],[\"LES8\",\"FRI\",\"14:30\",\"16:00\",\"TEAC21\"],[\"LES11\",\"FRI\",\"15:00\",\"15:45\",\"TEAC7\"],[\"SG8\",\"FRI\",\"16:00\",\"17:30\",\"TEAC3\"]],\"oneone\":[[\"O2O-TEAC17-ST49\",\"MON\",570,660],[\"O2O-TEAC10-ST32\",\"MON\",600,660],[\"O2O-TEAC14-ST62\",\"MON\",645,705],[\"O2O-TEAC10-ST40\",\"MON\",660,780],[\"O2O-TEAC1-ST6\",\"MON\",690,750],[\"O2O-TEAC14-ST55\",\"MON\",705,795],[\"O2O-TEAC22-ST18\",\"MON\",720,780],[\"O2O-TEAC10-ST42\",\"MON\",780,900],[\"O2O-TEAC15-ST51\",\"MON\",780,870],[\"O2O-TEAC22-ST15\",\"MON\",780,840],[\"O2O-TEAC1-ST5\",\"MON\",840,930],[\"O2O-TEAC22-ST19\",\"MON\",840,870],[\"O2O-TEAC9-ST21\",\"MON\",855,975],[\"O2O-TEAC22-ST12\",\"MON\",870,930],[\"O2O-TEAC10-ST36\",\"MON\",900,1020],[\"O2O-TEAC1-ST4\",\"MON\",930,1020],[\"O2O-TEAC22-ST13\",\"MON\",930,960],[\"O2O-TEAC22-ST11\",\"MON\",960,990],[\"O2O-TEAC9-ST24\",\"MON\",975,1035],[\"O2O-TEAC22-ST16\",\"MON\",990,1020],[\"O2O-TEAC10-ST33\",\"MON\",1020,1140],[\"O2O-TEAC1-ST9\",\"MON\",1020,1080],[\"O2O-TEAC22-ST17\",\"MON\",1020,1050],[\"O2O-TEAC9-ST25\",\"MON\",1035,1095],[\"O2O-TEAC9-ST27\",\"MON\",1095,1155],[\"O2O-TEAC8-ST22\",\"TUE\",600,720],[\"O2O-TEAC2-ST4\",\"TUE\",630,720],[\"O2O-TEAC4-ST15\",\"TUE\",690,810],[\"O2O-TEAC8-ST29\",\"TUE\",720,780],[\"O2O-TEAC14-ST56\",\"TUE\",720,810],[\"O2O-TEAC8-ST25\",\"TUE\",780,840],[\"O2O-TEAC19-ST74\",\"TUE\",810,930],[\"O2O-TEAC4-ST19\",\"TUE\",810,870],[\"O2O-TEAC14-ST53\",\"TUE\",810,870],[\"O2O-TEAC8-ST26\",\"TUE\",840,900],[\"O2O-TEAC1-ST3\",\"TUE\",855,1035],[\"O2O-TEAC20-ST69\",\"TUE\",870,930],[\"O2O-TEAC4-ST16\",\"TUE\",870,930],[\"O2O-TEAC14-ST58\",\"TUE\",870,930],[\"O2O-TEAC8-ST27\",\"TUE\",900,960],[\"O2O-TEAC20-ST76\",\"TUE\",930,990],[\"O2O-TEAC19-ST71\",\"TUE\",930,1050],[\"O2O-TEAC6-ST17\",\"TUE\",930,990],[\"O2O-TEAC14-ST59\",\"TUE\",930,990],[\"O2O-TEAC6-ST16\",\"TUE\",990,1050],[\"O2O-TEAC14-ST54\",\"TUE\",990,1050],[\"O2O-TEAC1-ST8\",\"TUE\",1035,1095],[\"O2O-TEAC6-ST18\",\"TUE\",1080,1140],[\"O2O-TEAC2-ST5\",\"TUE\",1095,1185],[\"O2O-TEAC6-ST12\",\"TUE\",1140,1200],[\"O2O-TEAC14-ST52\",\"WED\",495,555],[\"O2O-TEAC1-ST6-2\",\"WED\",520,580],[\"O2O-TEAC13-ST46\",\"WED\",540,720],[\"O2O-TEAC14-ST57\",\"WED\",555,645],[\"O2O-TEAC1-ST7\",\"WED\",580,640],[\"O2O-TEAC10-ST37-2\",\"WED\",600,660],[\"O2O-TEAC19-ST70\",\"WED\",600,720],[\"O2O-TEAC17-ST55\",\"WED\",600,690],[\"O2O-TEAC7-ST29\",\"WED\",610,670],[\"O2O-TEAC20-ST73\",\"WED\",630,690],[\"O2O-TEAC4-ST14\",\"WED\",640,760],[\"O2O-TEAC10-ST38\",\"WED\",660,780],[\"O2O-TEAC7-ST30\",\"WED\",670,730],[\"O2O-TEAC20-ST66\",\"WED\",690,750],[\"O2O-TEAC17-ST56\",\"WED\",690,780],[\"O2O-TEAC19-ST69\",\"WED\",720,840],[\"O2O-TEAC13-ST45\",\"WED\",720,900],[\"O2O-TEAC20-ST75\",\"WED\",750,810],[\"O2O-TEAC10-ST41\",\"WED\",780,900],[\"O2O-TEAC17-ST59\",\"WED\",780,840],[\"O2O-TEAC18-ST57\",\"WED\",790,880],[\"O2O-TEAC20-ST70\",\"WED\",810,870],[\"O2O-TEAC5-ST11\",\"WED\",810,870],[\"O2O-TEAC7-ST26\",\"WED\",820,880],[\"O2O-TEAC17-ST48\",\"WED\",840,900],[\"O2O-TEAC12-ST43\",\"WED\",870,1050],[\"O2O-TEAC20-ST65\",\"WED\",870,930],[\"O2O-TEAC5-ST19\",\"WED\",870,930],[\"O2O-TEAC3-ST6\",\"WED\",870,930],[\"O2O-TEAC18-ST51\",\"WED\",880,970],[\"O2O-TEAC7-ST20\",\"WED\",880,940],[\"O2O-TEAC10-ST35\",\"WED\",900,1020],[\"O2O-TEAC13-ST67\",\"WED\",900,960],[\"O2O-TEAC17-ST61\",\"WED\",900,960],[\"O2O-TEAC5-ST17\",\"WED\",930,990],[\"O2O-TEAC1-ST1\",\"WED\",930,1050],[\"O2O-TEAC3-ST9\",\"WED\",930,990],[\"O2O-TEAC17-ST60\",\"WED\",960,1020],[\"O2O-TEAC5-ST15\",\"WED\",990,1050],[\"O2O-TEAC3-ST7\",\"WED\",990,1050],[\"O2O-TEAC10-ST32-2\",\"WED\",1020,1080],[\"O2O-TEAC12-ST44\",\"WED\",1050,1230],[\"O2O-TEAC5-ST14\",\"WED\",1050,1110],[\"O2O-TEAC3-ST8\",\"WED\",1050,1110],[\"O2O-TEAC5-ST13\",\"WED\",1110,1170],[\"O2O-TEAC13-ST47\",\"THU\",480,660],[\"O2O-TEAC14-ST48\",\"THU\",495,555],[\"O2O-TEAC4-ST18\",\"THU\",600,660],[\"O2O-TEAC16-ST64\",\"THU\",660,720],[\"O2O-TEAC16-ST63\",\"THU\",720,780],[\"O2O-TEAC19-ST72\",\"THU\",780,900],[\"O2O-TEAC4-ST13\",\"THU\",780,840],[\"O2O-TEAC16-ST52\",\"THU\",780,840],[\"O2O-TEAC18-ST61\",\"THU\",810,870],[\"O2O-TEAC4-ST11\",\"THU\",840,900],[\"O2O-TEAC16-ST60\",\"THU\",840,900],[\"O2O-TEAC19-ST66\",\"THU\",900,1020],[\"O2O-TEAC4-ST10\",\"THU\",900,960],[\"O2O-TEAC1-ST7-2\",\"THU\",900,960],[\"O2O-TEAC16-ST53\",\"THU\",900,960],[\"O2O-TEAC4-ST12\",\"THU\",960,1020],[\"O2O-TEAC1-ST2\",\"THU\",960,1080],[\"O2O-TEAC19-ST67\",\"THU\",1020,1140],[\"O2O-TEAC15-ST54\",\"THU\",1020,1080],[\"O2O-TEAC22-ST14\",\"THU\",1050,1110],[\"O2O-TEAC15-ST58\",\"THU\",1080,1140],[\"O2O-TEAC22-ST10\",\"THU\",1110,1140],[\"O2O-TEAC16-ST62\",\"FRI\",495,555],[\"O2O-TEAC9-ST28\",\"FRI\",510,570],[\"O2O-TEAC11-ST39\",\"FRI\",520,580],[\"O2O-TEAC18-ST62\",\"FRI\",570,630],[\"O2O-TEAC24-ST73\",\"FRI\",570,630],[\"O2O-TEAC9-ST30\",\"FRI\",570,690],[\"O2O-TEAC11-ST34\",\"FRI\",580,640],[\"O2O-TEAC10-ST37\",\"FRI\",600,660],[\"O2O-TEAC19-ST75\",\"FRI\",600,720],[\"O2O-TEAC8-ST29-2\",\"FRI\",600,660],[\"O2O-TEAC24-ST70\",\"FRI\",630,690],[\"O2O-TEAC7-ST23\",\"FRI\",630,750],[\"O2O-TEAC10-ST34\",\"FRI\",660,780],[\"O2O-TEAC8-ST28\",\"FRI\",660,780],[\"O2O-TEAC24-ST66\",\"FRI\",690,750],[\"O2O-TEAC19-ST65\",\"FRI\",720,840],[\"O2O-TEAC5-ST12\",\"FRI\",735,795],[\"O2O-TEAC7-ST22\",\"FRI\",750,810],[\"O2O-TEAC11-ST33\",\"FRI\",750,810],[\"O2O-TEAC24-ST75\",\"FRI\",750,810],[\"O2O-TEAC9-ST23\",\"FRI\",750,810],[\"O2O-TEAC10-ST31\",\"FRI\",780,900],[\"O2O-TEAC8-ST24\",\"FRI\",780,840],[\"O2O-TEAC5-ST10\",\"FRI\",795,855],[\"O2O-TEAC9-ST20\",\"FRI\",810,870],[\"O2O-TEAC7-ST21\",\"FRI\",810,870],[\"O2O-TEAC11-ST32\",\"FRI\",810,870],[\"O2O-TEAC24-ST68\",\"FRI\",810,840],[\"O2O-TEAC15-ST49\",\"FRI\",825,915],[\"O2O-TEAC19-ST73\",\"FRI\",840,960],[\"O2O-TEAC24-ST65\",\"FRI\",840,900],[\"O2O-TEAC5-ST18\",\"FRI\",855,915],[\"O2O-TEAC11-ST40\",\"FRI\",870,930],[\"O2O-TEAC10-ST39\",\"FRI\",900,1020],[\"O2O-TEAC24-ST69\",\"FRI\",900,960],[\"O2O-TEAC11-ST38\",\"FRI\",930,990],[\"O2O-TEAC19-ST68\",\"FRI\",960,1080],[\"O2O-TEAC24-ST71\",\"FRI\",960,990],[\"O2O-TEAC11-ST37\",\"FRI\",990,1050],[\"O2O-TEAC24-ST74\",\"FRI\",990,1020],[\"O2O-TEAC24-ST72\",\"FRI\",1020,1050],[\"O2O-TEAC24-ST67\",\"FRI\",1050,1080]],\"hours\":{\"ST3\":{\"TEAC17\":1},\"ST4\":{\"TEAC17\":1},\"ST5\":{\"TEAC14\":1},\"ST6\":{\"TEAC17\":1},\"ST7\":{\"TEAC16\":1},\"ST8\":{\"TEAC15\":0.5},\"ST9\":{\"TEAC14\":0.5},\"ST12\":{\"TEAC17\":1},\"ST13\":{},\"ST14\":{\"TEAC18\":1},\"ST15\":{\"TEAC14\":1},\"ST16\":{\"TEAC18\":0.5},\"ST17\":{\"TEAC15\":0.5},\"ST18\":{\"TEAC16\":1},\"ST19\":{\"TEAC15\":0.5},\"ST21\":{\"TEAC17\":1},\"ST23\":{\"TEAC17\":1},\"ST26\":{\"TEAC18\":0.5},\"ST27\":{\"TEAC15\":0.5},\"ST28\":{\"TEAC17\":1},\"ST29\":{\"TEAC14\":1},\"ST30\":{\"TEAC14\":1},\"ST32\":{\"TEAC14\":1},\"ST33\":{\"TEAC18\":1},\"ST34\":{\"TEAC17\":1},\"ST35\":{\"TEAC14\":0.5},\"ST37\":{\"TEAC17\":1},\"ST38\":{\"TEAC17\":1},\"ST39\":{\"TEAC14\":1},\"ST40\":{\"TEAC16\":1},\"ST41\":{\"TEAC14\":0.5},\"ST42\":{\"TEAC16\":0.5},\"ST43\":{\"TEAC21\":1},\"ST44\":{\"TEAC21\":1},\"ST45\":{\"TEAC18\":1},\"ST46\":{\"TEAC18\":1},\"ST47\":{\"TEAC18\":1},\"ST65\":{\"TEAC14\":1},\"ST66\":{\"TEAC14\":1},\"ST69\":{\"TEAC14\":1},\"ST70\":{\"TEAC18\":1},\"ST71\":{\"TEAC17\":0.5},\"ST72\":{\"TEAC17\":0.5},\"ST73\":{\"TEAC14\":1},\"ST74\":{\"TEAC17\":0.5},\"ST75\":{\"TEAC16\":1},\"ST22\":{\"TEAC16\":1}},\"rooms\":[[\"TEAC14\",\"\"],[\"TEAC16\",\"\"],[\"TEAC18\",\"\"],[\"TEAC15\",\"\"],[\"TEAC17\",\"\"],[\"TEAC21\",\"\"],[\"TEAC1\",\"\"],[\"TEAC2\",\"\"],[\"TEAC3\",\"\"],[\"TEAC4\",\"\"],[\"TEAC5\",\"\"],[\"TEAC6\",\"\"],[\"TEAC7\",\"\"],[\"TEAC8\",\"\"],[\"TEAC9\",\"\"],[\"TEAC10\",\"\"],[\"TEAC11\",\"\"],[\"TEAC12\",\"\"],[\"TEAC13\",\"\"],[\"TEAC19\",\"\"],[\"TEAC20\",\"\"],[\"TEAC22\",\"\"],[\"TEAC23\",\"\"],[\"TEAC24\",\"\"],[\"TEAC25\",\"\"]],\"studentRooms\":[],\"teacherAvail\":[[\"TEAC14\",\"MON\",\"08:00\",\"14:00\",\"PREFERRED\",\"ALL\"],[\"TEAC14\",\"THU\",\"08:00\",\"14:00\",\"FALLBACK\",\"ALL\"],[\"TEAC14\",\"TUE\",\"08:00\",\"18:00\",\"PREFERRED\",\"ALL\"],[\"TEAC14\",\"WED\",\"08:00\",\"18:00\",\"PREFERRED\",\"ALL\"],[\"TEAC15\",\"FRI\",\"09:00\",\"17:45\",\"AVAILABLE\",\"ALL\"],[\"TEAC15\",\"MON\",\"09:50\",\"18:15\",\"AVAILABLE\",\"ALL\"],[\"TEAC15\",\"THU\",\"10:00\",\"19:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC16\",\"FRI\",\"08:00\",\"16:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC16\",\"THU\",\"\",\"\",\"AVAILABLE\",\"ALL\"],[\"TEAC17\",\"MON\",\"08:00\",\"20:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC17\",\"WED\",\"08:00\",\"20:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC18\",\"FRI\",\"08:00\",\"16:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC18\",\"THU\",\"\",\"19:05\",\"AVAILABLE\",\"ALL\"],[\"TEAC18\",\"WED\",\"10:00\",\"18:40\",\"AVAILABLE\",\"ALL\"],[\"TEAC21\",\"FRI\",\"11:00\",\"16:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC21\",\"THU\",\"11:00\",\"16:00\",\"AVAILABLE\",\"ALL\"]]}",
-  "acceptedAt": "2026-09-04T10:40:13.371Z",
-  "dragUndo": [],
+  "inputFingerprint": "{\"kind\":\"rpiano\",\"scopeTeacherIds\":[\"TEAC16\"],\"kept\":[[\"RP-TEAC14-ST73\",\"MON\",525,585,\"TEAC14\"],[\"RP-TEAC14-ST65\",\"MON\",585,645,\"TEAC14\"],[\"RP-TEAC17-ST37\",\"MON\",660,720,\"TEAC17\"],[\"RP-TEAC17-ST38\",\"MON\",750,810,\"TEAC17\"],[\"RP-TEAC17-ST72\",\"MON\",810,840,\"TEAC17\"],[\"RP-TEAC17-ST34\",\"MON\",840,900,\"TEAC17\"],[\"RP-TEAC15-ST27\",\"MON\",870,900,\"TEAC15\"],[\"RP-TEAC17-ST71\",\"MON\",900,930,\"TEAC17\"],[\"RP-TEAC17-ST12\",\"MON\",930,990,\"TEAC17\"],[\"RP-TEAC17-ST21\",\"MON\",990,1050,\"TEAC17\"],[\"RP-TEAC17-ST74\",\"MON\",1050,1080,\"TEAC17\"],[\"RP-TEAC14-ST5\",\"TUE\",600,660,\"TEAC14\"],[\"RP-TEAC14-ST66\",\"TUE\",660,720,\"TEAC14\"],[\"RP-TEAC14-ST35\",\"TUE\",1050,1080,\"TEAC14\"],[\"RP-TEAC17-ST3\",\"WED\",480,540,\"TEAC17\"],[\"RP-TEAC17-ST28\",\"WED\",540,600,\"TEAC17\"],[\"RP-TEAC18-ST33\",\"WED\",610,670,\"TEAC18\"],[\"RP-TEAC14-ST69\",\"WED\",645,705,\"TEAC14\"],[\"RP-TEAC18-ST47\",\"WED\",670,730,\"TEAC18\"],[\"RP-TEAC18-ST70\",\"WED\",730,790,\"TEAC18\"],[\"RP-TEAC14-ST41\",\"WED\",730,760,\"TEAC14\"],[\"RP-TEAC14-ST9\",\"WED\",760,790,\"TEAC14\"],[\"RP-TEAC14-ST15\",\"WED\",790,850,\"TEAC14\"],[\"RP-TEAC14-ST29\",\"WED\",850,910,\"TEAC14\"],[\"RP-TEAC14-ST30\",\"WED\",910,970,\"TEAC14\"],[\"RP-TEAC14-ST39\",\"WED\",970,1030,\"TEAC14\"],[\"RP-TEAC17-ST4\",\"WED\",1020,1080,\"TEAC17\"],[\"RP-TEAC17-ST6\",\"WED\",1080,1140,\"TEAC17\"],[\"RP-TEAC17-ST23\",\"WED\",1140,1200,\"TEAC17\"],[\"RP-TEAC14-ST32\",\"THU\",555,615,\"TEAC14\"],[\"RP-TEAC18-ST46\",\"THU\",600,660,\"TEAC18\"],[\"RP-TEAC21-ST43\",\"THU\",840,900,\"TEAC21\"],[\"RP-TEAC15-ST19\",\"THU\",840,870,\"TEAC15\"],[\"RP-TEAC18-ST45\",\"THU\",870,930,\"TEAC18\"],[\"RP-TEAC21-ST44\",\"THU\",900,960,\"TEAC21\"],[\"RP-TEAC18-ST16\",\"THU\",930,960,\"TEAC18\"],[\"RP-TEAC15-ST8\",\"THU\",960,990,\"TEAC15\"],[\"RP-TEAC18-ST26\",\"THU\",960,990,\"TEAC18\"],[\"RP-TEAC15-ST17\",\"FRI\",560,590,\"TEAC15\"],[\"RP-TEAC18-ST14\",\"FRI\",870,930,\"TEAC18\"]],\"accepted\":[[\"LES34\",\"MON\",\"08:00\",\"09:30\",\"TEAC4\"],[\"LES20\",\"MON\",\"08:00\",\"09:30\",\"TEAC2\"],[\"SG5\",\"MON\",\"09:30\",\"11:00\",\"TEAC4\"],[\"LES25\",\"MON\",\"09:30\",\"11:00\",\"TEAC2\"],[\"LES13\",\"MON\",\"09:50\",\"11:20\",\"TEAC15\"],[\"SG7\",\"MON\",\"11:00\",\"12:30\",\"TEAC4\"],[\"LES23\",\"MON\",\"11:00\",\"12:30\",\"TEAC2\"],[\"LES16\",\"MON\",\"11:30\",\"13:00\",\"TEAC15\"],[\"LES19\",\"MON\",\"12:30\",\"14:00\",\"TEAC2\"],[\"SG15\",\"MON\",\"12:30\",\"14:00\",\"TEAC1\"],[\"LES5\",\"MON\",\"14:30\",\"15:15\",\"TEAC2\"],[\"LES27\",\"MON\",\"15:00\",\"15:45\",\"TEAC15\"],[\"LES29\",\"MON\",\"15:15\",\"16:00\",\"TEAC2\"],[\"LES37\",\"MON\",\"16:00\",\"17:30\",\"TEAC15\"],[\"SG1\",\"MON\",\"16:00\",\"17:30\",\"TEAC2\"],[\"LES4\",\"MON\",\"17:30\",\"18:15\",\"TEAC2\"],[\"LES14\",\"MON\",\"17:30\",\"18:15\",\"TEAC15\"],[\"SG10\",\"MON\",\"18:15\",\"19:45\",\"TEAC2\"],[\"LES35\",\"TUE\",\"10:00\",\"11:30\",\"TEAC4\"],[\"LES36\",\"TUE\",\"12:00\",\"13:30\",\"TEAC19\"],[\"LES38\",\"TUE\",\"12:00\",\"13:30\",\"TEAC6\"],[\"LES6\",\"TUE\",\"13:30\",\"15:00\",\"TEAC6\"],[\"LES33\",\"TUE\",\"13:45\",\"14:30\",\"TEAC2\"],[\"LES30\",\"TUE\",\"14:30\",\"15:15\",\"TEAC2\"],[\"LES3\",\"TUE\",\"15:15\",\"16:00\",\"TEAC2\"],[\"SG18\",\"TUE\",\"16:30\",\"18:00\",\"TEAC20\"],[\"LES32\",\"TUE\",\"16:45\",\"17:30\",\"TEAC2\"],[\"LES26\",\"TUE\",\"17:30\",\"18:15\",\"TEAC2\"],[\"SG17\",\"TUE\",\"18:15\",\"19:45\",\"TEAC20\"],[\"SG14\",\"WED\",\"09:10\",\"10:40\",\"TEAC4\"],[\"SG16\",\"WED\",\"10:40\",\"12:10\",\"TEAC1\"],[\"LES12\",\"WED\",\"12:10\",\"13:40\",\"TEAC7\"],[\"SG13\",\"WED\",\"12:20\",\"13:50\",\"TEAC1\"],[\"SG9\",\"WED\",\"14:00\",\"15:30\",\"TEAC1\"],[\"SG12\",\"WED\",\"15:30\",\"17:00\",\"TEAC20\"],[\"SG2\",\"WED\",\"17:00\",\"18:30\",\"TEAC18\"],[\"SG3\",\"WED\",\"18:30\",\"20:00\",\"TEAC3\"],[\"SG6\",\"THU\",\"11:00\",\"12:30\",\"TEAC4\"],[\"LES9\",\"THU\",\"11:00\",\"12:30\",\"TEAC21\"],[\"LES10\",\"THU\",\"12:30\",\"14:00\",\"TEAC21\"],[\"SG11\",\"THU\",\"14:30\",\"16:00\",\"TEAC15\"],[\"LES39\",\"THU\",\"16:00\",\"17:30\",\"TEAC22\"],[\"LES22\",\"THU\",\"16:50\",\"17:35\",\"TEAC18\"],[\"LES28\",\"THU\",\"17:35\",\"18:20\",\"TEAC18\"],[\"LES2\",\"THU\",\"18:20\",\"19:05\",\"TEAC18\"],[\"LES1\",\"FRI\",\"08:00\",\"09:30\",\"TEAC18\"],[\"LES15\",\"FRI\",\"09:50\",\"11:20\",\"TEAC15\"],[\"SG4\",\"FRI\",\"10:40\",\"12:10\",\"TEAC11\"],[\"LES24\",\"FRI\",\"10:45\",\"12:15\",\"TEAC18\"],[\"LES17\",\"FRI\",\"11:30\",\"12:15\",\"TEAC15\"],[\"LES18\",\"FRI\",\"12:15\",\"13:45\",\"TEAC15\"],[\"LES21\",\"FRI\",\"12:15\",\"13:00\",\"TEAC18\"],[\"LES7\",\"FRI\",\"13:00\",\"14:30\",\"TEAC18\"],[\"LES8\",\"FRI\",\"14:30\",\"16:00\",\"TEAC21\"],[\"LES11\",\"FRI\",\"15:00\",\"15:45\",\"TEAC7\"],[\"SG8\",\"FRI\",\"16:00\",\"17:30\",\"TEAC3\"]],\"oneone\":[[\"O2O-TEAC17-ST49\",\"MON\",570,660],[\"O2O-TEAC10-ST32\",\"MON\",600,660],[\"O2O-TEAC14-ST62\",\"MON\",645,705],[\"O2O-TEAC10-ST40\",\"MON\",660,780],[\"O2O-TEAC1-ST6\",\"MON\",690,750],[\"O2O-TEAC14-ST55\",\"MON\",705,795],[\"O2O-TEAC22-ST18\",\"MON\",720,780],[\"O2O-TEAC10-ST42\",\"MON\",780,900],[\"O2O-TEAC15-ST51\",\"MON\",780,870],[\"O2O-TEAC22-ST15\",\"MON\",780,840],[\"O2O-TEAC1-ST5\",\"MON\",840,930],[\"O2O-TEAC22-ST19\",\"MON\",840,870],[\"O2O-TEAC9-ST21\",\"MON\",855,975],[\"O2O-TEAC22-ST12\",\"MON\",870,930],[\"O2O-TEAC10-ST36\",\"MON\",900,1020],[\"O2O-TEAC1-ST4\",\"MON\",930,1020],[\"O2O-TEAC22-ST13\",\"MON\",930,960],[\"O2O-TEAC22-ST11\",\"MON\",960,990],[\"O2O-TEAC9-ST24\",\"MON\",975,1035],[\"O2O-TEAC22-ST16\",\"MON\",990,1020],[\"O2O-TEAC10-ST33\",\"MON\",1020,1140],[\"O2O-TEAC1-ST9\",\"MON\",1020,1080],[\"O2O-TEAC22-ST17\",\"MON\",1020,1050],[\"O2O-TEAC9-ST25\",\"MON\",1035,1095],[\"O2O-TEAC9-ST27\",\"MON\",1095,1155],[\"O2O-TEAC8-ST22\",\"TUE\",600,720],[\"O2O-TEAC2-ST4\",\"TUE\",630,720],[\"O2O-TEAC4-ST15\",\"TUE\",690,810],[\"O2O-TEAC8-ST29\",\"TUE\",720,780],[\"O2O-TEAC14-ST56\",\"TUE\",720,810],[\"O2O-TEAC8-ST25\",\"TUE\",780,840],[\"O2O-TEAC19-ST74\",\"TUE\",810,930],[\"O2O-TEAC4-ST19\",\"TUE\",810,870],[\"O2O-TEAC14-ST53\",\"TUE\",810,870],[\"O2O-TEAC8-ST26\",\"TUE\",840,900],[\"O2O-TEAC1-ST3\",\"TUE\",855,1035],[\"O2O-TEAC20-ST69\",\"TUE\",870,930],[\"O2O-TEAC4-ST16\",\"TUE\",870,930],[\"O2O-TEAC14-ST58\",\"TUE\",870,930],[\"O2O-TEAC8-ST27\",\"TUE\",900,960],[\"O2O-TEAC20-ST76\",\"TUE\",930,990],[\"O2O-TEAC19-ST71\",\"TUE\",930,1050],[\"O2O-TEAC6-ST17\",\"TUE\",930,990],[\"O2O-TEAC14-ST59\",\"TUE\",930,990],[\"O2O-TEAC6-ST16\",\"TUE\",990,1050],[\"O2O-TEAC14-ST54\",\"TUE\",990,1050],[\"O2O-TEAC1-ST8\",\"TUE\",1035,1095],[\"O2O-TEAC6-ST18\",\"TUE\",1080,1140],[\"O2O-TEAC2-ST5\",\"TUE\",1095,1185],[\"O2O-TEAC6-ST12\",\"TUE\",1140,1200],[\"O2O-TEAC14-ST52\",\"WED\",495,555],[\"O2O-TEAC1-ST6-2\",\"WED\",520,580],[\"O2O-TEAC13-ST46\",\"WED\",540,720],[\"O2O-TEAC14-ST57\",\"WED\",555,645],[\"O2O-TEAC1-ST7\",\"WED\",580,640],[\"O2O-TEAC10-ST37-2\",\"WED\",600,660],[\"O2O-TEAC19-ST70\",\"WED\",600,720],[\"O2O-TEAC17-ST55\",\"WED\",600,690],[\"O2O-TEAC7-ST29\",\"WED\",610,670],[\"O2O-TEAC20-ST73\",\"WED\",630,690],[\"O2O-TEAC4-ST14\",\"WED\",640,760],[\"O2O-TEAC10-ST38\",\"WED\",660,780],[\"O2O-TEAC7-ST30\",\"WED\",670,730],[\"O2O-TEAC20-ST66\",\"WED\",690,750],[\"O2O-TEAC17-ST56\",\"WED\",690,780],[\"O2O-TEAC19-ST69\",\"WED\",720,840],[\"O2O-TEAC13-ST45\",\"WED\",720,900],[\"O2O-TEAC20-ST75\",\"WED\",750,810],[\"O2O-TEAC10-ST41\",\"WED\",780,900],[\"O2O-TEAC17-ST59\",\"WED\",780,840],[\"O2O-TEAC18-ST57\",\"WED\",790,880],[\"O2O-TEAC20-ST70\",\"WED\",810,870],[\"O2O-TEAC5-ST11\",\"WED\",810,870],[\"O2O-TEAC7-ST26\",\"WED\",820,880],[\"O2O-TEAC17-ST48\",\"WED\",840,900],[\"O2O-TEAC12-ST43\",\"WED\",870,1050],[\"O2O-TEAC20-ST65\",\"WED\",870,930],[\"O2O-TEAC5-ST19\",\"WED\",870,930],[\"O2O-TEAC3-ST6\",\"WED\",870,930],[\"O2O-TEAC18-ST51\",\"WED\",880,970],[\"O2O-TEAC7-ST20\",\"WED\",880,940],[\"O2O-TEAC10-ST35\",\"WED\",900,1020],[\"O2O-TEAC13-ST67\",\"WED\",900,960],[\"O2O-TEAC17-ST61\",\"WED\",900,960],[\"O2O-TEAC5-ST17\",\"WED\",930,990],[\"O2O-TEAC1-ST1\",\"WED\",930,1050],[\"O2O-TEAC3-ST9\",\"WED\",930,990],[\"O2O-TEAC17-ST60\",\"WED\",960,1020],[\"O2O-TEAC5-ST15\",\"WED\",990,1050],[\"O2O-TEAC3-ST7\",\"WED\",990,1050],[\"O2O-TEAC10-ST32-2\",\"WED\",1020,1080],[\"O2O-TEAC12-ST44\",\"WED\",1050,1230],[\"O2O-TEAC5-ST14\",\"WED\",1050,1110],[\"O2O-TEAC3-ST8\",\"WED\",1050,1110],[\"O2O-TEAC5-ST13\",\"WED\",1110,1170],[\"O2O-TEAC13-ST47\",\"THU\",480,660],[\"O2O-TEAC14-ST48\",\"THU\",495,555],[\"O2O-TEAC4-ST18\",\"THU\",600,660],[\"O2O-TEAC16-ST64\",\"THU\",675,735],[\"O2O-TEAC16-ST63\",\"THU\",735,795],[\"O2O-TEAC19-ST72\",\"THU\",780,900],[\"O2O-TEAC4-ST13\",\"THU\",780,840],[\"O2O-TEAC16-ST60\",\"THU\",795,855],[\"O2O-TEAC18-ST61\",\"THU\",810,870],[\"O2O-TEAC4-ST11\",\"THU\",840,900],[\"O2O-TEAC16-ST52\",\"FRI\",795,855],[\"O2O-TEAC19-ST66\",\"THU\",900,1020],[\"O2O-TEAC4-ST10\",\"THU\",900,960],[\"O2O-TEAC1-ST7-2\",\"THU\",900,960],[\"O2O-TEAC16-ST53\",\"THU\",855,915],[\"O2O-TEAC4-ST12\",\"THU\",960,1020],[\"O2O-TEAC1-ST2\",\"THU\",960,1080],[\"O2O-TEAC19-ST67\",\"THU\",1020,1140],[\"O2O-TEAC15-ST54\",\"THU\",1020,1080],[\"O2O-TEAC22-ST14\",\"THU\",1050,1110],[\"O2O-TEAC15-ST58\",\"THU\",1080,1140],[\"O2O-TEAC22-ST10\",\"THU\",1110,1140],[\"O2O-TEAC16-ST62\",\"FRI\",855,915],[\"O2O-TEAC9-ST28\",\"FRI\",510,570],[\"O2O-TEAC11-ST39\",\"FRI\",520,580],[\"O2O-TEAC18-ST62\",\"FRI\",570,630],[\"O2O-TEAC24-ST73\",\"FRI\",570,630],[\"O2O-TEAC9-ST30\",\"FRI\",570,690],[\"O2O-TEAC11-ST34\",\"FRI\",580,640],[\"O2O-TEAC10-ST37\",\"FRI\",600,660],[\"O2O-TEAC19-ST75\",\"FRI\",600,720],[\"O2O-TEAC8-ST29-2\",\"FRI\",600,660],[\"O2O-TEAC24-ST70\",\"FRI\",630,690],[\"O2O-TEAC7-ST23\",\"FRI\",630,750],[\"O2O-TEAC10-ST34\",\"FRI\",660,780],[\"O2O-TEAC8-ST28\",\"FRI\",660,780],[\"O2O-TEAC24-ST66\",\"FRI\",690,750],[\"O2O-TEAC19-ST65\",\"FRI\",720,840],[\"O2O-TEAC5-ST12\",\"FRI\",735,795],[\"O2O-TEAC7-ST22\",\"FRI\",750,810],[\"O2O-TEAC11-ST33\",\"FRI\",750,810],[\"O2O-TEAC24-ST75\",\"FRI\",750,810],[\"O2O-TEAC9-ST23\",\"FRI\",750,810],[\"O2O-TEAC10-ST31\",\"FRI\",780,900],[\"O2O-TEAC8-ST24\",\"FRI\",780,840],[\"O2O-TEAC5-ST10\",\"FRI\",795,855],[\"O2O-TEAC9-ST20\",\"FRI\",810,870],[\"O2O-TEAC7-ST21\",\"FRI\",810,870],[\"O2O-TEAC11-ST32\",\"FRI\",810,870],[\"O2O-TEAC24-ST68\",\"FRI\",810,840],[\"O2O-TEAC15-ST49\",\"FRI\",825,915],[\"O2O-TEAC19-ST73\",\"FRI\",840,960],[\"O2O-TEAC24-ST65\",\"FRI\",840,900],[\"O2O-TEAC5-ST18\",\"FRI\",855,915],[\"O2O-TEAC11-ST40\",\"FRI\",870,930],[\"O2O-TEAC10-ST39\",\"FRI\",900,1020],[\"O2O-TEAC24-ST69\",\"FRI\",900,960],[\"O2O-TEAC11-ST38\",\"FRI\",930,990],[\"O2O-TEAC19-ST68\",\"FRI\",960,1080],[\"O2O-TEAC24-ST71\",\"FRI\",960,990],[\"O2O-TEAC11-ST37\",\"FRI\",990,1050],[\"O2O-TEAC24-ST74\",\"FRI\",990,1020],[\"O2O-TEAC24-ST72\",\"FRI\",1020,1050],[\"O2O-TEAC24-ST67\",\"FRI\",1050,1080]],\"hours\":{\"ST3\":{\"TEAC17\":1},\"ST4\":{\"TEAC17\":1},\"ST5\":{\"TEAC14\":1},\"ST6\":{\"TEAC17\":1},\"ST7\":{\"TEAC16\":1},\"ST8\":{\"TEAC15\":0.5},\"ST9\":{\"TEAC14\":0.5},\"ST12\":{\"TEAC17\":1},\"ST13\":{},\"ST14\":{\"TEAC18\":1},\"ST15\":{\"TEAC14\":1},\"ST16\":{\"TEAC18\":0.5},\"ST17\":{\"TEAC15\":0.5},\"ST18\":{\"TEAC16\":1},\"ST19\":{\"TEAC15\":0.5},\"ST21\":{\"TEAC17\":1},\"ST23\":{\"TEAC17\":1},\"ST26\":{\"TEAC18\":0.5},\"ST27\":{\"TEAC15\":0.5},\"ST28\":{\"TEAC17\":1},\"ST29\":{\"TEAC14\":1},\"ST30\":{\"TEAC14\":1},\"ST32\":{\"TEAC14\":1},\"ST33\":{\"TEAC18\":1},\"ST34\":{\"TEAC17\":1},\"ST35\":{\"TEAC14\":0.5},\"ST37\":{\"TEAC17\":1},\"ST38\":{\"TEAC17\":1},\"ST39\":{\"TEAC14\":1},\"ST40\":{\"TEAC16\":1},\"ST41\":{\"TEAC14\":0.5},\"ST42\":{\"TEAC16\":0.5},\"ST43\":{\"TEAC21\":1},\"ST44\":{\"TEAC21\":1},\"ST45\":{\"TEAC18\":1},\"ST46\":{\"TEAC18\":1},\"ST47\":{\"TEAC18\":1},\"ST65\":{\"TEAC14\":1},\"ST66\":{\"TEAC14\":1},\"ST69\":{\"TEAC14\":1},\"ST70\":{\"TEAC18\":1},\"ST71\":{\"TEAC17\":0.5},\"ST72\":{\"TEAC17\":0.5},\"ST73\":{\"TEAC14\":1},\"ST74\":{\"TEAC17\":0.5},\"ST75\":{\"TEAC16\":1},\"ST22\":{\"TEAC16\":1}},\"rooms\":[[\"TEAC14\",\"\"],[\"TEAC16\",\"\"],[\"TEAC18\",\"\"],[\"TEAC15\",\"\"],[\"TEAC17\",\"\"],[\"TEAC21\",\"\"],[\"TEAC1\",\"\"],[\"TEAC2\",\"\"],[\"TEAC3\",\"\"],[\"TEAC4\",\"\"],[\"TEAC5\",\"\"],[\"TEAC6\",\"\"],[\"TEAC7\",\"\"],[\"TEAC8\",\"\"],[\"TEAC9\",\"\"],[\"TEAC10\",\"\"],[\"TEAC11\",\"\"],[\"TEAC12\",\"\"],[\"TEAC13\",\"\"],[\"TEAC19\",\"\"],[\"TEAC20\",\"\"],[\"TEAC22\",\"\"],[\"TEAC23\",\"\"],[\"TEAC24\",\"\"],[\"TEAC25\",\"\"]],\"studentRooms\":[],\"teacherAvail\":[[\"TEAC14\",\"MON\",\"08:00\",\"14:00\",\"PREFERRED\",\"ALL\"],[\"TEAC14\",\"THU\",\"08:00\",\"14:00\",\"FALLBACK\",\"ALL\"],[\"TEAC14\",\"TUE\",\"08:00\",\"18:00\",\"PREFERRED\",\"ALL\"],[\"TEAC14\",\"WED\",\"08:00\",\"18:00\",\"PREFERRED\",\"ALL\"],[\"TEAC15\",\"FRI\",\"09:00\",\"17:45\",\"AVAILABLE\",\"ALL\"],[\"TEAC15\",\"MON\",\"09:50\",\"18:15\",\"AVAILABLE\",\"ALL\"],[\"TEAC15\",\"THU\",\"10:00\",\"19:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC16\",\"FRI\",\"08:00\",\"16:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC16\",\"THU\",\"\",\"\",\"AVAILABLE\",\"ALL\"],[\"TEAC17\",\"MON\",\"08:00\",\"20:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC17\",\"WED\",\"08:00\",\"20:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC18\",\"FRI\",\"08:00\",\"16:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC18\",\"THU\",\"\",\"19:05\",\"AVAILABLE\",\"ALL\"],[\"TEAC18\",\"WED\",\"10:00\",\"18:40\",\"AVAILABLE\",\"ALL\"],[\"TEAC21\",\"FRI\",\"11:00\",\"16:00\",\"AVAILABLE\",\"ALL\"],[\"TEAC21\",\"THU\",\"11:00\",\"16:00\",\"AVAILABLE\",\"ALL\"]]}",
   "dragBaseline": [
    {
     "lessonId": "RP-TEAC14-ST73",
@@ -50513,13 +50511,7 @@
     "end": 615
    },
    {
-    "lessonId": "RP-TEAC18-ST45",
-    "day": "THU",
-    "start": 600,
-    "end": 660
-   },
-   {
-    "lessonId": "RP-TEAC16-ST75",
+    "lessonId": "RP-TEAC18-ST46",
     "day": "THU",
     "start": 600,
     "end": 660
@@ -50537,10 +50529,10 @@
     "end": 870
    },
    {
-    "lessonId": "RP-TEAC18-ST16",
+    "lessonId": "RP-TEAC18-ST45",
     "day": "THU",
     "start": 870,
-    "end": 900
+    "end": 930
    },
    {
     "lessonId": "RP-TEAC21-ST44",
@@ -50549,10 +50541,16 @@
     "end": 960
    },
    {
-    "lessonId": "RP-TEAC18-ST46",
+    "lessonId": "RP-TEAC16-ST75",
     "day": "THU",
-    "start": 905,
-    "end": 965
+    "start": 915,
+    "end": 975
+   },
+   {
+    "lessonId": "RP-TEAC18-ST16",
+    "day": "THU",
+    "start": 930,
+    "end": 960
    },
    {
     "lessonId": "RP-TEAC15-ST8",
@@ -50561,40 +50559,22 @@
     "end": 990
    },
    {
-    "lessonId": "RP-TEAC16-ST22",
-    "day": "THU",
-    "start": 960,
-    "end": 1020
-   },
-   {
     "lessonId": "RP-TEAC18-ST26",
     "day": "THU",
-    "start": 980,
-    "end": 1010
-   },
-   {
-    "lessonId": "RP-TEAC16-ST18",
-    "day": "THU",
-    "start": 1050,
-    "end": 1110
+    "start": 960,
+    "end": 990
    },
    {
     "lessonId": "RP-TEAC16-ST7",
     "day": "THU",
-    "start": 1110,
-    "end": 1170
+    "start": 1085,
+    "end": 1145
    },
    {
     "lessonId": "RP-TEAC16-ST42",
     "day": "THU",
-    "start": 1170,
-    "end": 1200
-   },
-   {
-    "lessonId": "RP-TEAC16-ST40",
-    "day": "FRI",
-    "start": 555,
-    "end": 615
+    "start": 1145,
+    "end": 1175
    },
    {
     "lessonId": "RP-TEAC15-ST17",
@@ -50603,12 +50583,32 @@
     "end": 590
    },
    {
+    "lessonId": "RP-TEAC16-ST18",
+    "day": "FRI",
+    "start": 570,
+    "end": 630
+   },
+   {
+    "lessonId": "RP-TEAC16-ST40",
+    "day": "FRI",
+    "start": 630,
+    "end": 690
+   },
+   {
+    "lessonId": "RP-TEAC16-ST22",
+    "day": "FRI",
+    "start": 690,
+    "end": 750
+   },
+   {
     "lessonId": "RP-TEAC18-ST14",
     "day": "FRI",
     "start": 870,
     "end": 930
    }
-  ]
+  ],
+  "dragUndo": [],
+  "acceptedAt": "2026-09-04T10:55:41.608Z"
  },
- "publishedAt": "2026-09-04T10:40:24.150Z"
+ "publishedAt": "2026-09-04T10:56:43.325Z"
 }
