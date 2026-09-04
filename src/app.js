@@ -271,6 +271,16 @@ function toHHMM(mins){
   const h = Math.floor(mins/60), m = mins%60;
   return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
 }
+function itemTimeRangeLabel(i){
+  if(!i || i.start == null || i.end == null) return '';
+  return `${toHHMM(i.start)}–${toHHMM(i.end)}`;
+}
+function itemWhenLabel(i){
+  const time = itemTimeRangeLabel(i);
+  if(!time) return '';
+  const day = i.day && DAY_LABEL[i.day] ? DAY_LABEL[i.day] : '';
+  return day ? `${day} ${time}` : time;
+}
 
 function lessonDurationMinutes(obj){
   const n = parseInt(obj && obj.duration, 10);
@@ -4577,9 +4587,12 @@ function renderCalendar(container, items, colorByTeacher, dragSource, opts){
       );
       const teacherLine = showTeacher ? `<span class="meta">${escapeAttr(who)}</span>` : '';
       const roomTag = !isClass && itemRoomId(i) ? ' 🔒' + itemRoomLabel(i) : '';
+      const when = itemWhenLabel(i);
       const studentTitle = escapeAttr(isClass
-        ? [i.name, i.reason, ((i.classNames || []).join('\n'))].filter(Boolean).join('\n')
-        : ((i.studentNames && i.studentNames.length) ? `${i.name} — ${i.studentNames.length} students:\n${i.studentNames.join('\n')}` : i.name));
+        ? [i.name, when, i.reason, ((i.classNames || []).join('\n'))].filter(Boolean).join('\n')
+        : ((i.studentNames && i.studentNames.length)
+          ? `${i.name}\n${when}\n${i.studentNames.length} students:\n${i.studentNames.join('\n')}`
+          : [i.name, when].filter(Boolean).join('\n')));
       const sourceCls = isClass ? ' is-class'
         : (i.source === 'accepted' ? ' is-accepted-bg'
         : (i.source === 'oneone' ? ' is-oneone'
@@ -4630,7 +4643,10 @@ function renderCalendar(container, items, colorByTeacher, dragSource, opts){
 function renderChronoList(containerEl, items){
   let html = '<table class="tt"><thead><tr><th>Day</th><th>Time</th><th>Lesson</th><th>Teacher</th><th>Students</th></tr></thead><tbody>';
   items.forEach(i => {
-    const studentTitle = escapeAttr((i.studentNames && i.studentNames.length) ? `${i.name} — ${i.studentNames.length} students:\n${i.studentNames.join('\n')}` : i.name);
+    const when = itemWhenLabel(i);
+    const studentTitle = escapeAttr((i.studentNames && i.studentNames.length)
+      ? `${i.name}\n${when}\n${i.studentNames.length} students:\n${i.studentNames.join('\n')}`
+      : [i.name, when].filter(Boolean).join('\n'));
     html += `<tr>
       <td class="tt-time">${DAY_LABEL[i.day]}</td>
       <td class="tt-time">${toHHMM(i.start)}–${toHHMM(i.end)}</td>
@@ -5213,7 +5229,10 @@ function renderReportList(container, items){
       ? (i.classNames || []).slice()
       : ((i.studentNames && i.studentNames.length) ? i.studentNames.slice() : students.map(studentDisplayName));
     const classes = reportItemClasses(i).map(c => c.name).join(', ');
-    const studentTitle = escapeAttr(names.length ? `${i.name}\n${names.join('\n')}` : (i.name || ''));
+    const when = itemWhenLabel(i);
+    const studentTitle = escapeAttr(names.length
+      ? `${i.name || ''}\n${when}\n${names.join('\n')}`
+      : [i.name || '', when].filter(Boolean).join('\n'));
     const blockCls = isClass ? ' lesson-block is-class' : 'lesson-block';
     html += `<tr>
       <td class="tt-time">${DAY_LABEL[i.day] || i.day}</td>
