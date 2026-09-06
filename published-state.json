@@ -35,16 +35,16 @@
    "INSTR_ID": "INST8",
    "CLASS": "9v",
    "CLASS_ID": "CL4",
-   "IMPR": "impr9",
-   "IMPR_ID": "GR1",
+   "IMPR": "impr11",
+   "IMPR_ID": "GR3",
    "VOC": "VOCinstr9101112",
    "VOC_ID": "GR11",
-   "JTH": "jazztheory9",
-   "JTH_ID": "GR13",
-   "SOLF": "solf9",
-   "SOLF_ID": "GR22",
-   "JHIST": "jazzhist9",
-   "JHIST_ID": "GR31",
+   "JTH": "jazztheor9v",
+   "JTH_ID": "GR44",
+   "SOLF": "solf10",
+   "SOLF_ID": "GR23",
+   "JHIST": "jazzhist11",
+   "JHIST_ID": "GR33",
    "RHIMPR": "",
    "RHIMPR_ID": "",
    "AC": "",
@@ -2126,9 +2126,9 @@
   },
   {
    "id": "LES14",
-   "name": "Jazz Theory 10v",
-   "group": "jazztheory10v",
-   "groupId": "GR21",
+   "name": "Jazz Theory 9v",
+   "group": "jazztheor9v",
+   "groupId": "GR44",
    "teacher": "Pozsar",
    "teacherId": "TEAC15",
    "duration": 45,
@@ -2373,9 +2373,9 @@
   },
   {
    "id": "LES27",
-   "name": "Solfege 10v",
-   "group": "solf10v",
-   "groupId": "GR30",
+   "name": "Jazz Theory 10v",
+   "group": "jazztheory10v",
+   "groupId": "GR21",
    "teacher": "Pozsar",
    "teacherId": "TEAC15",
    "duration": 45,
@@ -2444,25 +2444,6 @@
    "scheduledDay": "TUE",
    "scheduledStart": "14:30",
    "scheduledEnd": "15:15",
-   "scheduledTeacherId": "",
-   "scheduledTeacher": ""
-  },
-  {
-   "id": "LES31",
-   "name": "Jazz History 10v",
-   "group": "jazzhist10v",
-   "groupId": "GR39",
-   "teacher": "Ajtai",
-   "teacherId": "TEAC2",
-   "duration": 45,
-   "roomId": "",
-   "room": "",
-   "fixedDay": "",
-   "fixedStart": "",
-   "fixedEnd": "",
-   "scheduledDay": "",
-   "scheduledStart": "",
-   "scheduledEnd": "",
    "scheduledTeacherId": "",
    "scheduledTeacher": ""
   },
@@ -4976,6 +4957,11 @@
    "id": "GR43",
    "name": "rhythmimpr2133",
    "type": "RHYTHM"
+  },
+  {
+   "id": "GR44",
+   "name": "jazztheor9v",
+   "type": "JAZZTHEO"
   }
  ],
  "refInstruments": [
@@ -10350,8 +10336,8 @@
       "Polyak Kitti",
       "Toth Levente Zsigmond"
      ],
-     "_col": 2,
-     "_totalCols": 3
+     "_col": 0,
+     "_totalCols": 1
     },
     {
      "lessonId": "LES23",
@@ -10439,8 +10425,8 @@
       "Vajda Attila",
       "Zilincki Nora Hanna"
      ],
-     "_col": 2,
-     "_totalCols": 3
+     "_col": 0,
+     "_totalCols": 1
     },
     {
      "lessonId": "LES19",
@@ -10512,7 +10498,7 @@
      "day": "MON",
      "start": 870,
      "end": 915,
-     "studentCount": 6,
+     "studentCount": 5,
      "roomId": "ROOM1",
      "room": "321jazz",
      "studentNames": [
@@ -10520,17 +10506,16 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ],
      "_col": 0,
      "_totalCols": 2
     },
     {
      "lessonId": "LES27",
-     "name": "Solfege 10v",
-     "group": "solf10v",
-     "groupId": "GR30",
+     "name": "Jazz Theory 10v",
+     "group": "jazztheory10v",
+     "groupId": "GR21",
      "teacher": "Pozsar",
      "teacherId": "TEAC15",
      "day": "MON",
@@ -10543,8 +10528,8 @@
       "Bussy Csongor",
       "Szabo Daniel Mihaly"
      ],
-     "_col": 1,
-     "_totalCols": 2
+     "_col": 0,
+     "_totalCols": 1
     },
     {
      "lessonId": "LES29",
@@ -10556,7 +10541,7 @@
      "day": "MON",
      "start": 915,
      "end": 960,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "",
      "room": "",
      "studentNames": [
@@ -10565,8 +10550,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ],
      "_col": 0,
      "_totalCols": 2
@@ -10636,7 +10620,7 @@
       "Zwick Zsombor Andras"
      ],
      "_col": 0,
-     "_totalCols": 2
+     "_totalCols": 1
     },
     {
      "lessonId": "SG1",
@@ -10927,7 +10911,7 @@
      "day": "TUE",
      "start": 1050,
      "end": 1095,
-     "studentCount": 7,
+     "studentCount": 8,
      "roomId": "ROOM13",
      "room": "327",
      "studentNames": [
@@ -10937,10 +10921,11 @@
       "Molnar Aurel",
       "Nagy David Andras",
       "Polyak Kitti",
+      "Toth Benedek Mate",
       "Toth Levente Zsigmond"
      ],
-     "_col": 1,
-     "_totalCols": 2
+     "_col": 0,
+     "_totalCols": 1
     },
     {
      "lessonId": "LES32",
@@ -10952,7 +10937,7 @@
      "day": "TUE",
      "start": 1005,
      "end": 1050,
-     "studentCount": 6,
+     "studentCount": 7,
      "roomId": "ROOM13",
      "room": "327",
      "studentNames": [
@@ -10961,10 +10946,11 @@
       "Kaszas Emilia Magdolna",
       "Liska Szilard Lel",
       "Nemeth-Buhin Miguel",
+      "Toth Benedek Mate",
       "Toth Marton"
      ],
-     "_col": 1,
-     "_totalCols": 2
+     "_col": 0,
+     "_totalCols": 1
     },
     {
      "lessonId": "SG17",
@@ -11292,23 +11278,22 @@
     },
     {
      "lessonId": "LES14",
-     "name": "Jazz Theory 10v",
-     "group": "jazztheory10v",
-     "groupId": "GR21",
+     "name": "Jazz Theory 9v",
+     "group": "jazztheor9v",
+     "groupId": "GR44",
      "teacher": "Pozsar",
      "teacherId": "TEAC15",
      "day": "MON",
      "start": 1050,
      "end": 1095,
-     "studentCount": 2,
+     "studentCount": 1,
      "roomId": "ROOM5",
      "room": "329",
      "studentNames": [
-      "Bussy Csongor",
-      "Szabo Daniel Mihaly"
+      "Toth Benedek Mate"
      ],
-     "_col": 1,
-     "_totalCols": 2
+     "_col": 0,
+     "_totalCols": 1
     },
     {
      "lessonId": "LES39",
@@ -11412,7 +11397,7 @@
      "day": "THU",
      "start": 1100,
      "end": 1145,
-     "studentCount": 5,
+     "studentCount": 6,
      "roomId": "ROOM1",
      "room": "321jazz",
      "studentNames": [
@@ -11420,6 +11405,7 @@
       "Gonczi Simon",
       "Liska Szilard Lel",
       "Nemeth-Buhin Miguel",
+      "Toth Benedek Mate",
       "Toth Marton"
      ],
      "_col": 0,
@@ -11479,7 +11465,7 @@
       "Toth Marton"
      ],
      "_col": 0,
-     "_totalCols": 3
+     "_totalCols": 1
     },
     {
      "lessonId": "SG4",
@@ -11536,7 +11522,7 @@
      "day": "FRI",
      "start": 690,
      "end": 735,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "ROOM14",
      "room": "328",
      "studentNames": [
@@ -11545,11 +11531,10 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ],
      "_col": 0,
-     "_totalCols": 3
+     "_totalCols": 1
     },
     {
      "lessonId": "LES21",
@@ -11561,7 +11546,7 @@
      "day": "FRI",
      "start": 735,
      "end": 780,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "ROOM14",
      "room": "328",
      "studentNames": [
@@ -11570,8 +11555,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ],
      "_col": 0,
      "_totalCols": 2
@@ -11595,8 +11579,8 @@
       "Simon Lili",
       "Szabo David"
      ],
-     "_col": 1,
-     "_totalCols": 2
+     "_col": 0,
+     "_totalCols": 1
     },
     {
      "lessonId": "LES7",
@@ -11703,8 +11687,8 @@
       "Vajda Attila",
       "Zilincki Nora Hanna"
      ],
-     "_col": 1,
-     "_totalCols": 2
+     "_col": 0,
+     "_totalCols": 1
     },
     {
      "lessonId": "SG8",
@@ -11930,7 +11914,7 @@
     "pianoPlaced": 45,
     "pianoTotal": 47
    },
-   "accepted": true,
+   "accepted": false,
    "dragUndo": [],
    "dragBaseline": [
     {
@@ -12247,7 +12231,7 @@
      "day": "MON",
      "start": 870,
      "end": 915,
-     "studentCount": 6,
+     "studentCount": 5,
      "roomId": "ROOM1",
      "room": "321jazz",
      "studentNames": [
@@ -12255,17 +12239,16 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ],
      "_col": 0,
      "_totalCols": 2
     },
     {
      "lessonId": "LES27",
-     "name": "Solfege 10v",
-     "group": "solf10v",
-     "groupId": "GR30",
+     "name": "Jazz Theory 10v",
+     "group": "jazztheory10v",
+     "groupId": "GR21",
      "teacher": "Pozsar",
      "teacherId": "TEAC15",
      "day": "MON",
@@ -12291,7 +12274,7 @@
      "day": "MON",
      "start": 915,
      "end": 960,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "",
      "room": "",
      "studentNames": [
@@ -12300,8 +12283,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ],
      "_col": 0,
      "_totalCols": 2
@@ -12662,7 +12644,7 @@
      "day": "TUE",
      "start": 1050,
      "end": 1095,
-     "studentCount": 7,
+     "studentCount": 8,
      "roomId": "ROOM13",
      "room": "327",
      "studentNames": [
@@ -12672,6 +12654,7 @@
       "Molnar Aurel",
       "Nagy David Andras",
       "Polyak Kitti",
+      "Toth Benedek Mate",
       "Toth Levente Zsigmond"
      ],
      "_col": 1,
@@ -12687,7 +12670,7 @@
      "day": "TUE",
      "start": 1005,
      "end": 1050,
-     "studentCount": 6,
+     "studentCount": 7,
      "roomId": "ROOM13",
      "room": "327",
      "studentNames": [
@@ -12696,6 +12679,7 @@
       "Kaszas Emilia Magdolna",
       "Liska Szilard Lel",
       "Nemeth-Buhin Miguel",
+      "Toth Benedek Mate",
       "Toth Marton"
      ],
      "_col": 1,
@@ -13027,20 +13011,19 @@
     },
     {
      "lessonId": "LES14",
-     "name": "Jazz Theory 10v",
-     "group": "jazztheory10v",
-     "groupId": "GR21",
+     "name": "Jazz Theory 9v",
+     "group": "jazztheor9v",
+     "groupId": "GR44",
      "teacher": "Pozsar",
      "teacherId": "TEAC15",
      "day": "MON",
      "start": 1050,
      "end": 1095,
-     "studentCount": 2,
+     "studentCount": 1,
      "roomId": "ROOM5",
      "room": "329",
      "studentNames": [
-      "Bussy Csongor",
-      "Szabo Daniel Mihaly"
+      "Toth Benedek Mate"
      ],
      "_col": 1,
      "_totalCols": 2
@@ -13147,7 +13130,7 @@
      "day": "THU",
      "start": 1100,
      "end": 1145,
-     "studentCount": 5,
+     "studentCount": 6,
      "roomId": "ROOM1",
      "room": "321jazz",
      "studentNames": [
@@ -13155,6 +13138,7 @@
       "Gonczi Simon",
       "Liska Szilard Lel",
       "Nemeth-Buhin Miguel",
+      "Toth Benedek Mate",
       "Toth Marton"
      ],
      "_col": 0,
@@ -13271,7 +13255,7 @@
      "day": "FRI",
      "start": 690,
      "end": 735,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "ROOM14",
      "room": "328",
      "studentNames": [
@@ -13280,8 +13264,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ],
      "_col": 0,
      "_totalCols": 3
@@ -13296,7 +13279,7 @@
      "day": "FRI",
      "start": 735,
      "end": 780,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "ROOM14",
      "room": "328",
      "studentNames": [
@@ -13305,8 +13288,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ],
      "_col": 0,
      "_totalCols": 2
@@ -13745,7 +13727,7 @@
      "day": "MON",
      "start": 915,
      "end": 960,
-     "studentCount": 7,
+     "studentCount": 8,
      "roomId": "ROOM13",
      "room": "327",
      "studentNames": [
@@ -13755,6 +13737,7 @@
       "Molnar Aurel",
       "Nagy David Andras",
       "Polyak Kitti",
+      "Toth Benedek Mate",
       "Toth Levente Zsigmond"
      ]
     },
@@ -13888,7 +13871,7 @@
      "day": "TUE",
      "start": 780,
      "end": 825,
-     "studentCount": 6,
+     "studentCount": 7,
      "roomId": "ROOM13",
      "room": "327",
      "studentNames": [
@@ -13897,6 +13880,7 @@
       "Kaszas Emilia Magdolna",
       "Liska Szilard Lel",
       "Nemeth-Buhin Miguel",
+      "Toth Benedek Mate",
       "Toth Marton"
      ]
     },
@@ -13994,7 +13978,7 @@
      "day": "TUE",
      "start": 945,
      "end": 990,
-     "studentCount": 6,
+     "studentCount": 5,
      "roomId": "ROOM1",
      "room": "321jazz",
      "studentNames": [
@@ -14002,8 +13986,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -14093,7 +14076,7 @@
      "day": "TUE",
      "start": 1080,
      "end": 1125,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "",
      "room": "",
      "studentNames": [
@@ -14102,8 +14085,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -14475,9 +14457,9 @@
     },
     {
      "lessonId": "LES27",
-     "name": "Solfege 10v",
-     "group": "solf10v",
-     "groupId": "GR30",
+     "name": "Jazz Theory 10v",
+     "group": "jazztheory10v",
+     "groupId": "GR21",
      "teacher": "Pozsar",
      "teacherId": "TEAC15",
      "day": "THU",
@@ -14493,20 +14475,19 @@
     },
     {
      "lessonId": "LES14",
-     "name": "Jazz Theory 10v",
-     "group": "jazztheory10v",
-     "groupId": "GR21",
+     "name": "Jazz Theory 9v",
+     "group": "jazztheor9v",
+     "groupId": "GR44",
      "teacher": "Pozsar",
      "teacherId": "TEAC15",
      "day": "THU",
      "start": 945,
      "end": 990,
-     "studentCount": 2,
+     "studentCount": 1,
      "roomId": "ROOM5",
      "room": "329",
      "studentNames": [
-      "Bussy Csongor",
-      "Szabo Daniel Mihaly"
+      "Toth Benedek Mate"
      ]
     },
     {
@@ -14583,7 +14564,7 @@
      "day": "THU",
      "start": 1055,
      "end": 1100,
-     "studentCount": 5,
+     "studentCount": 6,
      "roomId": "ROOM1",
      "room": "321jazz",
      "studentNames": [
@@ -14591,6 +14572,7 @@
       "Gonczi Simon",
       "Liska Szilard Lel",
       "Nemeth-Buhin Miguel",
+      "Toth Benedek Mate",
       "Toth Marton"
      ]
     },
@@ -14729,7 +14711,7 @@
      "day": "FRI",
      "start": 690,
      "end": 735,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "ROOM14",
      "room": "328",
      "studentNames": [
@@ -14738,8 +14720,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -14752,7 +14733,7 @@
      "day": "FRI",
      "start": 735,
      "end": 780,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "ROOM14",
      "room": "328",
      "studentNames": [
@@ -14761,8 +14742,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -15412,7 +15392,7 @@
      "day": "MON",
      "start": 870,
      "end": 915,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "",
      "room": "",
      "studentNames": [
@@ -15421,8 +15401,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -15450,20 +15429,19 @@
     },
     {
      "lessonId": "LES14",
-     "name": "Jazz Theory 10v",
-     "group": "jazztheory10v",
-     "groupId": "GR21",
+     "name": "Jazz Theory 9v",
+     "group": "jazztheor9v",
+     "groupId": "GR44",
      "teacher": "Pozsar",
      "teacherId": "TEAC15",
      "day": "MON",
      "start": 900,
      "end": 945,
-     "studentCount": 2,
+     "studentCount": 1,
      "roomId": "ROOM5",
      "room": "329",
      "studentNames": [
-      "Bussy Csongor",
-      "Szabo Daniel Mihaly"
+      "Toth Benedek Mate"
      ]
     },
     {
@@ -15476,7 +15454,7 @@
      "day": "MON",
      "start": 915,
      "end": 960,
-     "studentCount": 7,
+     "studentCount": 8,
      "roomId": "ROOM13",
      "room": "327",
      "studentNames": [
@@ -15486,6 +15464,7 @@
       "Molnar Aurel",
       "Nagy David Andras",
       "Polyak Kitti",
+      "Toth Benedek Mate",
       "Toth Levente Zsigmond"
      ]
     },
@@ -15499,7 +15478,7 @@
      "day": "MON",
      "start": 960,
      "end": 1005,
-     "studentCount": 6,
+     "studentCount": 5,
      "roomId": "ROOM1",
      "room": "321jazz",
      "studentNames": [
@@ -15507,8 +15486,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -15618,7 +15596,7 @@
      "day": "TUE",
      "start": 780,
      "end": 825,
-     "studentCount": 6,
+     "studentCount": 7,
      "roomId": "ROOM13",
      "room": "327",
      "studentNames": [
@@ -15627,6 +15605,7 @@
       "Kaszas Emilia Magdolna",
       "Liska Szilard Lel",
       "Nemeth-Buhin Miguel",
+      "Toth Benedek Mate",
       "Toth Marton"
      ]
     },
@@ -15976,7 +15955,7 @@
      "day": "WED",
      "start": 780,
      "end": 825,
-     "studentCount": 5,
+     "studentCount": 6,
      "roomId": "ROOM1",
      "room": "321jazz",
      "studentNames": [
@@ -15984,6 +15963,7 @@
       "Gonczi Simon",
       "Liska Szilard Lel",
       "Nemeth-Buhin Miguel",
+      "Toth Benedek Mate",
       "Toth Marton"
      ]
     },
@@ -16221,9 +16201,9 @@
     },
     {
      "lessonId": "LES27",
-     "name": "Solfege 10v",
-     "group": "solf10v",
-     "groupId": "GR30",
+     "name": "Jazz Theory 10v",
+     "group": "jazztheory10v",
+     "groupId": "GR21",
      "teacher": "Pozsar",
      "teacherId": "TEAC15",
      "day": "THU",
@@ -16377,7 +16357,7 @@
      "day": "FRI",
      "start": 690,
      "end": 735,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "ROOM14",
      "room": "328",
      "studentNames": [
@@ -16386,8 +16366,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -16400,7 +16379,7 @@
      "day": "FRI",
      "start": 735,
      "end": 780,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "ROOM14",
      "room": "328",
      "studentNames": [
@@ -16409,8 +16388,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -17080,9 +17058,9 @@
     },
     {
      "lessonId": "LES27",
-     "name": "Solfege 10v",
-     "group": "solf10v",
-     "groupId": "GR30",
+     "name": "Jazz Theory 10v",
+     "group": "jazztheory10v",
+     "groupId": "GR21",
      "teacher": "Pozsar",
      "teacherId": "TEAC15",
      "day": "MON",
@@ -17106,7 +17084,7 @@
      "day": "MON",
      "start": 915,
      "end": 960,
-     "studentCount": 7,
+     "studentCount": 8,
      "roomId": "ROOM13",
      "room": "327",
      "studentNames": [
@@ -17116,25 +17094,25 @@
       "Molnar Aurel",
       "Nagy David Andras",
       "Polyak Kitti",
+      "Toth Benedek Mate",
       "Toth Levente Zsigmond"
      ]
     },
     {
      "lessonId": "LES14",
-     "name": "Jazz Theory 10v",
-     "group": "jazztheory10v",
-     "groupId": "GR21",
+     "name": "Jazz Theory 9v",
+     "group": "jazztheor9v",
+     "groupId": "GR44",
      "teacher": "Pozsar",
      "teacherId": "TEAC15",
      "day": "MON",
      "start": 945,
      "end": 990,
-     "studentCount": 2,
+     "studentCount": 1,
      "roomId": "ROOM5",
      "room": "329",
      "studentNames": [
-      "Bussy Csongor",
-      "Szabo Daniel Mihaly"
+      "Toth Benedek Mate"
      ]
     },
     {
@@ -17322,7 +17300,7 @@
      "day": "TUE",
      "start": 780,
      "end": 825,
-     "studentCount": 6,
+     "studentCount": 7,
      "roomId": "ROOM13",
      "room": "327",
      "studentNames": [
@@ -17331,6 +17309,7 @@
       "Kaszas Emilia Magdolna",
       "Liska Szilard Lel",
       "Nemeth-Buhin Miguel",
+      "Toth Benedek Mate",
       "Toth Marton"
      ]
     },
@@ -17414,7 +17393,7 @@
      "day": "TUE",
      "start": 945,
      "end": 990,
-     "studentCount": 6,
+     "studentCount": 5,
      "roomId": "ROOM1",
      "room": "321jazz",
      "studentNames": [
@@ -17422,8 +17401,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -17490,7 +17468,7 @@
      "day": "TUE",
      "start": 1035,
      "end": 1080,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "",
      "room": "",
      "studentNames": [
@@ -17499,8 +17477,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -17929,7 +17906,7 @@
      "day": "THU",
      "start": 1145,
      "end": 1190,
-     "studentCount": 5,
+     "studentCount": 6,
      "roomId": "ROOM1",
      "room": "321jazz",
      "studentNames": [
@@ -17937,6 +17914,7 @@
       "Gonczi Simon",
       "Liska Szilard Lel",
       "Nemeth-Buhin Miguel",
+      "Toth Benedek Mate",
       "Toth Marton"
      ]
     },
@@ -18023,7 +18001,7 @@
      "day": "FRI",
      "start": 690,
      "end": 735,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "ROOM14",
      "room": "328",
      "studentNames": [
@@ -18032,8 +18010,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -18046,7 +18023,7 @@
      "day": "FRI",
      "start": 735,
      "end": 780,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "ROOM14",
      "room": "328",
      "studentNames": [
@@ -18055,8 +18032,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -18876,7 +18852,7 @@
      "day": "MON",
      "start": 870,
      "end": 915,
-     "studentCount": 7,
+     "studentCount": 8,
      "roomId": "ROOM13",
      "room": "327",
      "studentNames": [
@@ -18886,25 +18862,25 @@
       "Molnar Aurel",
       "Nagy David Andras",
       "Polyak Kitti",
+      "Toth Benedek Mate",
       "Toth Levente Zsigmond"
      ]
     },
     {
      "lessonId": "LES14",
-     "name": "Jazz Theory 10v",
-     "group": "jazztheory10v",
-     "groupId": "GR21",
+     "name": "Jazz Theory 9v",
+     "group": "jazztheor9v",
+     "groupId": "GR44",
      "teacher": "Pozsar",
      "teacherId": "TEAC15",
      "day": "MON",
      "start": 900,
      "end": 945,
-     "studentCount": 2,
+     "studentCount": 1,
      "roomId": "ROOM5",
      "room": "329",
      "studentNames": [
-      "Bussy Csongor",
-      "Szabo Daniel Mihaly"
+      "Toth Benedek Mate"
      ]
     },
     {
@@ -18917,7 +18893,7 @@
      "day": "MON",
      "start": 915,
      "end": 960,
-     "studentCount": 6,
+     "studentCount": 5,
      "roomId": "ROOM1",
      "room": "321jazz",
      "studentNames": [
@@ -18925,8 +18901,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -19096,7 +19071,7 @@
      "day": "TUE",
      "start": 780,
      "end": 825,
-     "studentCount": 6,
+     "studentCount": 7,
      "roomId": "ROOM13",
      "room": "327",
      "studentNames": [
@@ -19105,6 +19080,7 @@
       "Kaszas Emilia Magdolna",
       "Liska Szilard Lel",
       "Nemeth-Buhin Miguel",
+      "Toth Benedek Mate",
       "Toth Marton"
      ]
     },
@@ -19282,7 +19258,7 @@
      "day": "TUE",
      "start": 1035,
      "end": 1080,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "",
      "room": "",
      "studentNames": [
@@ -19291,8 +19267,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -19433,7 +19408,7 @@
      "day": "WED",
      "start": 780,
      "end": 825,
-     "studentCount": 5,
+     "studentCount": 6,
      "roomId": "ROOM1",
      "room": "321jazz",
      "studentNames": [
@@ -19441,6 +19416,7 @@
       "Gonczi Simon",
       "Liska Szilard Lel",
       "Nemeth-Buhin Miguel",
+      "Toth Benedek Mate",
       "Toth Marton"
      ]
     },
@@ -19716,9 +19692,9 @@
     },
     {
      "lessonId": "LES27",
-     "name": "Solfege 10v",
-     "group": "solf10v",
-     "groupId": "GR30",
+     "name": "Jazz Theory 10v",
+     "group": "jazztheory10v",
+     "groupId": "GR21",
      "teacher": "Pozsar",
      "teacherId": "TEAC15",
      "day": "THU",
@@ -19837,7 +19813,7 @@
      "day": "FRI",
      "start": 690,
      "end": 735,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "ROOM14",
      "room": "328",
      "studentNames": [
@@ -19846,8 +19822,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -19860,7 +19835,7 @@
      "day": "FRI",
      "start": 735,
      "end": 780,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "ROOM14",
      "room": "328",
      "studentNames": [
@@ -19869,8 +19844,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -20703,9 +20677,9 @@
     },
     {
      "lessonId": "LES27",
-     "name": "Solfege 10v",
-     "group": "solf10v",
-     "groupId": "GR30",
+     "name": "Jazz Theory 10v",
+     "group": "jazztheory10v",
+     "groupId": "GR21",
      "teacher": "Pozsar",
      "teacherId": "TEAC15",
      "day": "MON",
@@ -20756,7 +20730,7 @@
      "day": "MON",
      "start": 960,
      "end": 1005,
-     "studentCount": 6,
+     "studentCount": 5,
      "roomId": "ROOM1",
      "room": "321jazz",
      "studentNames": [
@@ -20764,8 +20738,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -20943,7 +20916,7 @@
      "day": "TUE",
      "start": 960,
      "end": 1005,
-     "studentCount": 6,
+     "studentCount": 7,
      "roomId": "ROOM13",
      "room": "327",
      "studentNames": [
@@ -20952,6 +20925,7 @@
       "Kaszas Emilia Magdolna",
       "Liska Szilard Lel",
       "Nemeth-Buhin Miguel",
+      "Toth Benedek Mate",
       "Toth Marton"
      ]
     },
@@ -21001,7 +20975,7 @@
      "day": "TUE",
      "start": 1005,
      "end": 1050,
-     "studentCount": 7,
+     "studentCount": 8,
      "roomId": "ROOM13",
      "room": "327",
      "studentNames": [
@@ -21011,6 +20985,7 @@
       "Molnar Aurel",
       "Nagy David Andras",
       "Polyak Kitti",
+      "Toth Benedek Mate",
       "Toth Levente Zsigmond"
      ]
     },
@@ -21081,7 +21056,7 @@
      "day": "TUE",
      "start": 1095,
      "end": 1140,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "",
      "room": "",
      "studentNames": [
@@ -21090,8 +21065,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -21459,20 +21433,19 @@
     },
     {
      "lessonId": "LES14",
-     "name": "Jazz Theory 10v",
-     "group": "jazztheory10v",
-     "groupId": "GR21",
+     "name": "Jazz Theory 9v",
+     "group": "jazztheor9v",
+     "groupId": "GR44",
      "teacher": "Pozsar",
      "teacherId": "TEAC15",
      "day": "THU",
      "start": 960,
      "end": 1005,
-     "studentCount": 2,
+     "studentCount": 1,
      "roomId": "ROOM5",
      "room": "329",
      "studentNames": [
-      "Bussy Csongor",
-      "Szabo Daniel Mihaly"
+      "Toth Benedek Mate"
      ]
     },
     {
@@ -21534,7 +21507,7 @@
      "day": "THU",
      "start": 1145,
      "end": 1190,
-     "studentCount": 5,
+     "studentCount": 6,
      "roomId": "ROOM1",
      "room": "321jazz",
      "studentNames": [
@@ -21542,6 +21515,7 @@
       "Gonczi Simon",
       "Liska Szilard Lel",
       "Nemeth-Buhin Miguel",
+      "Toth Benedek Mate",
       "Toth Marton"
      ]
     },
@@ -21628,7 +21602,7 @@
      "day": "FRI",
      "start": 690,
      "end": 735,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "ROOM14",
      "room": "328",
      "studentNames": [
@@ -21637,8 +21611,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -21651,7 +21624,7 @@
      "day": "FRI",
      "start": 735,
      "end": 780,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "ROOM14",
      "room": "328",
      "studentNames": [
@@ -21660,8 +21633,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -22490,7 +22462,7 @@
      "day": "MON",
      "start": 870,
      "end": 915,
-     "studentCount": 6,
+     "studentCount": 5,
      "roomId": "ROOM1",
      "room": "321jazz",
      "studentNames": [
@@ -22498,8 +22470,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -22575,7 +22546,7 @@
      "day": "MON",
      "start": 960,
      "end": 1005,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "",
      "room": "",
      "studentNames": [
@@ -22584,8 +22555,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -22757,7 +22727,7 @@
      "day": "TUE",
      "start": 870,
      "end": 915,
-     "studentCount": 7,
+     "studentCount": 8,
      "roomId": "ROOM13",
      "room": "327",
      "studentNames": [
@@ -22767,6 +22737,7 @@
       "Molnar Aurel",
       "Nagy David Andras",
       "Polyak Kitti",
+      "Toth Benedek Mate",
       "Toth Levente Zsigmond"
      ]
     },
@@ -22880,7 +22851,7 @@
      "day": "TUE",
      "start": 1050,
      "end": 1095,
-     "studentCount": 6,
+     "studentCount": 7,
      "roomId": "ROOM13",
      "room": "327",
      "studentNames": [
@@ -22889,6 +22860,7 @@
       "Kaszas Emilia Magdolna",
       "Liska Szilard Lel",
       "Nemeth-Buhin Miguel",
+      "Toth Benedek Mate",
       "Toth Marton"
      ]
     },
@@ -23052,7 +23024,7 @@
      "day": "WED",
      "start": 850,
      "end": 895,
-     "studentCount": 5,
+     "studentCount": 6,
      "roomId": "ROOM1",
      "room": "321jazz",
      "studentNames": [
@@ -23060,6 +23032,7 @@
       "Gonczi Simon",
       "Liska Szilard Lel",
       "Nemeth-Buhin Miguel",
+      "Toth Benedek Mate",
       "Toth Marton"
      ]
     },
@@ -23192,9 +23165,9 @@
     },
     {
      "lessonId": "LES27",
-     "name": "Solfege 10v",
-     "group": "solf10v",
-     "groupId": "GR30",
+     "name": "Jazz Theory 10v",
+     "group": "jazztheory10v",
+     "groupId": "GR21",
      "teacher": "Pozsar",
      "teacherId": "TEAC15",
      "day": "THU",
@@ -23210,20 +23183,19 @@
     },
     {
      "lessonId": "LES14",
-     "name": "Jazz Theory 10v",
-     "group": "jazztheory10v",
-     "groupId": "GR21",
+     "name": "Jazz Theory 9v",
+     "group": "jazztheor9v",
+     "groupId": "GR44",
      "teacher": "Pozsar",
      "teacherId": "TEAC15",
      "day": "THU",
      "start": 945,
      "end": 990,
-     "studentCount": 2,
+     "studentCount": 1,
      "roomId": "ROOM5",
      "room": "329",
      "studentNames": [
-      "Bussy Csongor",
-      "Szabo Daniel Mihaly"
+      "Toth Benedek Mate"
      ]
     },
     {
@@ -23447,7 +23419,7 @@
      "day": "FRI",
      "start": 690,
      "end": 735,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "ROOM14",
      "room": "328",
      "studentNames": [
@@ -23456,8 +23428,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -23470,7 +23441,7 @@
      "day": "FRI",
      "start": 735,
      "end": 780,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "ROOM14",
      "room": "328",
      "studentNames": [
@@ -23479,8 +23450,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -24300,27 +24270,26 @@
     },
     {
      "lessonId": "LES14",
-     "name": "Jazz Theory 10v",
-     "group": "jazztheory10v",
-     "groupId": "GR21",
+     "name": "Jazz Theory 9v",
+     "group": "jazztheor9v",
+     "groupId": "GR44",
      "teacher": "Pozsar",
      "teacherId": "TEAC15",
      "day": "MON",
      "start": 900,
      "end": 945,
-     "studentCount": 2,
+     "studentCount": 1,
      "roomId": "ROOM5",
      "room": "329",
      "studentNames": [
-      "Bussy Csongor",
-      "Szabo Daniel Mihaly"
+      "Toth Benedek Mate"
      ]
     },
     {
      "lessonId": "LES27",
-     "name": "Solfege 10v",
-     "group": "solf10v",
-     "groupId": "GR30",
+     "name": "Jazz Theory 10v",
+     "group": "jazztheory10v",
+     "groupId": "GR21",
      "teacher": "Pozsar",
      "teacherId": "TEAC15",
      "day": "MON",
@@ -24344,7 +24313,7 @@
      "day": "MON",
      "start": 960,
      "end": 1005,
-     "studentCount": 6,
+     "studentCount": 7,
      "roomId": "ROOM13",
      "room": "327",
      "studentNames": [
@@ -24353,6 +24322,7 @@
       "Kaszas Emilia Magdolna",
       "Liska Szilard Lel",
       "Nemeth-Buhin Miguel",
+      "Toth Benedek Mate",
       "Toth Marton"
      ]
     },
@@ -24392,7 +24362,7 @@
      "day": "MON",
      "start": 1050,
      "end": 1095,
-     "studentCount": 7,
+     "studentCount": 8,
      "roomId": "ROOM13",
      "room": "327",
      "studentNames": [
@@ -24402,6 +24372,7 @@
       "Molnar Aurel",
       "Nagy David Andras",
       "Polyak Kitti",
+      "Toth Benedek Mate",
       "Toth Levente Zsigmond"
      ]
     },
@@ -24583,7 +24554,7 @@
      "day": "TUE",
      "start": 945,
      "end": 990,
-     "studentCount": 6,
+     "studentCount": 5,
      "roomId": "ROOM1",
      "room": "321jazz",
      "studentNames": [
@@ -24591,8 +24562,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -24682,7 +24652,7 @@
      "day": "TUE",
      "start": 1080,
      "end": 1125,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "",
      "room": "",
      "studentNames": [
@@ -24691,8 +24661,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -25102,7 +25071,7 @@
      "day": "THU",
      "start": 1055,
      "end": 1100,
-     "studentCount": 5,
+     "studentCount": 6,
      "roomId": "ROOM1",
      "room": "321jazz",
      "studentNames": [
@@ -25110,6 +25079,7 @@
       "Gonczi Simon",
       "Liska Szilard Lel",
       "Nemeth-Buhin Miguel",
+      "Toth Benedek Mate",
       "Toth Marton"
      ]
     },
@@ -25228,7 +25198,7 @@
      "day": "FRI",
      "start": 690,
      "end": 735,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "ROOM14",
      "room": "328",
      "studentNames": [
@@ -25237,8 +25207,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -25251,7 +25220,7 @@
      "day": "FRI",
      "start": 735,
      "end": 780,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "ROOM14",
      "room": "328",
      "studentNames": [
@@ -25260,8 +25229,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -26113,7 +26081,7 @@
      "day": "MON",
      "start": 915,
      "end": 960,
-     "studentCount": 6,
+     "studentCount": 5,
      "roomId": "ROOM1",
      "room": "321jazz",
      "studentNames": [
@@ -26121,8 +26089,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -26135,7 +26102,7 @@
      "day": "MON",
      "start": 960,
      "end": 1005,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "",
      "room": "",
      "studentNames": [
@@ -26144,8 +26111,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -26296,7 +26262,7 @@
      "day": "TUE",
      "start": 780,
      "end": 825,
-     "studentCount": 6,
+     "studentCount": 7,
      "roomId": "ROOM13",
      "room": "327",
      "studentNames": [
@@ -26305,6 +26271,7 @@
       "Kaszas Emilia Magdolna",
       "Liska Szilard Lel",
       "Nemeth-Buhin Miguel",
+      "Toth Benedek Mate",
       "Toth Marton"
      ]
     },
@@ -26468,7 +26435,7 @@
      "day": "TUE",
      "start": 1035,
      "end": 1080,
-     "studentCount": 7,
+     "studentCount": 8,
      "roomId": "ROOM13",
      "room": "327",
      "studentNames": [
@@ -26478,6 +26445,7 @@
       "Molnar Aurel",
       "Nagy David Andras",
       "Polyak Kitti",
+      "Toth Benedek Mate",
       "Toth Levente Zsigmond"
      ]
     },
@@ -26639,7 +26607,7 @@
      "day": "WED",
      "start": 780,
      "end": 825,
-     "studentCount": 5,
+     "studentCount": 6,
      "roomId": "ROOM1",
      "room": "321jazz",
      "studentNames": [
@@ -26647,6 +26615,7 @@
       "Gonczi Simon",
       "Liska Szilard Lel",
       "Nemeth-Buhin Miguel",
+      "Toth Benedek Mate",
       "Toth Marton"
      ]
     },
@@ -26934,27 +26903,26 @@
     },
     {
      "lessonId": "LES14",
-     "name": "Jazz Theory 10v",
-     "group": "jazztheory10v",
-     "groupId": "GR21",
+     "name": "Jazz Theory 9v",
+     "group": "jazztheor9v",
+     "groupId": "GR44",
      "teacher": "Pozsar",
      "teacherId": "TEAC15",
      "day": "THU",
      "start": 900,
      "end": 945,
-     "studentCount": 2,
+     "studentCount": 1,
      "roomId": "ROOM5",
      "room": "329",
      "studentNames": [
-      "Bussy Csongor",
-      "Szabo Daniel Mihaly"
+      "Toth Benedek Mate"
      ]
     },
     {
      "lessonId": "LES27",
-     "name": "Solfege 10v",
-     "group": "solf10v",
-     "groupId": "GR30",
+     "name": "Jazz Theory 10v",
+     "group": "jazztheory10v",
+     "groupId": "GR21",
      "teacher": "Pozsar",
      "teacherId": "TEAC15",
      "day": "THU",
@@ -27090,7 +27058,7 @@
      "day": "FRI",
      "start": 690,
      "end": 735,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "ROOM14",
      "room": "328",
      "studentNames": [
@@ -27099,8 +27067,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -27113,7 +27080,7 @@
      "day": "FRI",
      "start": 735,
      "end": 780,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "ROOM14",
      "room": "328",
      "studentNames": [
@@ -27122,8 +27089,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -27886,7 +27852,7 @@
      "day": "MON",
      "start": 870,
      "end": 915,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "",
      "room": "",
      "studentNames": [
@@ -27895,26 +27861,24 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
      "lessonId": "LES14",
-     "name": "Jazz Theory 10v",
-     "group": "jazztheory10v",
-     "groupId": "GR21",
+     "name": "Jazz Theory 9v",
+     "group": "jazztheor9v",
+     "groupId": "GR44",
      "teacher": "Pozsar",
      "teacherId": "TEAC15",
      "day": "MON",
      "start": 900,
      "end": 945,
-     "studentCount": 2,
+     "studentCount": 1,
      "roomId": "ROOM5",
      "room": "329",
      "studentNames": [
-      "Bussy Csongor",
-      "Szabo Daniel Mihaly"
+      "Toth Benedek Mate"
      ]
     },
     {
@@ -27927,7 +27891,7 @@
      "day": "MON",
      "start": 915,
      "end": 960,
-     "studentCount": 6,
+     "studentCount": 5,
      "roomId": "ROOM1",
      "room": "321jazz",
      "studentNames": [
@@ -27935,8 +27899,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -28073,7 +28036,7 @@
      "day": "TUE",
      "start": 780,
      "end": 825,
-     "studentCount": 6,
+     "studentCount": 7,
      "roomId": "ROOM13",
      "room": "327",
      "studentNames": [
@@ -28082,6 +28045,7 @@
       "Kaszas Emilia Magdolna",
       "Liska Szilard Lel",
       "Nemeth-Buhin Miguel",
+      "Toth Benedek Mate",
       "Toth Marton"
      ]
     },
@@ -28259,7 +28223,7 @@
      "day": "TUE",
      "start": 1035,
      "end": 1080,
-     "studentCount": 7,
+     "studentCount": 8,
      "roomId": "ROOM13",
      "room": "327",
      "studentNames": [
@@ -28269,6 +28233,7 @@
       "Molnar Aurel",
       "Nagy David Andras",
       "Polyak Kitti",
+      "Toth Benedek Mate",
       "Toth Levente Zsigmond"
      ]
     },
@@ -28628,9 +28593,9 @@
     },
     {
      "lessonId": "LES27",
-     "name": "Solfege 10v",
-     "group": "solf10v",
-     "groupId": "GR30",
+     "name": "Jazz Theory 10v",
+     "group": "jazztheory10v",
+     "groupId": "GR21",
      "teacher": "Pozsar",
      "teacherId": "TEAC15",
      "day": "THU",
@@ -28701,7 +28666,7 @@
      "day": "THU",
      "start": 1055,
      "end": 1100,
-     "studentCount": 5,
+     "studentCount": 6,
      "roomId": "ROOM1",
      "room": "321jazz",
      "studentNames": [
@@ -28709,6 +28674,7 @@
       "Gonczi Simon",
       "Liska Szilard Lel",
       "Nemeth-Buhin Miguel",
+      "Toth Benedek Mate",
       "Toth Marton"
      ]
     },
@@ -28827,7 +28793,7 @@
      "day": "FRI",
      "start": 690,
      "end": 735,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "ROOM14",
      "room": "328",
      "studentNames": [
@@ -28836,8 +28802,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -28850,7 +28815,7 @@
      "day": "FRI",
      "start": 735,
      "end": 780,
-     "studentCount": 7,
+     "studentCount": 6,
      "roomId": "ROOM14",
      "room": "328",
      "studentNames": [
@@ -28859,8 +28824,7 @@
       "Feher Csongor",
       "Nanasi Jakab",
       "Szabo Bence Jeno",
-      "Szekeres Szabolcs",
-      "Toth Benedek Mate"
+      "Szekeres Szabolcs"
      ]
     },
     {
@@ -29553,8 +29517,8 @@
      "Polyak Kitti",
      "Toth Levente Zsigmond"
     ],
-    "_col": 2,
-    "_totalCols": 3
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "LES23",
@@ -29642,8 +29606,8 @@
      "Vajda Attila",
      "Zilincki Nora Hanna"
     ],
-    "_col": 2,
-    "_totalCols": 3
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "LES19",
@@ -29715,7 +29679,7 @@
     "day": "MON",
     "start": 870,
     "end": 915,
-    "studentCount": 6,
+    "studentCount": 5,
     "roomId": "ROOM1",
     "room": "321jazz",
     "studentNames": [
@@ -29723,17 +29687,16 @@
      "Feher Csongor",
      "Nanasi Jakab",
      "Szabo Bence Jeno",
-     "Szekeres Szabolcs",
-     "Toth Benedek Mate"
+     "Szekeres Szabolcs"
     ],
     "_col": 0,
     "_totalCols": 2
    },
    {
     "lessonId": "LES27",
-    "name": "Solfege 10v",
-    "group": "solf10v",
-    "groupId": "GR30",
+    "name": "Jazz Theory 10v",
+    "group": "jazztheory10v",
+    "groupId": "GR21",
     "teacher": "Pozsar",
     "teacherId": "TEAC15",
     "day": "MON",
@@ -29746,8 +29709,8 @@
      "Bussy Csongor",
      "Szabo Daniel Mihaly"
     ],
-    "_col": 1,
-    "_totalCols": 2
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "LES29",
@@ -29759,7 +29722,7 @@
     "day": "MON",
     "start": 915,
     "end": 960,
-    "studentCount": 7,
+    "studentCount": 6,
     "roomId": "",
     "room": "",
     "studentNames": [
@@ -29768,8 +29731,7 @@
      "Feher Csongor",
      "Nanasi Jakab",
      "Szabo Bence Jeno",
-     "Szekeres Szabolcs",
-     "Toth Benedek Mate"
+     "Szekeres Szabolcs"
     ],
     "_col": 0,
     "_totalCols": 2
@@ -29839,7 +29801,7 @@
      "Zwick Zsombor Andras"
     ],
     "_col": 0,
-    "_totalCols": 2
+    "_totalCols": 1
    },
    {
     "lessonId": "SG1",
@@ -30130,7 +30092,7 @@
     "day": "TUE",
     "start": 1050,
     "end": 1095,
-    "studentCount": 7,
+    "studentCount": 8,
     "roomId": "ROOM13",
     "room": "327",
     "studentNames": [
@@ -30140,10 +30102,11 @@
      "Molnar Aurel",
      "Nagy David Andras",
      "Polyak Kitti",
+     "Toth Benedek Mate",
      "Toth Levente Zsigmond"
     ],
-    "_col": 1,
-    "_totalCols": 2
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "LES32",
@@ -30155,7 +30118,7 @@
     "day": "TUE",
     "start": 1005,
     "end": 1050,
-    "studentCount": 6,
+    "studentCount": 7,
     "roomId": "ROOM13",
     "room": "327",
     "studentNames": [
@@ -30164,10 +30127,11 @@
      "Kaszas Emilia Magdolna",
      "Liska Szilard Lel",
      "Nemeth-Buhin Miguel",
+     "Toth Benedek Mate",
      "Toth Marton"
     ],
-    "_col": 1,
-    "_totalCols": 2
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "SG17",
@@ -30495,23 +30459,22 @@
    },
    {
     "lessonId": "LES14",
-    "name": "Jazz Theory 10v",
-    "group": "jazztheory10v",
-    "groupId": "GR21",
+    "name": "Jazz Theory 9v",
+    "group": "jazztheor9v",
+    "groupId": "GR44",
     "teacher": "Pozsar",
     "teacherId": "TEAC15",
     "day": "MON",
     "start": 1050,
     "end": 1095,
-    "studentCount": 2,
+    "studentCount": 1,
     "roomId": "ROOM5",
     "room": "329",
     "studentNames": [
-     "Bussy Csongor",
-     "Szabo Daniel Mihaly"
+     "Toth Benedek Mate"
     ],
-    "_col": 1,
-    "_totalCols": 2
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "LES39",
@@ -30615,7 +30578,7 @@
     "day": "THU",
     "start": 1100,
     "end": 1145,
-    "studentCount": 5,
+    "studentCount": 6,
     "roomId": "ROOM1",
     "room": "321jazz",
     "studentNames": [
@@ -30623,6 +30586,7 @@
      "Gonczi Simon",
      "Liska Szilard Lel",
      "Nemeth-Buhin Miguel",
+     "Toth Benedek Mate",
      "Toth Marton"
     ],
     "_col": 0,
@@ -30682,7 +30646,7 @@
      "Toth Marton"
     ],
     "_col": 0,
-    "_totalCols": 3
+    "_totalCols": 1
    },
    {
     "lessonId": "SG4",
@@ -30739,7 +30703,7 @@
     "day": "FRI",
     "start": 690,
     "end": 735,
-    "studentCount": 7,
+    "studentCount": 6,
     "roomId": "ROOM14",
     "room": "328",
     "studentNames": [
@@ -30748,11 +30712,10 @@
      "Feher Csongor",
      "Nanasi Jakab",
      "Szabo Bence Jeno",
-     "Szekeres Szabolcs",
-     "Toth Benedek Mate"
+     "Szekeres Szabolcs"
     ],
     "_col": 0,
-    "_totalCols": 3
+    "_totalCols": 1
    },
    {
     "lessonId": "LES21",
@@ -30764,7 +30727,7 @@
     "day": "FRI",
     "start": 735,
     "end": 780,
-    "studentCount": 7,
+    "studentCount": 6,
     "roomId": "ROOM14",
     "room": "328",
     "studentNames": [
@@ -30773,8 +30736,7 @@
      "Feher Csongor",
      "Nanasi Jakab",
      "Szabo Bence Jeno",
-     "Szekeres Szabolcs",
-     "Toth Benedek Mate"
+     "Szekeres Szabolcs"
     ],
     "_col": 0,
     "_totalCols": 2
@@ -30798,8 +30760,8 @@
      "Simon Lili",
      "Szabo David"
     ],
-    "_col": 1,
-    "_totalCols": 2
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "LES7",
@@ -30906,8 +30868,8 @@
      "Vajda Attila",
      "Zilincki Nora Hanna"
     ],
-    "_col": 1,
-    "_totalCols": 2
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "SG8",
@@ -31133,7 +31095,7 @@
    "pianoPlaced": 45,
    "pianoTotal": 47
   },
-  "accepted": true,
+  "accepted": false,
   "dragUndo": [],
   "dragBaseline": [
    {
@@ -31450,7 +31412,7 @@
     "day": "MON",
     "start": 870,
     "end": 915,
-    "studentCount": 6,
+    "studentCount": 5,
     "roomId": "ROOM1",
     "room": "321jazz",
     "studentNames": [
@@ -31458,17 +31420,16 @@
      "Feher Csongor",
      "Nanasi Jakab",
      "Szabo Bence Jeno",
-     "Szekeres Szabolcs",
-     "Toth Benedek Mate"
+     "Szekeres Szabolcs"
     ],
     "_col": 0,
     "_totalCols": 2
    },
    {
     "lessonId": "LES27",
-    "name": "Solfege 10v",
-    "group": "solf10v",
-    "groupId": "GR30",
+    "name": "Jazz Theory 10v",
+    "group": "jazztheory10v",
+    "groupId": "GR21",
     "teacher": "Pozsar",
     "teacherId": "TEAC15",
     "day": "MON",
@@ -31494,7 +31455,7 @@
     "day": "MON",
     "start": 915,
     "end": 960,
-    "studentCount": 7,
+    "studentCount": 6,
     "roomId": "",
     "room": "",
     "studentNames": [
@@ -31503,8 +31464,7 @@
      "Feher Csongor",
      "Nanasi Jakab",
      "Szabo Bence Jeno",
-     "Szekeres Szabolcs",
-     "Toth Benedek Mate"
+     "Szekeres Szabolcs"
     ],
     "_col": 0,
     "_totalCols": 2
@@ -31865,7 +31825,7 @@
     "day": "TUE",
     "start": 1050,
     "end": 1095,
-    "studentCount": 7,
+    "studentCount": 8,
     "roomId": "ROOM13",
     "room": "327",
     "studentNames": [
@@ -31875,6 +31835,7 @@
      "Molnar Aurel",
      "Nagy David Andras",
      "Polyak Kitti",
+     "Toth Benedek Mate",
      "Toth Levente Zsigmond"
     ],
     "_col": 1,
@@ -31890,7 +31851,7 @@
     "day": "TUE",
     "start": 1005,
     "end": 1050,
-    "studentCount": 6,
+    "studentCount": 7,
     "roomId": "ROOM13",
     "room": "327",
     "studentNames": [
@@ -31899,6 +31860,7 @@
      "Kaszas Emilia Magdolna",
      "Liska Szilard Lel",
      "Nemeth-Buhin Miguel",
+     "Toth Benedek Mate",
      "Toth Marton"
     ],
     "_col": 1,
@@ -32230,20 +32192,19 @@
    },
    {
     "lessonId": "LES14",
-    "name": "Jazz Theory 10v",
-    "group": "jazztheory10v",
-    "groupId": "GR21",
+    "name": "Jazz Theory 9v",
+    "group": "jazztheor9v",
+    "groupId": "GR44",
     "teacher": "Pozsar",
     "teacherId": "TEAC15",
     "day": "MON",
     "start": 1050,
     "end": 1095,
-    "studentCount": 2,
+    "studentCount": 1,
     "roomId": "ROOM5",
     "room": "329",
     "studentNames": [
-     "Bussy Csongor",
-     "Szabo Daniel Mihaly"
+     "Toth Benedek Mate"
     ],
     "_col": 1,
     "_totalCols": 2
@@ -32350,7 +32311,7 @@
     "day": "THU",
     "start": 1100,
     "end": 1145,
-    "studentCount": 5,
+    "studentCount": 6,
     "roomId": "ROOM1",
     "room": "321jazz",
     "studentNames": [
@@ -32358,6 +32319,7 @@
      "Gonczi Simon",
      "Liska Szilard Lel",
      "Nemeth-Buhin Miguel",
+     "Toth Benedek Mate",
      "Toth Marton"
     ],
     "_col": 0,
@@ -32474,7 +32436,7 @@
     "day": "FRI",
     "start": 690,
     "end": 735,
-    "studentCount": 7,
+    "studentCount": 6,
     "roomId": "ROOM14",
     "room": "328",
     "studentNames": [
@@ -32483,8 +32445,7 @@
      "Feher Csongor",
      "Nanasi Jakab",
      "Szabo Bence Jeno",
-     "Szekeres Szabolcs",
-     "Toth Benedek Mate"
+     "Szekeres Szabolcs"
     ],
     "_col": 0,
     "_totalCols": 3
@@ -32499,7 +32460,7 @@
     "day": "FRI",
     "start": 735,
     "end": 780,
-    "studentCount": 7,
+    "studentCount": 6,
     "roomId": "ROOM14",
     "room": "328",
     "studentNames": [
@@ -32508,8 +32469,7 @@
      "Feher Csongor",
      "Nanasi Jakab",
      "Szabo Bence Jeno",
-     "Szekeres Szabolcs",
-     "Toth Benedek Mate"
+     "Szekeres Szabolcs"
     ],
     "_col": 0,
     "_totalCols": 2
@@ -35792,10 +35752,10 @@
   "teacherFilter": "TEAC2",
   "reportFilters": {
    "classId": "",
-   "studentId": "",
+   "studentId": "ST2",
    "muclass": "",
    "roomId": "",
-   "teacherId": "TEAC15",
+   "teacherId": "",
    "kind": "",
    "showClassReservations": false,
    "showRpiano": false
@@ -35827,8 +35787,8 @@
     "room": "",
     "source": "oneone",
     "duration": 90,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 3,
+    "_totalCols": 7
    },
    {
     "lessonId": "O2O-TEAC10-ST32",
@@ -35850,8 +35810,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 4,
-    "_totalCols": 8
+    "_col": 5,
+    "_totalCols": 7
    },
    {
     "lessonId": "O2O-TEAC14-ST62",
@@ -35874,7 +35834,7 @@
     "source": "oneone",
     "duration": 60,
     "_col": 2,
-    "_totalCols": 8
+    "_totalCols": 7
    },
    {
     "lessonId": "O2O-TEAC10-ST40",
@@ -35896,8 +35856,8 @@
     "room": "",
     "source": "oneone",
     "duration": 120,
-    "_col": 4,
-    "_totalCols": 8
+    "_col": 5,
+    "_totalCols": 7
    },
    {
     "lessonId": "O2O-TEAC1-ST6",
@@ -35919,8 +35879,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 3,
-    "_totalCols": 8
+    "_col": 4,
+    "_totalCols": 7
    },
    {
     "lessonId": "O2O-TEAC14-ST55",
@@ -35943,7 +35903,7 @@
     "source": "oneone",
     "duration": 90,
     "_col": 2,
-    "_totalCols": 8
+    "_totalCols": 7
    },
    {
     "lessonId": "O2O-TEAC22-ST18",
@@ -35965,8 +35925,8 @@
     "room": "Drum",
     "source": "oneone",
     "duration": 60,
-    "_col": 7,
-    "_totalCols": 8
+    "_col": 0,
+    "_totalCols": 7
    },
    {
     "lessonId": "O2O-TEAC10-ST42",
@@ -35989,7 +35949,7 @@
     "source": "oneone",
     "duration": 120,
     "_col": 6,
-    "_totalCols": 8
+    "_totalCols": 7
    },
    {
     "lessonId": "O2O-TEAC15-ST51",
@@ -36034,8 +35994,8 @@
     "room": "Drum",
     "source": "oneone",
     "duration": 60,
-    "_col": 4,
-    "_totalCols": 8
+    "_col": 0,
+    "_totalCols": 7
    },
    {
     "lessonId": "O2O-TEAC1-ST5",
@@ -36058,7 +36018,7 @@
     "source": "oneone",
     "duration": 90,
     "_col": 2,
-    "_totalCols": 8
+    "_totalCols": 7
    },
    {
     "lessonId": "O2O-TEAC22-ST19",
@@ -36081,7 +36041,7 @@
     "source": "oneone",
     "duration": 30,
     "_col": 0,
-    "_totalCols": 8
+    "_totalCols": 7
    },
    {
     "lessonId": "O2O-TEAC9-ST21",
@@ -36127,7 +36087,7 @@
     "source": "oneone",
     "duration": 60,
     "_col": 5,
-    "_totalCols": 8
+    "_totalCols": 7
    },
    {
     "lessonId": "O2O-TEAC10-ST36",
@@ -36150,7 +36110,7 @@
     "source": "oneone",
     "duration": 120,
     "_col": 6,
-    "_totalCols": 8
+    "_totalCols": 7
    },
    {
     "lessonId": "O2O-TEAC1-ST4",
@@ -36173,7 +36133,7 @@
     "source": "oneone",
     "duration": 90,
     "_col": 5,
-    "_totalCols": 8
+    "_totalCols": 7
    },
    {
     "lessonId": "O2O-TEAC22-ST13",
@@ -36195,8 +36155,8 @@
     "room": "Drum",
     "source": "oneone",
     "duration": 30,
-    "_col": 2,
-    "_totalCols": 8
+    "_col": 0,
+    "_totalCols": 7
    },
    {
     "lessonId": "O2O-TEAC22-ST11",
@@ -36219,7 +36179,7 @@
     "source": "oneone",
     "duration": 30,
     "_col": 0,
-    "_totalCols": 8
+    "_totalCols": 7
    },
    {
     "lessonId": "O2O-TEAC9-ST24",
@@ -36265,7 +36225,7 @@
     "source": "oneone",
     "duration": 30,
     "_col": 0,
-    "_totalCols": 8
+    "_totalCols": 7
    },
    {
     "lessonId": "O2O-TEAC10-ST33",
@@ -36288,7 +36248,7 @@
     "source": "oneone",
     "duration": 120,
     "_col": 6,
-    "_totalCols": 8
+    "_totalCols": 7
    },
    {
     "lessonId": "O2O-TEAC1-ST9",
@@ -36311,7 +36271,7 @@
     "source": "oneone",
     "duration": 60,
     "_col": 5,
-    "_totalCols": 8
+    "_totalCols": 7
    },
    {
     "lessonId": "O2O-TEAC22-ST17",
@@ -36334,7 +36294,7 @@
     "source": "oneone",
     "duration": 30,
     "_col": 0,
-    "_totalCols": 8
+    "_totalCols": 7
    },
    {
     "lessonId": "O2O-TEAC9-ST25",
@@ -37092,7 +37052,7 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 5,
+    "_col": 0,
     "_totalCols": 11
    },
    {
@@ -37138,8 +37098,8 @@
     "room": "",
     "source": "oneone",
     "duration": 90,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 5,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC7-ST29",
@@ -37161,8 +37121,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 7,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC20-ST73",
@@ -37230,7 +37190,7 @@
     "room": "",
     "source": "oneone",
     "duration": 120,
-    "_col": 5,
+    "_col": 0,
     "_totalCols": 11
    },
    {
@@ -37253,8 +37213,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 7,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC20-ST66",
@@ -37276,7 +37236,7 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 9,
+    "_col": 5,
     "_totalCols": 11
    },
    {
@@ -37299,8 +37259,8 @@
     "room": "",
     "source": "oneone",
     "duration": 90,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 9,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC19-ST69",
@@ -37368,7 +37328,7 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 9,
+    "_col": 5,
     "_totalCols": 11
    },
    {
@@ -37415,7 +37375,7 @@
     "source": "oneone",
     "duration": 60,
     "_col": 0,
-    "_totalCols": 1
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC18-ST57",
@@ -37437,8 +37397,8 @@
     "room": "",
     "source": "oneone",
     "duration": 90,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 6,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC20-ST70",
@@ -37483,7 +37443,7 @@
     "room": "Drum",
     "source": "oneone",
     "duration": 60,
-    "_col": 6,
+    "_col": 5,
     "_totalCols": 11
    },
    {
@@ -37506,8 +37466,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 7,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC17-ST48",
@@ -37530,7 +37490,7 @@
     "source": "oneone",
     "duration": 60,
     "_col": 0,
-    "_totalCols": 1
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC12-ST43",
@@ -37598,7 +37558,7 @@
     "room": "Drum",
     "source": "oneone",
     "duration": 60,
-    "_col": 6,
+    "_col": 5,
     "_totalCols": 11
    },
    {
@@ -37644,8 +37604,8 @@
     "room": "",
     "source": "oneone",
     "duration": 90,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 7,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC7-ST20",
@@ -37667,8 +37627,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 6,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC10-ST35",
@@ -37713,7 +37673,7 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 3,
+    "_col": 0,
     "_totalCols": 11
    },
    {
@@ -37736,8 +37696,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 3,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC5-ST17",
@@ -37805,7 +37765,7 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 6,
+    "_col": 5,
     "_totalCols": 11
    },
    {
@@ -37829,7 +37789,7 @@
     "source": "oneone",
     "duration": 60,
     "_col": 0,
-    "_totalCols": 1
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC5-ST15",
@@ -38013,7 +37973,7 @@
     "source": "oneone",
     "duration": 180,
     "_col": 0,
-    "_totalCols": 5
+    "_totalCols": 4
    },
    {
     "lessonId": "O2O-TEAC14-ST48",
@@ -38036,7 +37996,7 @@
     "source": "oneone",
     "duration": 60,
     "_col": 1,
-    "_totalCols": 5
+    "_totalCols": 4
    },
    {
     "lessonId": "O2O-TEAC4-ST18",
@@ -38058,8 +38018,8 @@
     "room": "Drum",
     "source": "oneone",
     "duration": 60,
-    "_col": 4,
-    "_totalCols": 5
+    "_col": 3,
+    "_totalCols": 4
    },
    {
     "lessonId": "O2O-TEAC16-ST64",
@@ -38127,7 +38087,7 @@
     "room": "",
     "source": "oneone",
     "duration": 120,
-    "_col": 2,
+    "_col": 3,
     "_totalCols": 7
    },
    {
@@ -38196,8 +38156,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 4,
+    "_totalCols": 7
    },
    {
     "lessonId": "O2O-TEAC4-ST11",
@@ -38265,7 +38225,7 @@
     "room": "",
     "source": "oneone",
     "duration": 120,
-    "_col": 5,
+    "_col": 6,
     "_totalCols": 7
    },
    {
@@ -38288,7 +38248,7 @@
     "room": "Drum",
     "source": "oneone",
     "duration": 60,
-    "_col": 0,
+    "_col": 1,
     "_totalCols": 7
    },
    {
@@ -38311,7 +38271,7 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 2,
+    "_col": 5,
     "_totalCols": 7
    },
    {
@@ -38357,7 +38317,7 @@
     "room": "Drum",
     "source": "oneone",
     "duration": 60,
-    "_col": 1,
+    "_col": 3,
     "_totalCols": 7
    },
    {
@@ -38380,8 +38340,8 @@
     "room": "",
     "source": "oneone",
     "duration": 120,
-    "_col": 4,
-    "_totalCols": 7
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC19-ST67",
@@ -38403,7 +38363,7 @@
     "room": "",
     "source": "oneone",
     "duration": 120,
-    "_col": 5,
+    "_col": 2,
     "_totalCols": 7
    },
    {
@@ -38449,7 +38409,7 @@
     "room": "Drum",
     "source": "oneone",
     "duration": 60,
-    "_col": 2,
+    "_col": 3,
     "_totalCols": 7
    },
    {
@@ -38495,7 +38455,7 @@
     "room": "Drum",
     "source": "oneone",
     "duration": 30,
-    "_col": 2,
+    "_col": 3,
     "_totalCols": 7
    },
    {
@@ -38564,8 +38524,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 3,
-    "_totalCols": 10
+    "_col": 2,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC18-ST62",
@@ -38587,8 +38547,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 4,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC24-ST73",
@@ -38611,7 +38571,7 @@
     "source": "oneone",
     "duration": 60,
     "_col": 1,
-    "_totalCols": 10
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC9-ST30",
@@ -38656,8 +38616,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 3,
-    "_totalCols": 10
+    "_col": 2,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC10-ST37",
@@ -38679,8 +38639,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 0,
-    "_totalCols": 10
+    "_col": 6,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC19-ST75",
@@ -38703,7 +38663,7 @@
     "source": "oneone",
     "duration": 120,
     "_col": 8,
-    "_totalCols": 10
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC8-ST29-2",
@@ -38725,8 +38685,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 6,
-    "_totalCols": 10
+    "_col": 7,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC24-ST70",
@@ -38749,7 +38709,7 @@
     "source": "oneone",
     "duration": 60,
     "_col": 1,
-    "_totalCols": 10
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC7-ST23",
@@ -38771,8 +38731,8 @@
     "room": "",
     "source": "oneone",
     "duration": 120,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 4,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC10-ST34",
@@ -38794,8 +38754,8 @@
     "room": "",
     "source": "oneone",
     "duration": 120,
-    "_col": 6,
-    "_totalCols": 10
+    "_col": 7,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC8-ST28",
@@ -38817,8 +38777,8 @@
     "room": "",
     "source": "oneone",
     "duration": 120,
-    "_col": 0,
-    "_totalCols": 10
+    "_col": 6,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC24-ST66",
@@ -38840,8 +38800,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 4,
-    "_totalCols": 10
+    "_col": 1,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC19-ST65",
@@ -38864,7 +38824,7 @@
     "source": "oneone",
     "duration": 120,
     "_col": 5,
-    "_totalCols": 10
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC5-ST12",
@@ -38886,8 +38846,8 @@
     "room": "Drum",
     "source": "oneone",
     "duration": 60,
-    "_col": 3,
-    "_totalCols": 10
+    "_col": 2,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC7-ST22",
@@ -38909,8 +38869,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 3,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC11-ST33",
@@ -38932,8 +38892,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 8,
-    "_totalCols": 10
+    "_col": 4,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC24-ST75",
@@ -38955,8 +38915,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 2,
-    "_totalCols": 10
+    "_col": 1,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC9-ST23",
@@ -39001,8 +38961,8 @@
     "room": "",
     "source": "oneone",
     "duration": 120,
-    "_col": 6,
-    "_totalCols": 10
+    "_col": 7,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC8-ST24",
@@ -39025,7 +38985,7 @@
     "source": "oneone",
     "duration": 60,
     "_col": 0,
-    "_totalCols": 10
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC5-ST10",
@@ -39047,8 +39007,8 @@
     "room": "Drum",
     "source": "oneone",
     "duration": 60,
-    "_col": 3,
-    "_totalCols": 10
+    "_col": 2,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC9-ST20",
@@ -39093,8 +39053,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 4,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC11-ST32",
@@ -39117,7 +39077,7 @@
     "source": "oneone",
     "duration": 60,
     "_col": 9,
-    "_totalCols": 10
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC24-ST68",
@@ -39139,8 +39099,8 @@
     "room": "",
     "source": "oneone",
     "duration": 30,
-    "_col": 2,
-    "_totalCols": 10
+    "_col": 1,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC15-ST49",
@@ -39185,8 +39145,8 @@
     "room": "",
     "source": "oneone",
     "duration": 120,
-    "_col": 2,
-    "_totalCols": 10
+    "_col": 1,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC24-ST65",
@@ -39209,7 +39169,7 @@
     "source": "oneone",
     "duration": 60,
     "_col": 0,
-    "_totalCols": 10
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC5-ST18",
@@ -39231,8 +39191,8 @@
     "room": "Drum",
     "source": "oneone",
     "duration": 60,
-    "_col": 3,
-    "_totalCols": 10
+    "_col": 2,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC11-ST40",
@@ -39255,7 +39215,7 @@
     "source": "oneone",
     "duration": 60,
     "_col": 4,
-    "_totalCols": 10
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC10-ST39",
@@ -39277,8 +39237,8 @@
     "room": "",
     "source": "oneone",
     "duration": 120,
-    "_col": 8,
-    "_totalCols": 10
+    "_col": 9,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC24-ST69",
@@ -39300,8 +39260,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 6,
-    "_totalCols": 10
+    "_col": 7,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC11-ST38",
@@ -39323,8 +39283,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 1,
-    "_totalCols": 10
+    "_col": 2,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC19-ST68",
@@ -39347,7 +39307,7 @@
     "source": "oneone",
     "duration": 120,
     "_col": 3,
-    "_totalCols": 10
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC24-ST71",
@@ -39370,7 +39330,7 @@
     "source": "oneone",
     "duration": 30,
     "_col": 0,
-    "_totalCols": 10
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC11-ST37",
@@ -39392,8 +39352,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 1,
-    "_totalCols": 10
+    "_col": 2,
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC24-ST74",
@@ -39416,7 +39376,7 @@
     "source": "oneone",
     "duration": 30,
     "_col": 0,
-    "_totalCols": 10
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC24-ST72",
@@ -39439,7 +39399,7 @@
     "source": "oneone",
     "duration": 30,
     "_col": 0,
-    "_totalCols": 10
+    "_totalCols": 11
    },
    {
     "lessonId": "O2O-TEAC24-ST67",
@@ -39462,7 +39422,7 @@
     "source": "oneone",
     "duration": 30,
     "_col": 0,
-    "_totalCols": 10
+    "_totalCols": 11
    }
   ],
   "unresolved": [],
@@ -44006,8 +43966,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 7,
-      "_totalCols": 11
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC20-ST73",
@@ -44098,8 +44058,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 7,
-      "_totalCols": 11
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC20-ST66",
@@ -44351,8 +44311,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 7,
-      "_totalCols": 11
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC17-ST48",
@@ -44512,8 +44472,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 5,
-      "_totalCols": 11
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC10-ST35",
@@ -45616,8 +45576,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 2,
-      "_totalCols": 10
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC10-ST34",
@@ -45754,8 +45714,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 4,
-      "_totalCols": 10
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC11-ST33",
@@ -45938,8 +45898,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 8,
-      "_totalCols": 10
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC11-ST32",
@@ -47300,7 +47260,7 @@
     "source": "rpiano",
     "duration": 60,
     "_col": 2,
-    "_totalCols": 8
+    "_totalCols": 7
    },
    {
     "lessonId": "RP-TEAC14-ST65",
@@ -47323,7 +47283,7 @@
     "source": "rpiano",
     "duration": 60,
     "_col": 2,
-    "_totalCols": 8
+    "_totalCols": 7
    },
    {
     "lessonId": "RP-TEAC17-ST37",
@@ -47346,7 +47306,7 @@
     "source": "rpiano",
     "duration": 60,
     "_col": 0,
-    "_totalCols": 1
+    "_totalCols": 7
    },
    {
     "lessonId": "RP-TEAC17-ST38",
@@ -47368,8 +47328,8 @@
     "room": "",
     "source": "rpiano",
     "duration": 60,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 1,
+    "_totalCols": 7
    },
    {
     "lessonId": "RP-TEAC17-ST72",
@@ -47391,8 +47351,8 @@
     "room": "",
     "source": "rpiano",
     "duration": 30,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 1,
+    "_totalCols": 7
    },
    {
     "lessonId": "RP-TEAC17-ST34",
@@ -47414,8 +47374,8 @@
     "room": "",
     "source": "rpiano",
     "duration": 60,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 1,
+    "_totalCols": 7
    },
    {
     "lessonId": "RP-TEAC15-ST27",
@@ -47461,7 +47421,7 @@
     "source": "rpiano",
     "duration": 30,
     "_col": 0,
-    "_totalCols": 1
+    "_totalCols": 7
    },
    {
     "lessonId": "RP-TEAC17-ST12",
@@ -47483,8 +47443,8 @@
     "room": "",
     "source": "rpiano",
     "duration": 60,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 2,
+    "_totalCols": 7
    },
    {
     "lessonId": "RP-TEAC17-ST21",
@@ -47506,8 +47466,8 @@
     "room": "",
     "source": "rpiano",
     "duration": 60,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 2,
+    "_totalCols": 7
    },
    {
     "lessonId": "RP-TEAC17-ST74",
@@ -47530,7 +47490,7 @@
     "source": "rpiano",
     "duration": 30,
     "_col": 0,
-    "_totalCols": 1
+    "_totalCols": 7
    },
    {
     "lessonId": "RP-TEAC14-ST5",
@@ -47622,7 +47582,7 @@
     "source": "rpiano",
     "duration": 60,
     "_col": 0,
-    "_totalCols": 1
+    "_totalCols": 11
    },
    {
     "lessonId": "RP-TEAC17-ST28",
@@ -47645,7 +47605,7 @@
     "source": "rpiano",
     "duration": 60,
     "_col": 0,
-    "_totalCols": 1
+    "_totalCols": 11
    },
    {
     "lessonId": "RP-TEAC18-ST33",
@@ -47667,8 +47627,8 @@
     "room": "",
     "source": "rpiano",
     "duration": 60,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 8,
+    "_totalCols": 11
    },
    {
     "lessonId": "RP-TEAC14-ST69",
@@ -47713,8 +47673,8 @@
     "room": "",
     "source": "rpiano",
     "duration": 60,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 8,
+    "_totalCols": 11
    },
    {
     "lessonId": "RP-TEAC18-ST70",
@@ -47736,8 +47696,8 @@
     "room": "",
     "source": "rpiano",
     "duration": 60,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 6,
+    "_totalCols": 11
    },
    {
     "lessonId": "RP-TEAC14-ST41",
@@ -47897,8 +47857,8 @@
     "room": "",
     "source": "rpiano",
     "duration": 60,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 4,
+    "_totalCols": 11
    },
    {
     "lessonId": "RP-TEAC17-ST6",
@@ -47921,7 +47881,7 @@
     "source": "rpiano",
     "duration": 60,
     "_col": 0,
-    "_totalCols": 1
+    "_totalCols": 11
    },
    {
     "lessonId": "RP-TEAC17-ST23",
@@ -47944,7 +47904,7 @@
     "source": "rpiano",
     "duration": 60,
     "_col": 0,
-    "_totalCols": 1
+    "_totalCols": 11
    },
    {
     "lessonId": "RP-TEAC14-ST32",
@@ -47967,7 +47927,7 @@
     "source": "rpiano",
     "duration": 60,
     "_col": 1,
-    "_totalCols": 5
+    "_totalCols": 4
    },
    {
     "lessonId": "RP-TEAC18-ST46",
@@ -47989,8 +47949,8 @@
     "room": "",
     "source": "rpiano",
     "duration": 60,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 2,
+    "_totalCols": 4
    },
    {
     "lessonId": "RP-TEAC21-ST43",
@@ -48059,7 +48019,7 @@
     "source": "rpiano",
     "duration": 60,
     "_col": 0,
-    "_totalCols": 1
+    "_totalCols": 7
    },
    {
     "lessonId": "RP-TEAC21-ST44",
@@ -48081,7 +48041,7 @@
     "room": "",
     "source": "rpiano",
     "duration": 60,
-    "_col": 1,
+    "_col": 3,
     "_totalCols": 7
    },
    {
@@ -48128,7 +48088,7 @@
     "source": "rpiano",
     "duration": 30,
     "_col": 0,
-    "_totalCols": 1
+    "_totalCols": 7
    },
    {
     "lessonId": "RP-TEAC15-ST8",
@@ -48173,8 +48133,8 @@
     "room": "",
     "source": "rpiano",
     "duration": 30,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 1,
+    "_totalCols": 7
    },
    {
     "lessonId": "RP-TEAC16-ST7",
@@ -48334,8 +48294,8 @@
     "room": "",
     "source": "rpiano",
     "duration": 60,
-    "_col": 0,
-    "_totalCols": 1
+    "_col": 3,
+    "_totalCols": 11
    }
   ],
   "unresolved": [],
@@ -50610,5 +50570,5 @@
   "dragUndo": [],
   "acceptedAt": "2026-09-04T10:55:41.608Z"
  },
- "publishedAt": "2026-09-04T10:56:43.325Z"
+ "publishedAt": "2026-09-06T19:23:30.204Z"
 }
