@@ -8440,8 +8440,8 @@
     "fixedStart": "",
     "fixedEnd": "",
     "scheduledDay": "WED",
-    "scheduledStart": "12:20",
-    "scheduledEnd": "13:50",
+    "scheduledStart": "12:30",
+    "scheduledEnd": "14:00",
     "scheduledTeacherId": "TEAC1",
     "scheduledTeacher": "Csuhaj"
    },
@@ -8858,8 +8858,8 @@
     "fixedStart": "",
     "fixedEnd": "",
     "scheduledDay": "WED",
-    "scheduledStart": "10:40",
-    "scheduledEnd": "12:10",
+    "scheduledStart": "11:00",
+    "scheduledEnd": "12:30",
     "scheduledTeacherId": "TEAC1",
     "scheduledTeacher": "Csuhaj"
    },
@@ -10494,8 +10494,8 @@
       "Molnar Sebestyen",
       "Zalavari Almos"
      ],
-     "_col": 4,
-     "_totalCols": 8
+     "_col": 0,
+     "_totalCols": 1
     },
     {
      "lessonId": "LES5",
@@ -11032,8 +11032,8 @@
      "teacher": "Csuhaj",
      "teacherId": "TEAC1",
      "day": "WED",
-     "start": 640,
-     "end": 730,
+     "start": 660,
+     "end": 750,
      "studentCount": 4,
      "roomId": "ROOM1",
      "room": "321jazz",
@@ -11043,8 +11043,8 @@
       "Molnar Keve Matyas",
       "Szilvagyi Domonkos"
      ],
-     "_col": 2,
-     "_totalCols": 11
+     "_col": 0,
+     "_totalCols": 1
     },
     {
      "lessonId": "LES12",
@@ -11072,7 +11072,7 @@
       "Nyari Emma",
       "Szecskay Hanna"
      ],
-     "_col": 7,
+     "_col": 8,
      "_totalCols": 11
     },
     {
@@ -11083,8 +11083,8 @@
      "teacher": "Csuhaj",
      "teacherId": "TEAC1",
      "day": "WED",
-     "start": 740,
-     "end": 830,
+     "start": 750,
+     "end": 840,
      "studentCount": 4,
      "roomId": "ROOM1",
      "room": "321jazz",
@@ -11094,8 +11094,8 @@
       "Szegszardy Zalan Peter",
       "Szesztay Lili Virag"
      ],
-     "_col": 8,
-     "_totalCols": 11
+     "_col": 0,
+     "_totalCols": 1
     },
     {
      "lessonId": "SG9",
@@ -11119,8 +11119,8 @@
       "Simon Lili",
       "Szegszardy Zalan Peter"
      ],
-     "_col": 1,
-     "_totalCols": 11
+     "_col": 0,
+     "_totalCols": 1
     },
     {
      "lessonId": "SG12",
@@ -11141,7 +11141,7 @@
       "Szabo David",
       "Zsolnai Domonkos"
      ],
-     "_col": 8,
+     "_col": 7,
      "_totalCols": 11
     },
     {
@@ -11746,7 +11746,7 @@
       "Szecskay Hanna",
       "Vajda Attila"
      ],
-     "_col": 1,
+     "_col": 0,
      "_totalCols": 11
     }
    ],
@@ -11995,8 +11995,8 @@
       "Zsolnai Domonkos",
       "Zwick Zsombor Andras"
      ],
-     "_col": 1,
-     "_totalCols": 2
+     "_col": 0,
+     "_totalCols": 1
     },
     {
      "lessonId": "LES25",
@@ -12030,7 +12030,7 @@
       "Zwick Zsombor Andras"
      ],
      "_col": 0,
-     "_totalCols": 3
+     "_totalCols": 1
     },
     {
      "lessonId": "SG5",
@@ -12115,7 +12115,7 @@
       "Szesztay Lili Virag"
      ],
      "_col": 0,
-     "_totalCols": 3
+     "_totalCols": 1
     },
     {
      "lessonId": "SG7",
@@ -12204,7 +12204,7 @@
       "Szesztay Lili Virag"
      ],
      "_col": 0,
-     "_totalCols": 3
+     "_totalCols": 1
     },
     {
      "lessonId": "SG15",
@@ -12227,8 +12227,8 @@
       "Molnar Sebestyen",
       "Zalavari Almos"
      ],
-     "_col": 1,
-     "_totalCols": 3
+     "_col": 0,
+     "_totalCols": 1
     },
     {
      "lessonId": "LES5",
@@ -12251,7 +12251,7 @@
       "Szekeres Szabolcs"
      ],
      "_col": 0,
-     "_totalCols": 2
+     "_totalCols": 1
     },
     {
      "lessonId": "LES27",
@@ -12295,7 +12295,7 @@
       "Szekeres Szabolcs"
      ],
      "_col": 0,
-     "_totalCols": 2
+     "_totalCols": 1
     },
     {
      "lessonId": "LES4",
@@ -12323,7 +12323,7 @@
       "Zilincki Nora Hanna"
      ],
      "_col": 0,
-     "_totalCols": 2
+     "_totalCols": 1
     },
     {
      "lessonId": "LES37",
@@ -12385,8 +12385,8 @@
       "Szabo Daniel Mihaly",
       "Zilincki Nora Hanna"
      ],
-     "_col": 1,
-     "_totalCols": 2
+     "_col": 0,
+     "_totalCols": 1
     },
     {
      "lessonId": "SG10",
@@ -12552,8 +12552,8 @@
       "Vajda Attila",
       "Zilincki Nora Hanna"
      ],
-     "_col": 1,
-     "_totalCols": 2
+     "_col": 0,
+     "_totalCols": 1
     },
     {
      "lessonId": "LES30",
@@ -12577,8 +12577,8 @@
       "Polyak Kitti",
       "Toth Levente Zsigmond"
      ],
-     "_col": 1,
-     "_totalCols": 2
+     "_col": 0,
+     "_totalCols": 1
     },
     {
      "lessonId": "LES3",
@@ -12666,8 +12666,8 @@
       "Toth Benedek Mate",
       "Toth Levente Zsigmond"
      ],
-     "_col": 1,
-     "_totalCols": 2
+     "_col": 0,
+     "_totalCols": 1
     },
     {
      "lessonId": "LES32",
@@ -12691,8 +12691,8 @@
       "Toth Benedek Mate",
       "Toth Marton"
      ],
-     "_col": 1,
-     "_totalCols": 2
+     "_col": 0,
+     "_totalCols": 1
     },
     {
      "lessonId": "SG17",
@@ -12765,8 +12765,8 @@
      "teacher": "Csuhaj",
      "teacherId": "TEAC1",
      "day": "WED",
-     "start": 640,
-     "end": 730,
+     "start": 660,
+     "end": 750,
      "studentCount": 4,
      "roomId": "ROOM1",
      "room": "321jazz",
@@ -12816,8 +12816,8 @@
      "teacher": "Csuhaj",
      "teacherId": "TEAC1",
      "day": "WED",
-     "start": 740,
-     "end": 830,
+     "start": 750,
+     "end": 840,
      "studentCount": 4,
      "roomId": "ROOM1",
      "room": "321jazz",
@@ -12827,8 +12827,8 @@
       "Szegszardy Zalan Peter",
       "Szesztay Lili Virag"
      ],
-     "_col": 1,
-     "_totalCols": 2
+     "_col": 0,
+     "_totalCols": 1
     },
     {
      "lessonId": "SG9",
@@ -29675,8 +29675,8 @@
      "Molnar Sebestyen",
      "Zalavari Almos"
     ],
-    "_col": 4,
-    "_totalCols": 8
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "LES5",
@@ -30213,8 +30213,8 @@
     "teacher": "Csuhaj",
     "teacherId": "TEAC1",
     "day": "WED",
-    "start": 640,
-    "end": 730,
+    "start": 660,
+    "end": 750,
     "studentCount": 4,
     "roomId": "ROOM1",
     "room": "321jazz",
@@ -30224,8 +30224,8 @@
      "Molnar Keve Matyas",
      "Szilvagyi Domonkos"
     ],
-    "_col": 2,
-    "_totalCols": 11
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "LES12",
@@ -30253,7 +30253,7 @@
      "Nyari Emma",
      "Szecskay Hanna"
     ],
-    "_col": 7,
+    "_col": 8,
     "_totalCols": 11
    },
    {
@@ -30264,8 +30264,8 @@
     "teacher": "Csuhaj",
     "teacherId": "TEAC1",
     "day": "WED",
-    "start": 740,
-    "end": 830,
+    "start": 750,
+    "end": 840,
     "studentCount": 4,
     "roomId": "ROOM1",
     "room": "321jazz",
@@ -30275,8 +30275,8 @@
      "Szegszardy Zalan Peter",
      "Szesztay Lili Virag"
     ],
-    "_col": 8,
-    "_totalCols": 11
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "SG9",
@@ -30300,8 +30300,8 @@
      "Simon Lili",
      "Szegszardy Zalan Peter"
     ],
-    "_col": 1,
-    "_totalCols": 11
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "SG12",
@@ -30322,7 +30322,7 @@
      "Szabo David",
      "Zsolnai Domonkos"
     ],
-    "_col": 8,
+    "_col": 7,
     "_totalCols": 11
    },
    {
@@ -30927,7 +30927,7 @@
      "Szecskay Hanna",
      "Vajda Attila"
     ],
-    "_col": 1,
+    "_col": 0,
     "_totalCols": 11
    }
   ],
@@ -31176,8 +31176,8 @@
      "Zsolnai Domonkos",
      "Zwick Zsombor Andras"
     ],
-    "_col": 1,
-    "_totalCols": 2
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "LES25",
@@ -31211,7 +31211,7 @@
      "Zwick Zsombor Andras"
     ],
     "_col": 0,
-    "_totalCols": 3
+    "_totalCols": 1
    },
    {
     "lessonId": "SG5",
@@ -31296,7 +31296,7 @@
      "Szesztay Lili Virag"
     ],
     "_col": 0,
-    "_totalCols": 3
+    "_totalCols": 1
    },
    {
     "lessonId": "SG7",
@@ -31385,7 +31385,7 @@
      "Szesztay Lili Virag"
     ],
     "_col": 0,
-    "_totalCols": 3
+    "_totalCols": 1
    },
    {
     "lessonId": "SG15",
@@ -31408,8 +31408,8 @@
      "Molnar Sebestyen",
      "Zalavari Almos"
     ],
-    "_col": 1,
-    "_totalCols": 3
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "LES5",
@@ -31432,7 +31432,7 @@
      "Szekeres Szabolcs"
     ],
     "_col": 0,
-    "_totalCols": 2
+    "_totalCols": 1
    },
    {
     "lessonId": "LES27",
@@ -31476,7 +31476,7 @@
      "Szekeres Szabolcs"
     ],
     "_col": 0,
-    "_totalCols": 2
+    "_totalCols": 1
    },
    {
     "lessonId": "LES4",
@@ -31504,7 +31504,7 @@
      "Zilincki Nora Hanna"
     ],
     "_col": 0,
-    "_totalCols": 2
+    "_totalCols": 1
    },
    {
     "lessonId": "LES37",
@@ -31566,8 +31566,8 @@
      "Szabo Daniel Mihaly",
      "Zilincki Nora Hanna"
     ],
-    "_col": 1,
-    "_totalCols": 2
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "SG10",
@@ -31733,8 +31733,8 @@
      "Vajda Attila",
      "Zilincki Nora Hanna"
     ],
-    "_col": 1,
-    "_totalCols": 2
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "LES30",
@@ -31758,8 +31758,8 @@
      "Polyak Kitti",
      "Toth Levente Zsigmond"
     ],
-    "_col": 1,
-    "_totalCols": 2
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "LES3",
@@ -31847,8 +31847,8 @@
      "Toth Benedek Mate",
      "Toth Levente Zsigmond"
     ],
-    "_col": 1,
-    "_totalCols": 2
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "LES32",
@@ -31872,8 +31872,8 @@
      "Toth Benedek Mate",
      "Toth Marton"
     ],
-    "_col": 1,
-    "_totalCols": 2
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "SG17",
@@ -31946,8 +31946,8 @@
     "teacher": "Csuhaj",
     "teacherId": "TEAC1",
     "day": "WED",
-    "start": 640,
-    "end": 730,
+    "start": 660,
+    "end": 750,
     "studentCount": 4,
     "roomId": "ROOM1",
     "room": "321jazz",
@@ -31997,8 +31997,8 @@
     "teacher": "Csuhaj",
     "teacherId": "TEAC1",
     "day": "WED",
-    "start": 740,
-    "end": 830,
+    "start": 750,
+    "end": 840,
     "studentCount": 4,
     "roomId": "ROOM1",
     "room": "321jazz",
@@ -32008,8 +32008,8 @@
      "Szegszardy Zalan Peter",
      "Szesztay Lili Virag"
     ],
-    "_col": 1,
-    "_totalCols": 2
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "SG9",
@@ -32668,7 +32668,7 @@
   "teacherSwaps": []
  },
  "acceptedTimetable": {
-  "acceptedAt": "2026-09-04T09:27:42.721Z",
+  "acceptedAt": "2026-09-15T10:43:36.383Z",
   "scheduled": [
    {
     "lessonId": "LES34",
@@ -32738,8 +32738,8 @@
      "Zsolnai Domonkos",
      "Zwick Zsombor Andras"
     ],
-    "_col": 1,
-    "_totalCols": 2
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "LES25",
@@ -32751,7 +32751,7 @@
     "day": "MON",
     "start": 570,
     "end": 660,
-    "studentCount": 17,
+    "studentCount": 16,
     "roomId": "ROOM7",
     "room": "315",
     "studentNames": [
@@ -32768,13 +32768,12 @@
      "Molnar Sebestyen",
      "Nemeth Mirko Gergely",
      "Orosz Miklos",
-     "Szilvagyi Domonkos",
      "Zalavari Almos",
      "Zsolnai Domonkos",
      "Zwick Zsombor Andras"
     ],
     "_col": 0,
-    "_totalCols": 3
+    "_totalCols": 1
    },
    {
     "lessonId": "SG5",
@@ -32859,7 +32858,7 @@
      "Szesztay Lili Virag"
     ],
     "_col": 0,
-    "_totalCols": 3
+    "_totalCols": 1
    },
    {
     "lessonId": "SG7",
@@ -32948,7 +32947,7 @@
      "Szesztay Lili Virag"
     ],
     "_col": 0,
-    "_totalCols": 3
+    "_totalCols": 1
    },
    {
     "lessonId": "SG15",
@@ -32971,8 +32970,8 @@
      "Molnar Sebestyen",
      "Zalavari Almos"
     ],
-    "_col": 1,
-    "_totalCols": 3
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "LES5",
@@ -32984,7 +32983,7 @@
     "day": "MON",
     "start": 870,
     "end": 915,
-    "studentCount": 6,
+    "studentCount": 5,
     "roomId": "ROOM1",
     "room": "321jazz",
     "studentNames": [
@@ -32992,17 +32991,16 @@
      "Feher Csongor",
      "Nanasi Jakab",
      "Szabo Bence Jeno",
-     "Szekeres Szabolcs",
-     "Toth Benedek Mate"
+     "Szekeres Szabolcs"
     ],
     "_col": 0,
-    "_totalCols": 2
+    "_totalCols": 1
    },
    {
     "lessonId": "LES27",
-    "name": "Solfege 10v",
-    "group": "solf10v",
-    "groupId": "GR30",
+    "name": "Jazz Theory 10v",
+    "group": "jazztheory10v",
+    "groupId": "GR21",
     "teacher": "Pozsar",
     "teacherId": "TEAC15",
     "day": "MON",
@@ -33028,7 +33026,7 @@
     "day": "MON",
     "start": 915,
     "end": 960,
-    "studentCount": 7,
+    "studentCount": 6,
     "roomId": "",
     "room": "",
     "studentNames": [
@@ -33037,11 +33035,10 @@
      "Feher Csongor",
      "Nanasi Jakab",
      "Szabo Bence Jeno",
-     "Szekeres Szabolcs",
-     "Toth Benedek Mate"
+     "Szekeres Szabolcs"
     ],
     "_col": 0,
-    "_totalCols": 2
+    "_totalCols": 1
    },
    {
     "lessonId": "LES4",
@@ -33069,7 +33066,7 @@
      "Zilincki Nora Hanna"
     ],
     "_col": 0,
-    "_totalCols": 2
+    "_totalCols": 1
    },
    {
     "lessonId": "LES37",
@@ -33131,8 +33128,8 @@
      "Szabo Daniel Mihaly",
      "Zilincki Nora Hanna"
     ],
-    "_col": 1,
-    "_totalCols": 2
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "SG10",
@@ -33298,8 +33295,8 @@
      "Vajda Attila",
      "Zilincki Nora Hanna"
     ],
-    "_col": 1,
-    "_totalCols": 2
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "LES30",
@@ -33323,8 +33320,8 @@
      "Polyak Kitti",
      "Toth Levente Zsigmond"
     ],
-    "_col": 1,
-    "_totalCols": 2
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "LES3",
@@ -33399,7 +33396,7 @@
     "day": "TUE",
     "start": 1050,
     "end": 1095,
-    "studentCount": 7,
+    "studentCount": 8,
     "roomId": "ROOM13",
     "room": "327",
     "studentNames": [
@@ -33409,10 +33406,11 @@
      "Molnar Aurel",
      "Nagy David Andras",
      "Polyak Kitti",
+     "Toth Benedek Mate",
      "Toth Levente Zsigmond"
     ],
-    "_col": 1,
-    "_totalCols": 2
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "LES32",
@@ -33424,7 +33422,7 @@
     "day": "TUE",
     "start": 1005,
     "end": 1050,
-    "studentCount": 6,
+    "studentCount": 7,
     "roomId": "ROOM13",
     "room": "327",
     "studentNames": [
@@ -33433,10 +33431,11 @@
      "Kaszas Emilia Magdolna",
      "Liska Szilard Lel",
      "Nemeth-Buhin Miguel",
+     "Toth Benedek Mate",
      "Toth Marton"
     ],
-    "_col": 1,
-    "_totalCols": 2
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "SG17",
@@ -33509,8 +33508,8 @@
     "teacher": "Csuhaj",
     "teacherId": "TEAC1",
     "day": "WED",
-    "start": 640,
-    "end": 730,
+    "start": 660,
+    "end": 750,
     "studentCount": 4,
     "roomId": "ROOM1",
     "room": "321jazz",
@@ -33560,8 +33559,8 @@
     "teacher": "Csuhaj",
     "teacherId": "TEAC1",
     "day": "WED",
-    "start": 740,
-    "end": 830,
+    "start": 750,
+    "end": 840,
     "studentCount": 4,
     "roomId": "ROOM1",
     "room": "321jazz",
@@ -33571,8 +33570,8 @@
      "Szegszardy Zalan Peter",
      "Szesztay Lili Virag"
     ],
-    "_col": 1,
-    "_totalCols": 2
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "SG9",
@@ -33764,20 +33763,19 @@
    },
    {
     "lessonId": "LES14",
-    "name": "Jazz Theory 10v",
-    "group": "jazztheory10v",
-    "groupId": "GR21",
+    "name": "Jazz Theory 9v",
+    "group": "jazztheor9v",
+    "groupId": "GR44",
     "teacher": "Pozsar",
     "teacherId": "TEAC15",
     "day": "MON",
     "start": 1050,
     "end": 1095,
-    "studentCount": 2,
+    "studentCount": 1,
     "roomId": "ROOM5",
     "room": "329",
     "studentNames": [
-     "Bussy Csongor",
-     "Szabo Daniel Mihaly"
+     "Toth Benedek Mate"
     ],
     "_col": 1,
     "_totalCols": 2
@@ -33884,7 +33882,7 @@
     "day": "THU",
     "start": 1100,
     "end": 1145,
-    "studentCount": 5,
+    "studentCount": 6,
     "roomId": "ROOM1",
     "room": "321jazz",
     "studentNames": [
@@ -33892,6 +33890,7 @@
      "Gonczi Simon",
      "Liska Szilard Lel",
      "Nemeth-Buhin Miguel",
+     "Toth Benedek Mate",
      "Toth Marton"
     ],
     "_col": 0,
@@ -33986,14 +33985,15 @@
     "day": "FRI",
     "start": 645,
     "end": 735,
-    "studentCount": 4,
+    "studentCount": 5,
     "roomId": "ROOM10",
     "room": "202",
     "studentNames": [
      "Kovacs Hunor",
      "Kutai Benjamin",
      "Simon Lili",
-     "Szabo David"
+     "Szabo David",
+     "Szilvagyi Domonkos"
     ],
     "_col": 2,
     "_totalCols": 3
@@ -34008,7 +34008,7 @@
     "day": "FRI",
     "start": 690,
     "end": 735,
-    "studentCount": 7,
+    "studentCount": 6,
     "roomId": "ROOM14",
     "room": "328",
     "studentNames": [
@@ -34017,8 +34017,7 @@
      "Feher Csongor",
      "Nanasi Jakab",
      "Szabo Bence Jeno",
-     "Szekeres Szabolcs",
-     "Toth Benedek Mate"
+     "Szekeres Szabolcs"
     ],
     "_col": 0,
     "_totalCols": 3
@@ -34033,7 +34032,7 @@
     "day": "FRI",
     "start": 735,
     "end": 780,
-    "studentCount": 7,
+    "studentCount": 6,
     "roomId": "ROOM14",
     "room": "328",
     "studentNames": [
@@ -34042,8 +34041,7 @@
      "Feher Csongor",
      "Nanasi Jakab",
      "Szabo Bence Jeno",
-     "Szekeres Szabolcs",
-     "Toth Benedek Mate"
+     "Szekeres Szabolcs"
     ],
     "_col": 0,
     "_totalCols": 2
@@ -34212,11 +34210,12 @@
     "day": "WED",
     "start": 1110,
     "end": 1200,
-    "studentCount": 6,
+    "studentCount": 7,
     "roomId": "ROOM1",
     "room": "321jazz",
     "studentNames": [
      "Damo Mate",
+     "Farkas Bendeguz",
      "Hajnal Balazs",
      "Molnar Torda",
      "Scheller Akos",
@@ -34304,9 +34303,9 @@
    "duration": 90,
    "roomId": "ROOM7",
    "room": "315",
-   "studentCount": 17,
-   "students": "Barcza Vince, Esztergaly Botond, Fejer Orsolya, Hapsz Hunor, Kalman Abris Mihaly, Kalman Janka, Kecskemeti Laura Andrea, Koszta Eva, Mezes Attila, Molnar Keve Matyas, Molnar Sebestyen, Nemeth Mirko Gergely, Orosz Miklos, Szilvagyi Domonkos, Zalavari Almos, Zsolnai Domonkos, Zwick Zsombor Andras",
-   "studentIds": "ST6, ST7, ST14, ST15, ST29, ST30, ST37, ST38, ST39, ST40, ST43, ST44, ST55, ST56, ST57, ST69, ST70",
+   "studentCount": 16,
+   "students": "Barcza Vince, Esztergaly Botond, Fejer Orsolya, Hapsz Hunor, Kalman Abris Mihaly, Kalman Janka, Kecskemeti Laura Andrea, Koszta Eva, Mezes Attila, Molnar Keve Matyas, Molnar Sebestyen, Nemeth Mirko Gergely, Orosz Miklos, Zalavari Almos, Zsolnai Domonkos, Zwick Zsombor Andras",
+   "studentIds": "ST6, ST7, ST14, ST29, ST30, ST37, ST38, ST39, ST40, ST43, ST44, ST55, ST56, ST57, ST69, ST70",
    "status": "scheduled",
    "note": ""
   },
@@ -34444,18 +34443,18 @@
    "duration": 45,
    "roomId": "ROOM1",
    "room": "321jazz",
-   "studentCount": 6,
-   "students": "Cimer Vince Daniel, Feher Csongor, Nanasi Jakab, Szabo Bence Jeno, Szekeres Szabolcs, Toth Benedek Mate",
-   "studentIds": "ST1, ST2, ST10, ST11, ST31, ST48",
+   "studentCount": 5,
+   "students": "Cimer Vince Daniel, Feher Csongor, Nanasi Jakab, Szabo Bence Jeno, Szekeres Szabolcs",
+   "studentIds": "ST1, ST10, ST11, ST31, ST48",
    "status": "scheduled",
    "note": ""
   },
   {
    "lessonId": "LES27",
-   "name": "Solfege 10v",
+   "name": "Jazz Theory 10v",
    "kind": "lesson",
-   "group": "solf10v",
-   "groupId": "GR30",
+   "group": "jazztheory10v",
+   "groupId": "GR21",
    "teacher": "Pozsar",
    "teacherId": "TEAC15",
    "day": "MON",
@@ -34484,9 +34483,9 @@
    "duration": 45,
    "roomId": "",
    "room": "",
-   "studentCount": 7,
-   "students": "Cimer Vince Daniel, Cseke Timea, Feher Csongor, Nanasi Jakab, Szabo Bence Jeno, Szekeres Szabolcs, Toth Benedek Mate",
-   "studentIds": "ST1, ST2, ST10, ST11, ST20, ST31, ST48",
+   "studentCount": 6,
+   "students": "Cimer Vince Daniel, Cseke Timea, Feher Csongor, Nanasi Jakab, Szabo Bence Jeno, Szekeres Szabolcs",
+   "studentIds": "ST1, ST10, ST11, ST20, ST31, ST48",
    "status": "scheduled",
    "note": ""
   },
@@ -34552,10 +34551,10 @@
   },
   {
    "lessonId": "LES14",
-   "name": "Jazz Theory 10v",
+   "name": "Jazz Theory 9v",
    "kind": "lesson",
-   "group": "jazztheory10v",
-   "groupId": "GR21",
+   "group": "jazztheor9v",
+   "groupId": "GR44",
    "teacher": "Pozsar",
    "teacherId": "TEAC15",
    "day": "MON",
@@ -34564,9 +34563,9 @@
    "duration": 45,
    "roomId": "ROOM5",
    "room": "329",
-   "studentCount": 2,
-   "students": "Bussy Csongor, Szabo Daniel Mihaly",
-   "studentIds": "ST54, ST67",
+   "studentCount": 1,
+   "students": "Toth Benedek Mate",
+   "studentIds": "ST2",
    "status": "scheduled",
    "note": ""
   },
@@ -34764,9 +34763,9 @@
    "duration": 45,
    "roomId": "ROOM13",
    "room": "327",
-   "studentCount": 6,
-   "students": "Csaki Daniel, Gonczi Simon, Kaszas Emilia Magdolna, Liska Szilard Lel, Nemeth-Buhin Miguel, Toth Marton",
-   "studentIds": "ST9, ST19, ST26, ST35, ST42, ST74",
+   "studentCount": 7,
+   "students": "Csaki Daniel, Gonczi Simon, Kaszas Emilia Magdolna, Liska Szilard Lel, Nemeth-Buhin Miguel, Toth Benedek Mate, Toth Marton",
+   "studentIds": "ST2, ST9, ST19, ST26, ST35, ST42, ST74",
    "status": "scheduled",
    "note": ""
   },
@@ -34784,9 +34783,9 @@
    "duration": 45,
    "roomId": "ROOM13",
    "room": "327",
-   "studentCount": 7,
-   "students": "Csoka Dorottya, Eles Aron, Horvath Lujza, Molnar Aurel, Nagy David Andras, Polyak Kitti, Toth Levente Zsigmond",
-   "studentIds": "ST13, ST24, ST25, ST36, ST52, ST53, ST68",
+   "studentCount": 8,
+   "students": "Csoka Dorottya, Eles Aron, Horvath Lujza, Molnar Aurel, Nagy David Andras, Polyak Kitti, Toth Benedek Mate, Toth Levente Zsigmond",
+   "studentIds": "ST2, ST13, ST24, ST25, ST36, ST52, ST53, ST68",
    "status": "scheduled",
    "note": ""
   },
@@ -34839,8 +34838,8 @@
    "teacher": "Csuhaj",
    "teacherId": "TEAC1",
    "day": "WED",
-   "start": "10:40",
-   "end": "12:10",
+   "start": "11:00",
+   "end": "12:30",
    "duration": 90,
    "roomId": "ROOM1",
    "room": "321jazz",
@@ -34879,8 +34878,8 @@
    "teacher": "Csuhaj",
    "teacherId": "TEAC1",
    "day": "WED",
-   "start": "12:20",
-   "end": "13:50",
+   "start": "12:30",
+   "end": "14:00",
    "duration": 90,
    "roomId": "ROOM1",
    "room": "321jazz",
@@ -34964,9 +34963,9 @@
    "duration": 90,
    "roomId": "ROOM1",
    "room": "321jazz",
-   "studentCount": 6,
-   "students": "Damo Mate, Hajnal Balazs, Molnar Torda, Scheller Akos, Szecskay Hanna, Vajda Attila",
-   "studentIds": "ST8, ST16, ST41, ST59, ST27, ST72",
+   "studentCount": 7,
+   "students": "Damo Mate, Farkas Bendeguz, Hajnal Balazs, Molnar Torda, Scheller Akos, Szecskay Hanna, Vajda Attila",
+   "studentIds": "ST8, ST16, ST41, ST59, ST27, ST72, ST71",
    "status": "scheduled",
    "note": ""
   },
@@ -35124,9 +35123,9 @@
    "duration": 45,
    "roomId": "ROOM1",
    "room": "321jazz",
-   "studentCount": 5,
-   "students": "Csaki Daniel, Gonczi Simon, Liska Szilard Lel, Nemeth-Buhin Miguel, Toth Marton",
-   "studentIds": "ST9, ST19, ST35, ST42, ST74",
+   "studentCount": 6,
+   "students": "Csaki Daniel, Gonczi Simon, Liska Szilard Lel, Nemeth-Buhin Miguel, Toth Benedek Mate, Toth Marton",
+   "studentIds": "ST2, ST9, ST19, ST35, ST42, ST74",
    "status": "scheduled",
    "note": ""
   },
@@ -35204,9 +35203,9 @@
    "duration": 90,
    "roomId": "ROOM10",
    "room": "202",
-   "studentCount": 4,
-   "students": "Kovacs Hunor, Kutai Benjamin, Simon Lili, Szabo David",
-   "studentIds": "ST18, ST51, ST62, ST73",
+   "studentCount": 5,
+   "students": "Kovacs Hunor, Kutai Benjamin, Simon Lili, Szabo David, Szilvagyi Domonkos",
+   "studentIds": "ST15, ST18, ST51, ST62, ST73",
    "status": "scheduled",
    "note": ""
   },
@@ -35224,9 +35223,9 @@
    "duration": 45,
    "roomId": "ROOM14",
    "room": "328",
-   "studentCount": 7,
-   "students": "Cimer Vince Daniel, Cseke Timea, Feher Csongor, Nanasi Jakab, Szabo Bence Jeno, Szekeres Szabolcs, Toth Benedek Mate",
-   "studentIds": "ST1, ST2, ST10, ST11, ST20, ST31, ST48",
+   "studentCount": 6,
+   "students": "Cimer Vince Daniel, Cseke Timea, Feher Csongor, Nanasi Jakab, Szabo Bence Jeno, Szekeres Szabolcs",
+   "studentIds": "ST1, ST10, ST11, ST20, ST31, ST48",
    "status": "scheduled",
    "note": ""
   },
@@ -35264,9 +35263,9 @@
    "duration": 45,
    "roomId": "ROOM14",
    "room": "328",
-   "studentCount": 7,
-   "students": "Cimer Vince Daniel, Cseke Timea, Feher Csongor, Nanasi Jakab, Szabo Bence Jeno, Szekeres Szabolcs, Toth Benedek Mate",
-   "studentIds": "ST1, ST2, ST10, ST11, ST20, ST31, ST48",
+   "studentCount": 6,
+   "students": "Cimer Vince Daniel, Cseke Timea, Feher Csongor, Nanasi Jakab, Szabo Bence Jeno, Szekeres Szabolcs",
+   "studentIds": "ST1, ST10, ST11, ST20, ST31, ST48",
    "status": "scheduled",
    "note": ""
   },
@@ -35758,8 +35757,8 @@
   "scheduleSearchAttempts": "8000",
   "oneOneSearchAttempts": "1000",
   "rpianoSearchAttempts": "100",
-  "viewMode": "all",
-  "teacherFilter": "TEAC2",
+  "viewMode": "teacher",
+  "teacherFilter": "TEAC1",
   "reportFilters": {
    "classId": "",
    "studentId": "",
@@ -35774,7 +35773,7 @@
  },
  "oneToOneState": {
   "viewTeacherIds": [
-   "TEAC16"
+   "TEAC1"
   ],
   "scheduled": [
    {
@@ -35889,8 +35888,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 4,
-    "_totalCols": 8
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC14-ST55",
@@ -36027,8 +36026,8 @@
     "room": "",
     "source": "oneone",
     "duration": 90,
-    "_col": 2,
-    "_totalCols": 8
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC22-ST19",
@@ -36142,8 +36141,8 @@
     "room": "",
     "source": "oneone",
     "duration": 90,
-    "_col": 5,
-    "_totalCols": 8
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC22-ST13",
@@ -36280,8 +36279,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 5,
-    "_totalCols": 8
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC22-ST17",
@@ -36625,8 +36624,8 @@
     "room": "",
     "source": "oneone",
     "duration": 180,
-    "_col": 6,
-    "_totalCols": 8
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC20-ST69",
@@ -36740,7 +36739,7 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 6,
+    "_col": 0,
     "_totalCols": 11
    },
    {
@@ -36878,8 +36877,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 4,
-    "_totalCols": 8
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC6-ST18",
@@ -36993,8 +36992,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 2,
-    "_totalCols": 11
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC13-ST46",
@@ -37062,8 +37061,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 2,
-    "_totalCols": 11
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC10-ST37-2",
@@ -37200,7 +37199,7 @@
     "room": "Drum",
     "source": "oneone",
     "duration": 120,
-    "_col": 4,
+    "_col": 2,
     "_totalCols": 11
    },
    {
@@ -37223,7 +37222,7 @@
     "room": "",
     "source": "oneone",
     "duration": 120,
-    "_col": 0,
+    "_col": 4,
     "_totalCols": 11
    },
    {
@@ -37269,7 +37268,7 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 9,
+    "_col": 0,
     "_totalCols": 11
    },
    {
@@ -37384,7 +37383,7 @@
     "room": "",
     "source": "oneone",
     "duration": 120,
-    "_col": 4,
+    "_col": 5,
     "_totalCols": 11
    },
    {
@@ -37407,7 +37406,7 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 0,
+    "_col": 4,
     "_totalCols": 11
    },
    {
@@ -37430,7 +37429,7 @@
     "room": "",
     "source": "oneone",
     "duration": 90,
-    "_col": 5,
+    "_col": 6,
     "_totalCols": 11
    },
    {
@@ -37476,7 +37475,7 @@
     "room": "Drum",
     "source": "oneone",
     "duration": 60,
-    "_col": 9,
+    "_col": 7,
     "_totalCols": 11
    },
    {
@@ -37499,7 +37498,7 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 7,
+    "_col": 8,
     "_totalCols": 11
    },
    {
@@ -37522,7 +37521,7 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 0,
+    "_col": 1,
     "_totalCols": 11
    },
    {
@@ -37591,7 +37590,7 @@
     "room": "Drum",
     "source": "oneone",
     "duration": 60,
-    "_col": 6,
+    "_col": 0,
     "_totalCols": 11
    },
    {
@@ -37614,7 +37613,7 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 8,
+    "_col": 7,
     "_totalCols": 11
    },
    {
@@ -37637,7 +37636,7 @@
     "room": "",
     "source": "oneone",
     "duration": 90,
-    "_col": 7,
+    "_col": 8,
     "_totalCols": 11
    },
    {
@@ -37660,7 +37659,7 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 5,
+    "_col": 6,
     "_totalCols": 11
    },
    {
@@ -37683,7 +37682,7 @@
     "room": "",
     "source": "oneone",
     "duration": 120,
-    "_col": 4,
+    "_col": 5,
     "_totalCols": 11
    },
    {
@@ -37706,7 +37705,7 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 0,
+    "_col": 1,
     "_totalCols": 11
    },
    {
@@ -37752,7 +37751,7 @@
     "room": "Drum",
     "source": "oneone",
     "duration": 60,
-    "_col": 1,
+    "_col": 0,
     "_totalCols": 11
    },
    {
@@ -37775,8 +37774,8 @@
     "room": "",
     "source": "oneone",
     "duration": 120,
-    "_col": 9,
-    "_totalCols": 11
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC3-ST9",
@@ -37798,7 +37797,7 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 6,
+    "_col": 4,
     "_totalCols": 11
    },
    {
@@ -37821,7 +37820,7 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 0,
+    "_col": 1,
     "_totalCols": 11
    },
    {
@@ -37890,7 +37889,7 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 0,
+    "_col": 1,
     "_totalCols": 11
    },
    {
@@ -37959,7 +37958,7 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 1,
+    "_col": 0,
     "_totalCols": 11
    },
    {
@@ -37982,7 +37981,7 @@
     "room": "Drum",
     "source": "oneone",
     "duration": 60,
-    "_col": 1,
+    "_col": 0,
     "_totalCols": 11
    },
    {
@@ -38074,8 +38073,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 3,
-    "_totalCols": 7
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC16-ST63",
@@ -38098,7 +38097,7 @@
     "source": "oneone",
     "duration": 60,
     "_col": 0,
-    "_totalCols": 7
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC19-ST72",
@@ -38167,7 +38166,7 @@
     "source": "oneone",
     "duration": 60,
     "_col": 0,
-    "_totalCols": 11
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC18-ST61",
@@ -38235,8 +38234,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 7,
-    "_totalCols": 11
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC19-ST66",
@@ -38304,8 +38303,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 4,
-    "_totalCols": 7
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC16-ST53",
@@ -38327,8 +38326,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 6,
-    "_totalCols": 7
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC4-ST12",
@@ -38373,8 +38372,8 @@
     "room": "",
     "source": "oneone",
     "duration": 120,
-    "_col": 4,
-    "_totalCols": 7
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC19-ST67",
@@ -38511,8 +38510,8 @@
     "room": "",
     "source": "oneone",
     "duration": 60,
-    "_col": 7,
-    "_totalCols": 11
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "O2O-TEAC9-ST28",
@@ -42729,7 +42728,7 @@
       "source": "oneone",
       "duration": 90,
       "_col": 3,
-      "_totalCols": 7
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC10-ST32",
@@ -42751,8 +42750,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 5,
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC14-ST62",
@@ -42775,7 +42774,7 @@
       "source": "oneone",
       "duration": 60,
       "_col": 2,
-      "_totalCols": 7
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC10-ST40",
@@ -42797,8 +42796,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 6,
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC1-ST6",
@@ -42820,8 +42819,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 4,
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC14-ST55",
@@ -42844,7 +42843,7 @@
       "source": "oneone",
       "duration": 90,
       "_col": 2,
-      "_totalCols": 7
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC22-ST18",
@@ -42867,7 +42866,7 @@
       "source": "oneone",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 7
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC10-ST42",
@@ -42889,8 +42888,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 6,
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC15-ST51",
@@ -42913,7 +42912,7 @@
       "source": "oneone",
       "duration": 90,
       "_col": 5,
-      "_totalCols": 7
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC22-ST15",
@@ -42936,7 +42935,7 @@
       "source": "oneone",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 7
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC1-ST5",
@@ -42958,8 +42957,8 @@
       "room": "",
       "source": "oneone",
       "duration": 90,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 2,
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC22-ST19",
@@ -42982,7 +42981,7 @@
       "source": "oneone",
       "duration": 30,
       "_col": 0,
-      "_totalCols": 7
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC9-ST21",
@@ -43004,8 +43003,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 3,
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC22-ST12",
@@ -43028,7 +43027,7 @@
       "source": "oneone",
       "duration": 60,
       "_col": 5,
-      "_totalCols": 7
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC10-ST36",
@@ -43050,8 +43049,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 6,
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC1-ST4",
@@ -43073,8 +43072,8 @@
       "room": "",
       "source": "oneone",
       "duration": 90,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 5,
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC22-ST13",
@@ -43097,7 +43096,7 @@
       "source": "oneone",
       "duration": 30,
       "_col": 0,
-      "_totalCols": 7
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC22-ST11",
@@ -43120,7 +43119,7 @@
       "source": "oneone",
       "duration": 30,
       "_col": 0,
-      "_totalCols": 7
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC9-ST24",
@@ -43142,8 +43141,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 3,
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC22-ST16",
@@ -43166,7 +43165,7 @@
       "source": "oneone",
       "duration": 30,
       "_col": 0,
-      "_totalCols": 7
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC10-ST33",
@@ -43188,8 +43187,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 6,
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC1-ST9",
@@ -43211,8 +43210,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 5,
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC22-ST17",
@@ -43235,7 +43234,7 @@
       "source": "oneone",
       "duration": 30,
       "_col": 0,
-      "_totalCols": 7
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC9-ST25",
@@ -43257,8 +43256,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 3,
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC9-ST27",
@@ -43281,7 +43280,7 @@
       "source": "oneone",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 1
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC8-ST22",
@@ -43303,8 +43302,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 2,
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC2-ST4",
@@ -43349,8 +43348,8 @@
       "room": "Drum",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 1,
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC8-ST29",
@@ -43373,7 +43372,7 @@
       "source": "oneone",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 1
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC14-ST56",
@@ -43419,7 +43418,7 @@
       "source": "oneone",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 1
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC19-ST74",
@@ -43441,8 +43440,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 3,
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC19-ST74-2",
@@ -43464,8 +43463,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 1,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC4-ST19",
@@ -43487,8 +43486,8 @@
       "room": "Drum",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 1,
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC14-ST53",
@@ -43510,7 +43509,7 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 2,
+      "_col": 3,
       "_totalCols": 8
      },
      {
@@ -43534,7 +43533,7 @@
       "source": "oneone",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 1
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC1-ST3",
@@ -43556,8 +43555,8 @@
       "room": "",
       "source": "oneone",
       "duration": 180,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 6,
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC20-ST69",
@@ -43579,8 +43578,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 5,
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC4-ST16",
@@ -43602,8 +43601,8 @@
       "room": "Drum",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 2,
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC14-ST58",
@@ -43649,7 +43648,7 @@
       "source": "oneone",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 1
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC20-ST76",
@@ -43671,8 +43670,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 1,
-      "_totalCols": 2
+      "_col": 6,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC19-ST71",
@@ -43694,8 +43693,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 5,
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC6-ST17",
@@ -43809,8 +43808,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 4,
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC6-ST18",
@@ -43924,8 +43923,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 2,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC13-ST46",
@@ -43947,8 +43946,8 @@
       "room": "",
       "source": "oneone",
       "duration": 180,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 3,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC14-ST57",
@@ -43993,8 +43992,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 2,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC10-ST37-2",
@@ -44017,7 +44016,7 @@
       "source": "oneone",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 1
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC19-ST70",
@@ -44039,8 +44038,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 6,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC17-ST55",
@@ -44108,8 +44107,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 1,
-      "_totalCols": 2
+      "_col": 9,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC4-ST14",
@@ -44131,8 +44130,8 @@
       "room": "Drum",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 4,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC10-ST38",
@@ -44155,7 +44154,7 @@
       "source": "oneone",
       "duration": 120,
       "_col": 0,
-      "_totalCols": 1
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC7-ST30",
@@ -44200,8 +44199,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 1,
-      "_totalCols": 2
+      "_col": 9,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC17-ST56",
@@ -44223,7 +44222,7 @@
       "room": "",
       "source": "oneone",
       "duration": 90,
-      "_col": 9,
+      "_col": 5,
       "_totalCols": 11
      },
      {
@@ -44246,8 +44245,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 1,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC13-ST45",
@@ -44269,8 +44268,8 @@
       "room": "",
       "source": "oneone",
       "duration": 180,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 3,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC20-ST75",
@@ -44292,8 +44291,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 2,
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC10-ST41",
@@ -44315,8 +44314,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 4,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC17-ST59",
@@ -44361,8 +44360,8 @@
       "room": "",
       "source": "oneone",
       "duration": 90,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 5,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC20-ST70",
@@ -44384,8 +44383,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 1,
-      "_totalCols": 2
+      "_col": 9,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC5-ST11",
@@ -44407,8 +44406,8 @@
       "room": "Drum",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 9,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC7-ST26",
@@ -44476,8 +44475,8 @@
       "room": "",
       "source": "oneone",
       "duration": 180,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 10,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC20-ST65",
@@ -44499,8 +44498,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 1,
-      "_totalCols": 2
+      "_col": 9,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC5-ST19",
@@ -44522,8 +44521,8 @@
       "room": "Drum",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 6,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC3-ST6",
@@ -44545,8 +44544,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 8,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC18-ST51",
@@ -44568,8 +44567,8 @@
       "room": "",
       "source": "oneone",
       "duration": 90,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 7,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC7-ST20",
@@ -44591,7 +44590,7 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 6,
+      "_col": 5,
       "_totalCols": 11
      },
      {
@@ -44614,8 +44613,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 4,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC13-ST67",
@@ -44638,7 +44637,7 @@
       "source": "oneone",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 1
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC17-ST61",
@@ -44683,8 +44682,8 @@
       "room": "Drum",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 1,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC1-ST1",
@@ -44706,8 +44705,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 9,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC3-ST9",
@@ -44729,8 +44728,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 6,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC17-ST60",
@@ -44775,8 +44774,8 @@
       "room": "Drum",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 6,
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC3-ST7",
@@ -44798,8 +44797,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 3,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC10-ST32-2",
@@ -44822,7 +44821,7 @@
       "source": "oneone",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 1
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC12-ST44",
@@ -44844,8 +44843,8 @@
       "room": "",
       "source": "oneone",
       "duration": 180,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 2,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC5-ST14",
@@ -44868,7 +44867,7 @@
       "source": "oneone",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 1
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC3-ST8",
@@ -44890,8 +44889,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 1,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC5-ST13",
@@ -44913,8 +44912,8 @@
       "room": "Drum",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 1,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC13-ST47",
@@ -44937,7 +44936,7 @@
       "source": "oneone",
       "duration": 180,
       "_col": 0,
-      "_totalCols": 1
+      "_totalCols": 4
      },
      {
       "lessonId": "O2O-TEAC14-ST48",
@@ -44982,8 +44981,8 @@
       "room": "Drum",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 3,
+      "_totalCols": 4
      },
      {
       "lessonId": "O2O-TEAC16-ST64",
@@ -45005,8 +45004,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 2
+      "_col": 3,
+      "_totalCols": 7
      },
      {
       "lessonId": "O2O-TEAC16-ST63",
@@ -45029,7 +45028,7 @@
       "source": "oneone",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 1
+      "_totalCols": 7
      },
      {
       "lessonId": "O2O-TEAC19-ST72",
@@ -45051,8 +45050,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 2,
+      "_totalCols": 7
      },
      {
       "lessonId": "O2O-TEAC4-ST13",
@@ -45074,8 +45073,8 @@
       "room": "Drum",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 1,
+      "_totalCols": 7
      },
      {
       "lessonId": "O2O-TEAC16-ST60",
@@ -45098,7 +45097,7 @@
       "source": "oneone",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 1
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC18-ST61",
@@ -45120,8 +45119,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 3,
+      "_totalCols": 7
      },
      {
       "lessonId": "O2O-TEAC4-ST11",
@@ -45143,8 +45142,8 @@
       "room": "Drum",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 4,
+      "_totalCols": 7
      },
      {
       "lessonId": "O2O-TEAC16-ST52",
@@ -45166,8 +45165,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 7,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC19-ST66",
@@ -45189,8 +45188,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 5,
+      "_totalCols": 7
      },
      {
       "lessonId": "O2O-TEAC4-ST10",
@@ -45212,8 +45211,8 @@
       "room": "Drum",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 1,
+      "_totalCols": 7
      },
      {
       "lessonId": "O2O-TEAC1-ST7-2",
@@ -45235,8 +45234,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 4,
+      "_totalCols": 7
      },
      {
       "lessonId": "O2O-TEAC16-ST53",
@@ -45258,8 +45257,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 1,
-      "_totalCols": 2
+      "_col": 6,
+      "_totalCols": 7
      },
      {
       "lessonId": "O2O-TEAC4-ST12",
@@ -45281,8 +45280,8 @@
       "room": "Drum",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 2,
+      "_totalCols": 7
      },
      {
       "lessonId": "O2O-TEAC1-ST2",
@@ -45304,8 +45303,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 4,
+      "_totalCols": 7
      },
      {
       "lessonId": "O2O-TEAC19-ST67",
@@ -45327,8 +45326,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 5,
+      "_totalCols": 7
      },
      {
       "lessonId": "O2O-TEAC15-ST54",
@@ -45350,7 +45349,7 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 1,
+      "_col": 2,
       "_totalCols": 7
      },
      {
@@ -45373,7 +45372,7 @@
       "room": "Drum",
       "source": "oneone",
       "duration": 60,
-      "_col": 3,
+      "_col": 0,
       "_totalCols": 7
      },
      {
@@ -45396,7 +45395,7 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 1,
+      "_col": 2,
       "_totalCols": 7
      },
      {
@@ -45419,7 +45418,7 @@
       "room": "Drum",
       "source": "oneone",
       "duration": 30,
-      "_col": 3,
+      "_col": 0,
       "_totalCols": 7
      },
      {
@@ -45442,8 +45441,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 7,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC9-ST28",
@@ -45465,8 +45464,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 1,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC11-ST39",
@@ -45511,8 +45510,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 4,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC24-ST73",
@@ -45557,8 +45556,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 5,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC11-ST34",
@@ -45603,8 +45602,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 6,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC19-ST75",
@@ -45626,8 +45625,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 1,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC8-ST29-2",
@@ -45649,8 +45648,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 7,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC24-ST70",
@@ -45718,8 +45717,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 7,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC8-ST28",
@@ -45741,8 +45740,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 6,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC24-ST66",
@@ -45787,8 +45786,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 2,
+      "_totalCols": 8
      },
      {
       "lessonId": "O2O-TEAC19-ST65-2",
@@ -45810,8 +45809,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 5,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC5-ST12",
@@ -45833,8 +45832,8 @@
       "room": "Drum",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 2,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC7-ST22",
@@ -45856,7 +45855,7 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 3,
+      "_col": 4,
       "_totalCols": 11
      },
      {
@@ -45879,7 +45878,7 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 4,
+      "_col": 9,
       "_totalCols": 11
      },
      {
@@ -45902,7 +45901,7 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 1,
+      "_col": 3,
       "_totalCols": 11
      },
      {
@@ -45925,8 +45924,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 10,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC10-ST31",
@@ -45948,8 +45947,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 6,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC8-ST24",
@@ -45972,7 +45971,7 @@
       "source": "oneone",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 1
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC5-ST10",
@@ -45994,8 +45993,8 @@
       "room": "Drum",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 2,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC9-ST20",
@@ -46017,8 +46016,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 4,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC7-ST21",
@@ -46040,7 +46039,7 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 4,
+      "_col": 9,
       "_totalCols": 11
      },
      {
@@ -46063,7 +46062,7 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 9,
+      "_col": 10,
       "_totalCols": 11
      },
      {
@@ -46086,7 +46085,7 @@
       "room": "",
       "source": "oneone",
       "duration": 30,
-      "_col": 1,
+      "_col": 3,
       "_totalCols": 11
      },
      {
@@ -46132,8 +46131,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 8,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC24-ST65",
@@ -46178,8 +46177,8 @@
       "room": "Drum",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 2,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC11-ST40",
@@ -46224,8 +46223,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 9,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC24-ST69",
@@ -46247,7 +46246,7 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 7,
+      "_col": 6,
       "_totalCols": 11
      },
      {
@@ -46293,8 +46292,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 4,
+      "_totalCols": 11
      },
      {
       "lessonId": "O2O-TEAC24-ST71",
@@ -46316,7 +46315,7 @@
       "room": "",
       "source": "oneone",
       "duration": 30,
-      "_col": 0,
+      "_col": 1,
       "_totalCols": 11
      },
      {
@@ -46362,7 +46361,7 @@
       "room": "",
       "source": "oneone",
       "duration": 30,
-      "_col": 0,
+      "_col": 1,
       "_totalCols": 11
      },
      {
@@ -46385,7 +46384,7 @@
       "room": "",
       "source": "oneone",
       "duration": 30,
-      "_col": 0,
+      "_col": 1,
       "_totalCols": 11
      },
      {
@@ -46408,7 +46407,7 @@
       "room": "",
       "source": "oneone",
       "duration": 30,
-      "_col": 0,
+      "_col": 1,
       "_totalCols": 11
      }
     ],
@@ -47850,7 +47849,7 @@
     "room": "",
     "source": "rpiano",
     "duration": 60,
-    "_col": 6,
+    "_col": 7,
     "_totalCols": 11
    },
    {
@@ -47873,7 +47872,7 @@
     "room": "",
     "source": "rpiano",
     "duration": 30,
-    "_col": 2,
+    "_col": 6,
     "_totalCols": 11
    },
    {
@@ -48034,7 +48033,7 @@
     "room": "",
     "source": "rpiano",
     "duration": 60,
-    "_col": 0,
+    "_col": 1,
     "_totalCols": 11
    },
    {
@@ -48057,7 +48056,7 @@
     "room": "",
     "source": "rpiano",
     "duration": 60,
-    "_col": 0,
+    "_col": 1,
     "_totalCols": 11
    },
    {
@@ -48219,7 +48218,7 @@
     "source": "rpiano",
     "duration": 60,
     "_col": 0,
-    "_totalCols": 11
+    "_totalCols": 1
    },
    {
     "lessonId": "RP-TEAC18-ST16",
@@ -48310,8 +48309,8 @@
     "room": "",
     "source": "rpiano",
     "duration": 60,
-    "_col": 3,
-    "_totalCols": 7
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "RP-TEAC16-ST42",
@@ -48333,8 +48332,8 @@
     "room": "",
     "source": "rpiano",
     "duration": 30,
-    "_col": 1,
-    "_totalCols": 11
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "RP-TEAC15-ST17",
@@ -48380,7 +48379,7 @@
     "source": "rpiano",
     "duration": 60,
     "_col": 0,
-    "_totalCols": 11
+    "_totalCols": 1
    },
    {
     "lessonId": "RP-TEAC16-ST40",
@@ -48403,7 +48402,7 @@
     "source": "rpiano",
     "duration": 60,
     "_col": 0,
-    "_totalCols": 11
+    "_totalCols": 1
    },
    {
     "lessonId": "RP-TEAC16-ST22",
@@ -48425,8 +48424,8 @@
     "room": "",
     "source": "rpiano",
     "duration": 60,
-    "_col": 3,
-    "_totalCols": 11
+    "_col": 0,
+    "_totalCols": 1
    },
    {
     "lessonId": "RP-TEAC18-ST14",
@@ -49400,7 +49399,7 @@
       "source": "rpiano",
       "duration": 60,
       "_col": 2,
-      "_totalCols": 7
+      "_totalCols": 8
      },
      {
       "lessonId": "RP-TEAC14-ST65",
@@ -49423,7 +49422,7 @@
       "source": "rpiano",
       "duration": 60,
       "_col": 2,
-      "_totalCols": 7
+      "_totalCols": 8
      },
      {
       "lessonId": "RP-TEAC17-ST37",
@@ -49445,8 +49444,8 @@
       "room": "",
       "source": "rpiano",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 7
+      "_col": 1,
+      "_totalCols": 8
      },
      {
       "lessonId": "RP-TEAC17-ST38",
@@ -49469,7 +49468,7 @@
       "source": "rpiano",
       "duration": 60,
       "_col": 1,
-      "_totalCols": 7
+      "_totalCols": 8
      },
      {
       "lessonId": "RP-TEAC17-ST72",
@@ -49492,7 +49491,7 @@
       "source": "rpiano",
       "duration": 30,
       "_col": 1,
-      "_totalCols": 7
+      "_totalCols": 8
      },
      {
       "lessonId": "RP-TEAC17-ST34",
@@ -49515,7 +49514,7 @@
       "source": "rpiano",
       "duration": 60,
       "_col": 1,
-      "_totalCols": 7
+      "_totalCols": 8
      },
      {
       "lessonId": "RP-TEAC15-ST27",
@@ -49538,7 +49537,7 @@
       "source": "rpiano",
       "duration": 30,
       "_col": 0,
-      "_totalCols": 7
+      "_totalCols": 8
      },
      {
       "lessonId": "RP-TEAC17-ST71",
@@ -49561,7 +49560,7 @@
       "source": "rpiano",
       "duration": 30,
       "_col": 0,
-      "_totalCols": 7
+      "_totalCols": 8
      },
      {
       "lessonId": "RP-TEAC17-ST12",
@@ -49584,7 +49583,7 @@
       "source": "rpiano",
       "duration": 60,
       "_col": 2,
-      "_totalCols": 7
+      "_totalCols": 8
      },
      {
       "lessonId": "RP-TEAC17-ST21",
@@ -49607,7 +49606,7 @@
       "source": "rpiano",
       "duration": 60,
       "_col": 2,
-      "_totalCols": 7
+      "_totalCols": 8
      },
      {
       "lessonId": "RP-TEAC17-ST74",
@@ -49630,7 +49629,7 @@
       "source": "rpiano",
       "duration": 30,
       "_col": 0,
-      "_totalCols": 7
+      "_totalCols": 8
      },
      {
       "lessonId": "RP-TEAC14-ST5",
@@ -49767,8 +49766,8 @@
       "room": "",
       "source": "rpiano",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 8,
+      "_totalCols": 11
      },
      {
       "lessonId": "RP-TEAC14-ST69",
@@ -49813,8 +49812,8 @@
       "room": "",
       "source": "rpiano",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 8,
+      "_totalCols": 11
      },
      {
       "lessonId": "RP-TEAC18-ST70",
@@ -49836,8 +49835,8 @@
       "room": "",
       "source": "rpiano",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 6,
+      "_totalCols": 11
      },
      {
       "lessonId": "RP-TEAC14-ST41",
@@ -50089,8 +50088,8 @@
       "room": "",
       "source": "rpiano",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 2,
+      "_totalCols": 4
      },
      {
       "lessonId": "RP-TEAC21-ST43",
@@ -50159,7 +50158,7 @@
       "source": "rpiano",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 1
+      "_totalCols": 7
      },
      {
       "lessonId": "RP-TEAC21-ST44",
@@ -50181,7 +50180,7 @@
       "room": "",
       "source": "rpiano",
       "duration": 60,
-      "_col": 3,
+      "_col": 2,
       "_totalCols": 7
      },
      {
@@ -50205,7 +50204,7 @@
       "source": "rpiano",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 1
+      "_totalCols": 11
      },
      {
       "lessonId": "RP-TEAC18-ST16",
@@ -50228,7 +50227,7 @@
       "source": "rpiano",
       "duration": 30,
       "_col": 0,
-      "_totalCols": 1
+      "_totalCols": 7
      },
      {
       "lessonId": "RP-TEAC15-ST8",
@@ -50273,8 +50272,8 @@
       "room": "",
       "source": "rpiano",
       "duration": 30,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 1,
+      "_totalCols": 7
      },
      {
       "lessonId": "RP-TEAC16-ST7",
@@ -50296,8 +50295,8 @@
       "room": "",
       "source": "rpiano",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 3,
+      "_totalCols": 7
      },
      {
       "lessonId": "RP-TEAC16-ST42",
@@ -50319,8 +50318,8 @@
       "room": "",
       "source": "rpiano",
       "duration": 30,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 1,
+      "_totalCols": 11
      },
      {
       "lessonId": "RP-TEAC15-ST17",
@@ -50366,7 +50365,7 @@
       "source": "rpiano",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 1
+      "_totalCols": 11
      },
      {
       "lessonId": "RP-TEAC16-ST40",
@@ -50389,7 +50388,7 @@
       "source": "rpiano",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 1
+      "_totalCols": 11
      },
      {
       "lessonId": "RP-TEAC16-ST22",
@@ -50411,8 +50410,8 @@
       "room": "",
       "source": "rpiano",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 3,
+      "_totalCols": 11
      },
      {
       "lessonId": "RP-TEAC18-ST14",
@@ -50434,8 +50433,8 @@
       "room": "",
       "source": "rpiano",
       "duration": 60,
-      "_col": 0,
-      "_totalCols": 1
+      "_col": 3,
+      "_totalCols": 11
      }
     ],
     "unresolved": []
@@ -50724,5 +50723,5 @@
   "dragUndo": [],
   "acceptedAt": "2026-09-15T09:42:20.591Z"
  },
- "publishedAt": "2026-09-15T09:43:59.074Z"
+ "publishedAt": "2026-09-15T10:45:02.614Z"
 }
