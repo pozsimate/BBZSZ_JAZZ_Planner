@@ -931,6 +931,31 @@
   .cal-context-item:hover{
     background:var(--danger-soft); border-color:rgba(224,87,107,.28); color:#c43b50;
   }
+  .cal-context-item.cal-context-split{
+    color:var(--ink);
+  }
+  .cal-context-item.cal-context-split:hover{
+    background:rgba(45,212,191,.12); border-color:rgba(15,118,110,.28); color:var(--ink);
+  }
+  .modal-box.individual-split-box{ max-width:440px; }
+  .individual-split-presets{
+    display:flex; flex-wrap:wrap; gap:6px; align-items:center;
+  }
+  .individual-split-parts{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:10px;
+  }
+  .individual-split-part{
+    position:relative; margin:0;
+  }
+  .individual-split-part .individual-split-input{
+    padding-right:28px;
+  }
+  .individual-split-unit{
+    position:absolute; right:12px; bottom:10px; color:var(--ink-dim);
+    font-family:var(--mono); font-size:12px; font-weight:700; pointer-events:none;
+  }
+  #individualSplitSum.is-ok{ color:var(--ok); }
+  #individualSplitSum.is-bad{ color:var(--danger); }
   .cal-block.is-accepted-bg{
     background:rgba(30,30,45,.06); border-left-color:#9aa0b5; cursor:default; opacity:.78;
   }

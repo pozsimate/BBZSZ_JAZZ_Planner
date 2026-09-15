@@ -396,14 +396,20 @@ function main(){
   }));
   timed('mergeFlushIndividualTiles 80-tile chain', () => {
     const merged = api.mergeFlushIndividualTiles(flushChain);
-    ok('80 adjacent 1/1 tiles coalesce', merged.length === 1 && merged[0].mergedIds.length === 80);
-    return merged;
+    ok('80 adjacent labeled 1/1 tiles stay separate', merged.length === 80 && !merged.some(i => i.mergedIds));
+    const unlabeledChain = flushChain.map(i => Object.assign({}, i, {name: 'Split'}));
+    const unlabeledMerged = api.mergeFlushIndividualTiles(unlabeledChain);
+    ok('80 adjacent unlabeled 1/1 tiles coalesce', unlabeledMerged.length === 1 && unlabeledMerged[0].mergedIds.length === 80);
+    return unlabeledMerged;
   }, 500);
 
   timed('coalesceFlushIndividualLessons in-place fuse', () => {
-    const fusedLive = flushChain.map(i => Object.assign({}, i));
+    const labeledLive = flushChain.map(i => Object.assign({}, i));
+    api.coalesceFlushIndividualLessons(labeledLive);
+    ok('80 labeled flush slices stay separate', labeledLive.length === 80);
+    const fusedLive = flushChain.map(i => Object.assign({}, i, {name: 'Split'}));
     api.coalesceFlushIndividualLessons(fusedLive);
-    ok('80 flush slices fuse to one lesson', fusedLive.length === 1 && fusedLive[0].duration === 80 * 45);
+    ok('80 unlabeled flush slices fuse to one lesson', fusedLive.length === 1 && fusedLive[0].duration === 80 * 45);
     return fusedLive;
   }, 500);
 

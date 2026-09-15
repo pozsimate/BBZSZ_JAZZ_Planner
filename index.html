@@ -457,7 +457,7 @@
 
     <div class="panel">
       <h2>Weekly grid</h2>
-      <p class="dataio-hint" style="margin:0 0 10px 0;">Shows accepted group lessons (grey), 1/1 (gold), and accepted Required Piano (teal) for the teachers picked with the button above. Drag gold 1/1 blocks — grey and teal stay put.</p>
+      <p class="dataio-hint" style="margin:0 0 10px 0;">Shows accepted group lessons (grey), 1/1 (gold), and accepted Required Piano (teal) for the teachers picked with the button above. Drag gold 1/1 blocks — grey and teal stay put. Right-click a gold block → <b>Split lesson…</b> to cut e.g. 60′ into 30′+30′ (parts must add up exactly).</p>
       <div class="row" style="margin-bottom:10px">
         <button type="button" class="btn secondary small" id="oneoneUndoBtn" disabled>↩ Undo last move</button>
       </div>
@@ -528,7 +528,7 @@
 
     <div class="panel">
       <h2>Weekly grid</h2>
-      <p class="dataio-hint" style="margin:0 0 10px 0;">Shows accepted group lessons (grey), accepted 1/1 (gold), and Required Piano (teal) for the teachers picked with the button above. Drag teal piano blocks — grey and gold stay put.</p>
+      <p class="dataio-hint" style="margin:0 0 10px 0;">Shows accepted group lessons (grey), accepted 1/1 (gold), and Required Piano (teal) for the teachers picked with the button above. Drag teal piano blocks — grey and gold stay put. Right-click a teal block → <b>Split lesson…</b> to cut e.g. 120′ into 60′+60′ (parts must add up exactly).</p>
       <div class="row" style="margin-bottom:10px">
         <button type="button" class="btn secondary small" id="rpianoUndoBtn" disabled>↩ Undo last move</button>
       </div>
@@ -755,7 +755,27 @@
 </div>
 
 <div id="calContextMenu" class="cal-context-menu" hidden>
+  <button type="button" class="cal-context-item cal-context-split" data-action="split">Split lesson…</button>
   <button type="button" class="cal-context-item" data-action="delete">Delete from layout</button>
+</div>
+
+<div class="modal-overlay" id="individualSplitOverlay" style="display:none" aria-hidden="true">
+  <div class="modal-box individual-split-box" role="dialog" aria-modal="true" aria-labelledby="individualSplitTitle">
+    <h3 id="individualSplitTitle" style="margin-top:0">Split lesson</h3>
+    <p class="dataio-hint" id="individualSplitHint" style="margin:0 0 12px 0"></p>
+    <div class="row" style="margin:0 0 10px 0;align-items:center;gap:8px;flex-wrap:wrap">
+      <label class="cloud-field" style="margin:0"><span>Parts</span>
+        <select id="individualSplitPartCount" class="cloud-input" style="min-width:72px"></select>
+      </label>
+      <div id="individualSplitPresets" class="individual-split-presets"></div>
+    </div>
+    <div id="individualSplitParts" class="individual-split-parts"></div>
+    <p class="dataio-hint" id="individualSplitSum" style="margin:10px 0 0 0"></p>
+    <div class="row" style="margin:14px 0 0 0;justify-content:flex-end;flex-wrap:wrap;gap:8px">
+      <button type="button" class="btn secondary" id="individualSplitCancelBtn">Cancel</button>
+      <button type="button" class="btn" id="individualSplitConfirmBtn">Split</button>
+    </div>
+  </div>
 </div>
 
 <script id="seed-data" type="application/json">

@@ -2053,23 +2053,18 @@ function main(){
     studentCount:1, studentNames:['Vince'], source:'oneone'
   };
   const flushMerged = api.mergeFlushIndividualTiles([flushA, flushB]);
-  ok('flush split 1/1 pieces merge into one tile',
-    flushMerged.length === 1
-      && flushMerged[0].start === 9*60
-      && flushMerged[0].end === 10*60+30
-      && flushMerged[0].name === 'Vince 1/1'
-      && (flushMerged[0].mergedIds || []).join(',') === 'O2O-T1-S1,O2O-T1-S1-2',
+  ok('flush labeled split 1/1 pieces stay separate tiles',
+    flushMerged.length === 2
+      && flushMerged.some(i => i.lessonId === 'O2O-T1-S1')
+      && flushMerged.some(i => i.lessonId === 'O2O-T1-S1-2'),
     JSON.stringify(flushMerged.map(i => ({id:i.lessonId, name:i.name, start:i.start, end:i.end, merged:i.mergedIds}))));
   const fusedLive = [Object.assign({}, flushA), Object.assign({}, flushB)];
   api.coalesceFlushIndividualLessons(fusedLive);
-  ok('flush slices fuse into one scheduled lesson',
-    fusedLive.length === 1
-      && fusedLive[0].lessonId === 'O2O-T1-S1'
-      && fusedLive[0].duration === 90
-      && fusedLive[0].name === 'Vince 1/1'
-      && fusedLive[0].start === 9*60
-      && fusedLive[0].end === 10*60+30
-      && !fusedLive[0].mergedIds,
+  ok('flush labeled slices stay two scheduled lessons',
+    fusedLive.length === 2
+      && fusedLive.every(s => s.end - s.start === 45)
+      && fusedLive.some(s => s.lessonId === 'O2O-T1-S1')
+      && fusedLive.some(s => s.lessonId === 'O2O-T1-S1-2'),
     JSON.stringify(fusedLive));
   const gappedLive = [
     Object.assign({}, flushA),
@@ -2094,31 +2089,42 @@ function main(){
     otherStu.map(i => i.lessonId).join(','));
   const groupKeep = {lessonId:'L1', name:'Combo', teacherId:'T1', day:'MON', start:9*60, end:10*60};
   const withGroup = api.mergeFlushIndividualTiles([groupKeep, flushA, flushB]);
-  ok('group lessons stay unmerged next to a flush 1/1 tile',
-    withGroup.length === 2
+  ok('group lessons stay unmerged next to labeled split 1/1 tiles',
+    withGroup.length === 3
       && withGroup.some(i => i.lessonId === 'L1' && !i.mergedIds)
-      && withGroup.some(i => (i.mergedIds || []).join(',') === 'O2O-T1-S1,O2O-T1-S1-2'));
+      && withGroup.some(i => i.lessonId === 'O2O-T1-S1')
+      && withGroup.some(i => i.lessonId === 'O2O-T1-S1-2'));
   const flushCal = {innerHTML: ''};
   api.renderCalendar(flushCal, [flushA, flushB], false, 'oneone');
-  ok('calendar paints one merged 1/1 tile',
+  ok('calendar paints each labeled split 1/1 tile separately',
     (flushCal.innerHTML.match(/data-lesson-id="O2O-T1-S1"/g) || []).length === 1
-      && !/data-lesson-id="O2O-T1-S1-2"/.test(flushCal.innerHTML)
-      && /data-merged-ids="O2O-T1-S1,O2O-T1-S1-2"/.test(flushCal.innerHTML)
-      && /Vince 1\/1/.test(flushCal.innerHTML)
-      && !/Vince 1\/1 · 45/.test(flushCal.innerHTML)
-      && /09:00–10:30/.test(flushCal.innerHTML),
+      && /data-lesson-id="O2O-T1-S1-2"/.test(flushCal.innerHTML)
+      && !/data-merged-ids=/.test(flushCal.innerHTML)
+      && /Vince 1\/1 · 45/.test(flushCal.innerHTML)
+      && /09:00–09:45/.test(flushCal.innerHTML)
+      && /09:45–10:30/.test(flushCal.innerHTML),
     flushCal.innerHTML.slice(0, 700));
   const pianoFlush = api.mergeFlushIndividualTiles([
     Object.assign({}, flushA, {source:'rpiano', lessonId:'RP-T1-S1', name:'Vince piano · 45′', group:'piano'}),
     Object.assign({}, flushB, {source:'rpiano', lessonId:'RP-T1-S1-2', name:'Vince piano · 45′', group:'piano'})
   ]);
-  ok('flush Required Piano pieces also merge in the view',
-    pianoFlush.length === 1 && pianoFlush[0].name === 'Vince piano'
-      && (pianoFlush[0].mergedIds || []).join(',') === 'RP-T1-S1,RP-T1-S1-2');
+  ok('flush labeled Required Piano pieces stay separate in the view',
+    pianoFlush.length === 2
+      && pianoFlush.every(i => / · 45′$/.test(i.name))
+      && !pianoFlush.some(i => i.mergedIds));
+  const unlabeledA = Object.assign({}, flushA, {name:'Vince 1/1'});
+  const unlabeledB = Object.assign({}, flushB, {name:'Vince 1/1'});
+  const unlabeledMerged = api.mergeFlushIndividualTiles([unlabeledA, unlabeledB]);
+  ok('flush unlabeled 1/1 pieces still merge into one tile',
+    unlabeledMerged.length === 1
+      && unlabeledMerged[0].start === 9*60
+      && unlabeledMerged[0].end === 10*60+30
+      && (unlabeledMerged[0].mergedIds || []).join(',') === 'O2O-T1-S1,O2O-T1-S1-2',
+    JSON.stringify(unlabeledMerged.map(i => ({id:i.lessonId, name:i.name, merged:i.mergedIds}))));
   const aLive = Object.assign({}, flushA);
   const bLive = Object.assign({}, flushB);
   api.LAST_ONEONE = {scheduled:[aLive, bLive], unresolved:[], dragUndo:[]};
-  const inert = {classList:{add(){}, remove(){}}, releasePointerCapture(){}, dataset:{mergedIds:'O2O-T1-S1,O2O-T1-S1-2'}};
+  const inert = {classList:{add(){}, remove(){}}, releasePointerCapture(){}, dataset:{mergedIds:''}};
   const emptyCal = {querySelectorAll(){ return []; }, querySelector(){ return null; }};
   api.CAL_DRAG = {
     pointerId: 1, block: inert, container: emptyCal, dayBodies: [],
@@ -2129,14 +2135,12 @@ function main(){
   };
   api.endCalendarDrag(true);
   const fusedDrag = api.LAST_ONEONE.scheduled;
-  ok('dragging flush pieces fuses them into one lesson',
-    fusedDrag.length === 1
-      && fusedDrag[0].lessonId === 'O2O-T1-S1'
-      && fusedDrag[0].day === 'TUE'
-      && fusedDrag[0].start === 10*60
-      && fusedDrag[0].end === 11*60+30
-      && fusedDrag[0].duration === 90
-      && fusedDrag[0].name === 'Vince 1/1',
+  ok('dragging labeled split pieces keeps both lessons',
+    fusedDrag.length === 2
+      && fusedDrag.every(s => s.day === 'TUE')
+      && fusedDrag.some(s => s.lessonId === 'O2O-T1-S1' && s.start === 10*60 && s.end === 10*60+45)
+      && fusedDrag.some(s => s.lessonId === 'O2O-T1-S1-2' && s.start === 10*60+45 && s.end === 11*60+30)
+      && fusedDrag.every(s => / · 45′$/.test(s.name)),
     JSON.stringify(fusedDrag.map(i => ({id:i.lessonId, name:i.name, day:i.day, start:i.start, end:i.end, duration:i.duration}))));
   api.undoIndividualDrag('oneone');
   const undone = api.LAST_ONEONE.scheduled;
@@ -2157,14 +2161,51 @@ function main(){
   };
   api.endCalendarDrag(true);
   const droppedFlush = api.LAST_ONEONE.scheduled;
-  ok('dropping a slice flush against its pair fuses them into one lesson',
-    droppedFlush.length === 1
-      && droppedFlush[0].lessonId === 'O2O-T1-S1'
-      && droppedFlush[0].day === 'MON'
-      && droppedFlush[0].start === 9*60
-      && droppedFlush[0].end === 10*60+30
-      && droppedFlush[0].name === 'Vince 1/1',
+  ok('dropping a labeled slice flush against its pair keeps both lessons',
+    droppedFlush.length === 2
+      && droppedFlush.some(s => s.lessonId === 'O2O-T1-S1' && s.day === 'MON' && s.start === 9*60 && s.end === 9*60+45)
+      && droppedFlush.some(s => s.lessonId === 'O2O-T1-S1-2' && s.day === 'MON' && s.start === 9*60+45 && s.end === 10*60+30)
+      && droppedFlush.every(s => / · 45′$/.test(s.name)),
     JSON.stringify(droppedFlush.map(i => ({id:i.lessonId, day:i.day, start:i.start, end:i.end, name:i.name}))));
+  // Manual split: 60′ → 30′+30′
+  api.LAST_ONEONE = {
+    scheduled: [{
+      lessonId:'O2O-T1-S9', name:'Anna 1/1', teacherId:'T1', teacher:'Ajtai',
+      studentId:'S9', studentIds:'S9', day:'WED', start:12*60, end:13*60,
+      studentCount:1, studentNames:['Anna'], source:'oneone', duration:60
+    }],
+    unresolved:[], dragUndo:[], accepted:true
+  };
+  ok('manual split rejects parts that do not sum', !api.splitIndividualLessons(['O2O-T1-S9'], [20, 30]));
+  ok('manual split accepts 30+30 for a 60′ lesson', api.splitIndividualLessons(['O2O-T1-S9'], [30, 30]));
+  const splitSched = api.LAST_ONEONE.scheduled;
+  ok('manual split creates two labeled pieces in place',
+    splitSched.length === 2
+      && splitSched.every(s => s.day === 'WED')
+      && splitSched.some(s => s.start === 12*60 && s.end === 12*60+30 && / · 30′$/.test(s.name))
+      && splitSched.some(s => s.start === 12*60+30 && s.end === 13*60 && / · 30′$/.test(s.name))
+      && api.LAST_ONEONE.accepted === false
+      && api.LAST_ONEONE.dragUndo.length === 1,
+    JSON.stringify(splitSched.map(i => ({id:i.lessonId, name:i.name, start:i.start, end:i.end}))));
+  ok('normalizeIndividualSplitParts requires exact sum and 5′ steps',
+    !!api.normalizeIndividualSplitParts([30, 30], 60)
+      && !!api.normalizeIndividualSplitParts([60, 60], 120)
+      && !!api.normalizeIndividualSplitParts([40, 40, 40], 120)
+      && !api.normalizeIndividualSplitParts([20, 30], 60)
+      && !api.normalizeIndividualSplitParts([30], 60)
+      && !api.normalizeIndividualSplitParts([12, 48], 60)
+      && !api.normalizeIndividualSplitParts([10, 50], 60));
+  ok('defaultIndividualSplitParts halves even durations',
+    (api.defaultIndividualSplitParts(60) || []).join('+') === '30+30'
+      && (api.defaultIndividualSplitParts(120) || []).join('+') === '60+60');
+  api.undoIndividualDrag('oneone');
+  ok('undo restores pre-split lesson',
+    api.LAST_ONEONE.scheduled.length === 1
+      && api.LAST_ONEONE.scheduled[0].lessonId === 'O2O-T1-S9'
+      && api.LAST_ONEONE.scheduled[0].start === 12*60
+      && api.LAST_ONEONE.scheduled[0].end === 13*60
+      && api.LAST_ONEONE.scheduled[0].name === 'Anna 1/1');
+
   api.DB.refTeachers = [{id:'T1', name:'Ajtai'}, {id:'T2', name:'Pozsar'}, {id:'T3', name:'Csuhaj'}];
   const hueOf = c => parseFloat((c.bg.match(/hsl\(([-\d.]+)/) || [])[1]);
   const h1 = hueOf(api.colorForTeacher('T1'));

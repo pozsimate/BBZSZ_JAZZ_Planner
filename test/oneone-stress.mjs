@@ -550,25 +550,30 @@ function main(){
   }
   ok('split sessions for the same cell do not overlap',
     pairOverlap.length === 0, pairOverlap.slice(0, 6).join(' | '));
-  const splitSameDay = [];
   const byPair = {};
   result.scheduled.forEach(s => {
     const k = pairKey(s.teacherId, s.studentId);
     (byPair[k] = byPair[k] || []).push(s);
   });
+  const gappedSameDay = [];
   Object.keys(byPair).forEach(k => {
-    const list = byPair[k];
-    if(list.length < 2) return;
-    for(let i = 0; i < list.length; i++){
-      for(let j = i + 1; j < list.length; j++){
-        const a = list[i], b = list[j];
-        if(a.day !== b.day) continue;
-        splitSameDay.push(`${a.studentId}×${teacherName(api.DB, a.teacherId)} ${a.day}`);
+    const list = byPair[k].filter(s => s && s.day).slice().sort((a, b) =>
+      DAYS.indexOf(a.day) - DAYS.indexOf(b.day) || a.start - b.start || a.end - b.end);
+    const byDay = {};
+    list.forEach(s => { (byDay[s.day] = byDay[s.day] || []).push(s); });
+    Object.keys(byDay).forEach(day => {
+      const dayList = byDay[day];
+      if(dayList.length < 2) return;
+      for(let i = 1; i < dayList.length; i++){
+        if(dayList[i - 1].end !== dayList[i].start){
+          gappedSameDay.push(`${dayList[0].studentId}×${teacherName(api.DB, dayList[0].teacherId)} ${day}`);
+          break;
+        }
       }
-    }
+    });
   });
-  ok('split sessions for the same cell are on different days (flush slices fuse into one lesson)',
-    splitSameDay.length === 0, splitSameDay.slice(0, 6).join(' | '));
+  ok('same-day split sessions sit flush (labeled slices stay separate)',
+    gappedSameDay.length === 0, gappedSameDay.slice(0, 6).join(' | '));
 
   const validErr = checkScheduledValid(api.DB, accepted, result.scheduled);
   ok('independent invariants: scheduled 1/1 are legal', validErr.length === 0,

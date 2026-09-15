@@ -4170,9 +4170,15 @@ function layoutColumns(dayItems){
 function stripSplitDurationLabel(name){
   return String(name || '').replace(/\s·\s+\d+\s*′\s*$/u, '').trim();
 }
+function hasSplitDurationLabel(name){
+  return /\s·\s+\d+\s*′\s*$/u.test(String(name || ''));
+}
 function individualTileKey(i){
   if(!i || (i.source !== 'oneone' && i.source !== 'rpiano')) return '';
   return [i.source, i.teacherId || '', i.studentId || i.studentIds || '', i.day].join('\t');
+}
+function chainKeepsSplitPieces(chain){
+  return (chain || []).some(p => p && hasSplitDurationLabel(p.name));
 }
 function mergeFlushIndividualTiles(items){
   const list = (items || []).slice();
@@ -4189,7 +4195,8 @@ function mergeFlushIndividualTiles(items){
     const ordered = group.slice().sort((a,b) => a.start - b.start || a.end - b.end);
     let chain = [];
     function emit(){
-      if(chain.length >= 2){
+      // Keep intentional split slices as separate tiles so each half can be dragged alone.
+      if(chain.length >= 2 && !chainKeepsSplitPieces(chain)){
         const first = chain[0];
         const last = chain[chain.length - 1];
         chain.forEach(p => used.add(p));
@@ -4250,7 +4257,7 @@ function coalesceFlushIndividualLessons(list){
     const ordered = group.slice().sort((a,b) => a.start - b.start || a.end - b.end);
     let chain = [];
     function emit(){
-      if(chain.length >= 2){
+      if(chain.length >= 2 && !chainKeepsSplitPieces(chain)){
         const keeper = pickFusedLessonKeeper(chain);
         applyFusedLessonTimes(keeper, chain);
         chain.forEach(p => { if(p !== keeper) remove.add(p); });
@@ -6109,6 +6116,318 @@ function removeGroupLessonsFromLayout(lessonIds){
   refreshTimetableStats();
   return true;
 }
+const INDIVIDUAL_SPLIT_MIN_PART = 15;
+function individualLessonBaseId(lessonId){
+  return String(lessonId || '').replace(/-\d+$/, '');
+}
+function normalizeIndividualSplitParts(parts, total){
+  const dur = Math.max(0, parseInt(total, 10) || 0);
+  if(dur < INDIVIDUAL_SPLIT_MIN_PART * 2) return null;
+  const list = (parts || []).map(p => parseInt(p, 10));
+  if(list.length < 2) return null;
+  if(list.some(p => !Number.isFinite(p) || p < INDIVIDUAL_SPLIT_MIN_PART || p % CAL_SNAP_MIN !== 0)) return null;
+  const sum = list.reduce((a, b) => a + b, 0);
+  if(sum !== dur) return null;
+  return list;
+}
+function defaultIndividualSplitParts(total){
+  const dur = Math.max(0, parseInt(total, 10) || 0);
+  if(dur < INDIVIDUAL_SPLIT_MIN_PART * 2) return null;
+  if(dur % 2 === 0){
+    const half = dur / 2;
+    if(half >= INDIVIDUAL_SPLIT_MIN_PART && half % CAL_SNAP_MIN === 0) return [half, half];
+  }
+  const first = Math.max(INDIVIDUAL_SPLIT_MIN_PART, snapDownMin(dur - INDIVIDUAL_SPLIT_MIN_PART));
+  const second = dur - first;
+  if(second < INDIVIDUAL_SPLIT_MIN_PART || first % CAL_SNAP_MIN || second % CAL_SNAP_MIN) return null;
+  return [first, second];
+}
+function suggestIndividualSplitPresets(total){
+  const dur = Math.max(0, parseInt(total, 10) || 0);
+  const out = [];
+  const seen = new Set();
+  function add(parts){
+    const ok = normalizeIndividualSplitParts(parts, dur);
+    if(!ok) return;
+    const key = ok.join('+');
+    if(seen.has(key)) return;
+    seen.add(key);
+    out.push(ok);
+  }
+  add(defaultIndividualSplitParts(dur));
+  if(dur === 60){ add([30, 30]); }
+  if(dur === 90){ add([45, 45]); add([60, 30]); add([30, 60]); }
+  if(dur === 120){ add([60, 60]); add([30, 30, 60]); add([40, 40, 40]); }
+  if(dur >= 90 && dur % 3 === 0){
+    const p = dur / 3;
+    if(p >= INDIVIDUAL_SPLIT_MIN_PART && p % CAL_SNAP_MIN === 0) add([p, p, p]);
+  }
+  for(let n = 2; n <= Math.min(6, Math.floor(dur / INDIVIDUAL_SPLIT_MIN_PART)); n++){
+    if(dur % n !== 0) continue;
+    const p = dur / n;
+    if(p >= INDIVIDUAL_SPLIT_MIN_PART && p % CAL_SNAP_MIN === 0) add(Array(n).fill(p));
+  }
+  return out;
+}
+function allocIndividualSplitLessonIds(seedId, count, scheduled){
+  const used = new Set((scheduled || []).map(s => s && String(s.lessonId)).filter(Boolean));
+  const seed = String(seedId || 'SPLIT');
+  const base = individualLessonBaseId(seed) || seed;
+  const ids = [];
+  const take = (id) => {
+    if(!id || used.has(id) || ids.includes(id)) return false;
+    used.add(id);
+    ids.push(id);
+    return true;
+  };
+  take(seed);
+  take(base);
+  let n = 2;
+  while(ids.length < count){
+    take(base + '-' + n);
+    n++;
+    if(n > count + used.size + 20) break;
+  }
+  return ids.slice(0, count);
+}
+function individualSplitTargetItems(lessonIds){
+  const ids = [...new Set((lessonIds || []).map(String).filter(Boolean))];
+  const items = ids.map(id => scheduledItemById(id)).filter(Boolean);
+  if(!items.length) return null;
+  const source = items[0].source;
+  if(source !== 'oneone' && source !== 'rpiano') return null;
+  if(items.some(it => it.source !== source)) return null;
+  const ordered = items.slice().sort((a, b) => a.start - b.start || a.end - b.end);
+  return {kind: source, items: ordered};
+}
+function individualSplitTotalDuration(items){
+  return (items || []).reduce((sum, it) => sum + Math.max(0, (it.end - it.start) || it.duration || 0), 0);
+}
+function canSplitIndividualLessons(lessonIds){
+  const target = individualSplitTargetItems(lessonIds);
+  if(!target) return false;
+  return individualSplitTotalDuration(target.items) >= INDIVIDUAL_SPLIT_MIN_PART * 2;
+}
+function splitIndividualLessons(lessonIds, parts){
+  if(SEARCH_UI_LOCK) return false;
+  const target = individualSplitTargetItems(lessonIds);
+  if(!target) return false;
+  const total = individualSplitTotalDuration(target.items);
+  const plan = normalizeIndividualSplitParts(parts, total);
+  if(!plan) return false;
+  const state = target.kind === 'rpiano' ? LAST_RPIANO : LAST_ONEONE;
+  if(!state || !Array.isArray(state.scheduled)) return false;
+  const first = target.items[0];
+  const idSet = new Set(target.items.map(it => String(it.lessonId)));
+  const insertAt = state.scheduled.findIndex(s => s && idSet.has(String(s.lessonId)));
+  if(insertAt < 0) return false;
+  ensureDragBaseline(state);
+  const snapshot = (state.scheduled || []).map(s => Object.assign({}, s));
+  state.dragUndo.push({type: 'split', snapshot});
+  for(let i = state.scheduled.length - 1; i >= 0; i--){
+    if(state.scheduled[i] && idSet.has(String(state.scheduled[i].lessonId))) state.scheduled.splice(i, 1);
+  }
+  const baseName = stripSplitDurationLabel(first.name);
+  const newIds = allocIndividualSplitLessonIds(first.lessonId, plan.length, state.scheduled);
+  let t = first.start;
+  const created = plan.map((dur, idx) => {
+    const item = Object.assign({}, first, {
+      lessonId: newIds[idx],
+      name: baseName + ' · ' + dur + '′',
+      start: t,
+      end: t + dur,
+      duration: dur
+    });
+    delete item.mergedIds;
+    delete item.mergedDurations;
+    t += dur;
+    return item;
+  });
+  const at = Math.min(insertAt, state.scheduled.length);
+  state.scheduled.splice(at, 0, ...created);
+  markLayoutNeedsAccept(target.kind);
+  markWorkDirty();
+  hideCalContextMenu();
+  if(target.kind === 'rpiano') renderRpianoTab();
+  else renderOneOneTab();
+  return true;
+}
+let SPLIT_DIALOG = null;
+function getIndividualSplitOverlay(){
+  let el = document.getElementById('individualSplitOverlay');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'individualSplitOverlay';
+    el.className = 'modal-overlay';
+    el.style.display = 'none';
+    el.setAttribute('aria-hidden', 'true');
+    el.innerHTML = `<div class="modal-box individual-split-box" role="dialog" aria-modal="true" aria-labelledby="individualSplitTitle">
+      <h3 id="individualSplitTitle" style="margin-top:0">Split lesson</h3>
+      <p class="dataio-hint" id="individualSplitHint" style="margin:0 0 12px 0"></p>
+      <div class="row" style="margin:0 0 10px 0;align-items:center;gap:8px;flex-wrap:wrap">
+        <label class="cloud-field" style="margin:0"><span>Parts</span>
+          <select id="individualSplitPartCount" class="cloud-input" style="min-width:72px"></select>
+        </label>
+        <div id="individualSplitPresets" class="individual-split-presets"></div>
+      </div>
+      <div id="individualSplitParts" class="individual-split-parts"></div>
+      <p class="dataio-hint" id="individualSplitSum" style="margin:10px 0 0 0"></p>
+      <div class="row" style="margin:14px 0 0 0;justify-content:flex-end;flex-wrap:wrap;gap:8px">
+        <button type="button" class="btn secondary" id="individualSplitCancelBtn">Cancel</button>
+        <button type="button" class="btn" id="individualSplitConfirmBtn">Split</button>
+      </div>
+    </div>`;
+    document.body.appendChild(el);
+  }
+  if(!el.dataset.bound){
+    el.dataset.bound = '1';
+    el.addEventListener('click', e => {
+      if(e.target === el) hideIndividualSplitDialog();
+    });
+    el.querySelector('#individualSplitCancelBtn')?.addEventListener('click', hideIndividualSplitDialog);
+    el.querySelector('#individualSplitConfirmBtn')?.addEventListener('click', confirmIndividualSplitDialog);
+    el.querySelector('#individualSplitPartCount')?.addEventListener('change', () => {
+      if(!SPLIT_DIALOG) return;
+      const n = parseInt(el.querySelector('#individualSplitPartCount').value, 10) || 2;
+      SPLIT_DIALOG.parts = distributeIndividualSplitParts(SPLIT_DIALOG.total, n)
+        || defaultIndividualSplitParts(SPLIT_DIALOG.total)
+        || SPLIT_DIALOG.parts;
+      renderIndividualSplitDialogParts();
+    });
+    el.querySelector('#individualSplitParts')?.addEventListener('input', onIndividualSplitPartInput);
+    el.querySelector('#individualSplitPresets')?.addEventListener('click', e => {
+      const btn = e.target.closest('[data-parts]');
+      if(!btn || !SPLIT_DIALOG) return;
+      const parts = String(btn.dataset.parts || '').split('+').map(s => parseInt(s, 10));
+      const ok = normalizeIndividualSplitParts(parts, SPLIT_DIALOG.total);
+      if(!ok) return;
+      SPLIT_DIALOG.parts = ok;
+      const countEl = el.querySelector('#individualSplitPartCount');
+      if(countEl) countEl.value = String(ok.length);
+      renderIndividualSplitDialogParts();
+    });
+  }
+  return el;
+}
+function equalIndividualSplitParts(total, n){
+  const dur = Math.max(0, parseInt(total, 10) || 0);
+  const count = Math.max(2, parseInt(n, 10) || 2);
+  if(dur < INDIVIDUAL_SPLIT_MIN_PART * count) return null;
+  if(dur % count !== 0) return null;
+  const p = dur / count;
+  if(p < INDIVIDUAL_SPLIT_MIN_PART || p % CAL_SNAP_MIN !== 0) return null;
+  return Array(count).fill(p);
+}
+function distributeIndividualSplitParts(total, n){
+  const eq = equalIndividualSplitParts(total, n);
+  if(eq) return eq;
+  const dur = Math.max(0, parseInt(total, 10) || 0);
+  const count = Math.max(2, parseInt(n, 10) || 2);
+  if(dur < INDIVIDUAL_SPLIT_MIN_PART * count) return null;
+  const parts = Array(count).fill(INDIVIDUAL_SPLIT_MIN_PART);
+  let left = dur - INDIVIDUAL_SPLIT_MIN_PART * count;
+  if(left < 0 || left % CAL_SNAP_MIN !== 0) return null;
+  let i = 0;
+  while(left > 0){
+    parts[i % count] += CAL_SNAP_MIN;
+    left -= CAL_SNAP_MIN;
+    i++;
+  }
+  return normalizeIndividualSplitParts(parts, dur);
+}
+function hideIndividualSplitDialog(){
+  SPLIT_DIALOG = null;
+  const el = document.getElementById('individualSplitOverlay');
+  if(!el) return;
+  el.style.display = 'none';
+  el.classList.remove('is-open');
+  el.setAttribute('aria-hidden', 'true');
+}
+function renderIndividualSplitDialogParts(){
+  const el = getIndividualSplitOverlay();
+  if(!SPLIT_DIALOG) return;
+  const wrap = el.querySelector('#individualSplitParts');
+  const sumEl = el.querySelector('#individualSplitSum');
+  const confirmBtn = el.querySelector('#individualSplitConfirmBtn');
+  if(!wrap) return;
+  wrap.innerHTML = SPLIT_DIALOG.parts.map((p, idx) => `
+    <label class="cloud-field individual-split-part">
+      <span>Part ${idx + 1}</span>
+      <input type="number" class="cloud-input individual-split-input" data-idx="${idx}" min="${INDIVIDUAL_SPLIT_MIN_PART}" step="${CAL_SNAP_MIN}" value="${p}">
+      <span class="individual-split-unit">′</span>
+    </label>`).join('');
+  const sum = SPLIT_DIALOG.parts.reduce((a, b) => a + (parseInt(b, 10) || 0), 0);
+  const ok = !!normalizeIndividualSplitParts(SPLIT_DIALOG.parts, SPLIT_DIALOG.total);
+  if(sumEl){
+    sumEl.textContent = ok
+      ? `Sum ${sum}′ = ${SPLIT_DIALOG.total}′ — ready to split.`
+      : `Sum ${sum}′ must equal ${SPLIT_DIALOG.total}′ (each part ≥ ${INDIVIDUAL_SPLIT_MIN_PART}′, step ${CAL_SNAP_MIN}′).`;
+    sumEl.classList.toggle('is-ok', ok);
+    sumEl.classList.toggle('is-bad', !ok);
+  }
+  if(confirmBtn) confirmBtn.disabled = !ok;
+}
+function onIndividualSplitPartInput(e){
+  const input = e.target.closest('.individual-split-input');
+  if(!input || !SPLIT_DIALOG) return;
+  const idx = parseInt(input.dataset.idx, 10);
+  if(!Number.isFinite(idx) || idx < 0 || idx >= SPLIT_DIALOG.parts.length) return;
+  SPLIT_DIALOG.parts[idx] = parseInt(input.value, 10) || 0;
+  const sumEl = document.getElementById('individualSplitSum');
+  const confirmBtn = document.getElementById('individualSplitConfirmBtn');
+  const sum = SPLIT_DIALOG.parts.reduce((a, b) => a + (parseInt(b, 10) || 0), 0);
+  const ok = !!normalizeIndividualSplitParts(SPLIT_DIALOG.parts, SPLIT_DIALOG.total);
+  if(sumEl){
+    sumEl.textContent = ok
+      ? `Sum ${sum}′ = ${SPLIT_DIALOG.total}′ — ready to split.`
+      : `Sum ${sum}′ must equal ${SPLIT_DIALOG.total}′ (each part ≥ ${INDIVIDUAL_SPLIT_MIN_PART}′, step ${CAL_SNAP_MIN}′).`;
+    sumEl.classList.toggle('is-ok', ok);
+    sumEl.classList.toggle('is-bad', !ok);
+  }
+  if(confirmBtn) confirmBtn.disabled = !ok;
+}
+function showIndividualSplitDialog(lessonIds){
+  const target = individualSplitTargetItems(lessonIds);
+  if(!target) return false;
+  const total = individualSplitTotalDuration(target.items);
+  const parts = defaultIndividualSplitParts(total);
+  if(!parts) return false;
+  SPLIT_DIALOG = {lessonIds: target.items.map(it => it.lessonId), total, parts: parts.slice(), kind: target.kind};
+  const el = getIndividualSplitOverlay();
+  const hint = el.querySelector('#individualSplitHint');
+  const name = stripSplitDurationLabel(target.items[0].name) || 'Lesson';
+  if(hint){
+    hint.textContent = `${name} · ${total}′ — choose parts that add up exactly to ${total}′. Each piece stays on this day; drag them apart afterward.`;
+  }
+  const countEl = el.querySelector('#individualSplitPartCount');
+  if(countEl){
+    const maxParts = Math.min(6, Math.floor(total / INDIVIDUAL_SPLIT_MIN_PART));
+    let opts = '';
+    for(let n = 2; n <= maxParts; n++) opts += `<option value="${n}"${n === parts.length ? ' selected' : ''}>${n}</option>`;
+    countEl.innerHTML = opts;
+  }
+  const presets = el.querySelector('#individualSplitPresets');
+  if(presets){
+    presets.innerHTML = suggestIndividualSplitPresets(total).slice(0, 6).map(p =>
+      `<button type="button" class="btn secondary small" data-parts="${p.join('+')}">${p.join(' + ')}′</button>`
+    ).join('');
+  }
+  renderIndividualSplitDialogParts();
+  el.style.display = 'flex';
+  el.classList.add('is-open');
+  el.setAttribute('aria-hidden', 'false');
+  const firstInput = el.querySelector('.individual-split-input');
+  if(firstInput) firstInput.focus();
+  return true;
+}
+function confirmIndividualSplitDialog(){
+  if(!SPLIT_DIALOG) return;
+  const parts = normalizeIndividualSplitParts(SPLIT_DIALOG.parts, SPLIT_DIALOG.total);
+  if(!parts) return;
+  const ids = SPLIT_DIALOG.lessonIds.slice();
+  hideIndividualSplitDialog();
+  splitIndividualLessons(ids, parts);
+}
 function getCalContextMenu(){
   let el = document.getElementById('calContextMenu');
   if(!el){
@@ -6116,8 +6435,18 @@ function getCalContextMenu(){
     el.id = 'calContextMenu';
     el.className = 'cal-context-menu';
     el.hidden = true;
-    el.innerHTML = '<button type="button" class="cal-context-item" data-action="delete">Delete from layout</button>';
+    el.innerHTML = [
+      '<button type="button" class="cal-context-item cal-context-split" data-action="split">Split lesson…</button>',
+      '<button type="button" class="cal-context-item" data-action="delete">Delete from layout</button>'
+    ].join('');
     document.body.appendChild(el);
+  } else if(!el.querySelector('[data-action="split"]')){
+    const splitBtn = document.createElement('button');
+    splitBtn.type = 'button';
+    splitBtn.className = 'cal-context-item cal-context-split';
+    splitBtn.dataset.action = 'split';
+    splitBtn.textContent = 'Split lesson…';
+    el.insertBefore(splitBtn, el.firstChild);
   }
   if(!el.dataset.bound){
     el.dataset.bound = '1';
@@ -6128,8 +6457,9 @@ function getCalContextMenu(){
       e.stopPropagation();
       const action = btn.dataset.action;
       const ids = String(el.dataset.lessonIds || '').split(',').map(s => s.trim()).filter(Boolean);
-      if(action === 'delete') removeGroupLessonsFromLayout(ids);
       hideCalContextMenu();
+      if(action === 'delete') removeGroupLessonsFromLayout(ids);
+      else if(action === 'split') showIndividualSplitDialog(ids);
     });
   }
   return el;
@@ -6139,10 +6469,21 @@ function hideCalContextMenu(){
   if(!el) return;
   el.hidden = true;
   el.dataset.lessonIds = '';
+  el.dataset.menuMode = '';
 }
-function showCalContextMenu(clientX, clientY, lessonIds){
+function showCalContextMenu(clientX, clientY, lessonIds, mode){
   const el = getCalContextMenu();
   el.dataset.lessonIds = (lessonIds || []).join(',');
+  el.dataset.menuMode = mode || 'group';
+  const splitBtn = el.querySelector('[data-action="split"]');
+  const deleteBtn = el.querySelector('[data-action="delete"]');
+  if(mode === 'individual'){
+    if(splitBtn) splitBtn.hidden = !canSplitIndividualLessons(lessonIds);
+    if(deleteBtn) deleteBtn.hidden = true;
+  } else {
+    if(splitBtn) splitBtn.hidden = true;
+    if(deleteBtn) deleteBtn.hidden = false;
+  }
   el.hidden = false;
   el.style.left = '0px';
   el.style.top = '0px';
@@ -6158,19 +6499,34 @@ function showCalContextMenu(clientX, clientY, lessonIds){
 function onCalendarBlockContextMenu(e){
   if(SEARCH_UI_LOCK) return;
   const block = e.currentTarget;
-  if(!block.closest('#ttGrid')) return;
   const source = block.dataset.source || '';
+  const tip = document.getElementById('hoverTooltip');
+  if(block.closest('#oneoneGrid') || block.closest('#rpianoGrid')){
+    if(source !== 'oneone' && source !== 'rpiano') return;
+    if(block.dataset.draggable !== '1') return;
+    const item = scheduledItemById(block.dataset.lessonId);
+    if(!item || (item.source !== 'oneone' && item.source !== 'rpiano')) return;
+    const ids = String(block.dataset.mergedIds || '')
+      .split(',').map(s => s.trim()).filter(Boolean);
+    const lessonIds = ids.length ? ids : [item.lessonId];
+    if(!canSplitIndividualLessons(lessonIds)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if(tip) tip.style.display = 'none';
+    showCalContextMenu(e.clientX, e.clientY, lessonIds, 'individual');
+    return;
+  }
+  if(!block.closest('#ttGrid')) return;
   if(source === 'class' || source === 'accepted' || source === 'oneone' || source === 'rpiano') return;
   const item = scheduledItemById(block.dataset.lessonId);
   if(!groupCalendarLessonDeletable(item)) return;
   e.preventDefault();
   e.stopPropagation();
-  const tip = document.getElementById('hoverTooltip');
   if(tip) tip.style.display = 'none';
   const ids = String(block.dataset.mergedIds || '')
     .split(',').map(s => s.trim()).filter(Boolean);
   const lessonIds = ids.length ? ids : [item.lessonId];
-  showCalContextMenu(e.clientX, e.clientY, lessonIds);
+  showCalContextMenu(e.clientX, e.clientY, lessonIds, 'group');
 }
 
 const CAL_SNAP_MIN = 5;
@@ -6435,7 +6791,9 @@ document.addEventListener('pointerdown', e => {
   hideCalContextMenu();
 }, true);
 document.addEventListener('keydown', e => {
-  if(e.key === 'Escape') hideCalContextMenu();
+  if(e.key !== 'Escape') return;
+  hideCalContextMenu();
+  if(SPLIT_DIALOG) hideIndividualSplitDialog();
 });
 document.addEventListener('keydown', (e) => {
   if(!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z' || e.shiftKey) return;
@@ -8909,7 +9267,8 @@ document.getElementById('downloadSmallGroupsBtn').addEventListener('click', () =
 // splits every cell (including ones that already sat) and packs from one pool.
 // Allowed splits: 120 → 2×60 for 1/1 and Required Piano; Required Piano may also split
 // 90 → 2×45 / 60+30. A 60- or 90-minute cell never splits (1/1 or piano).
-// A 30-min lesson stays 30.
+// A 30-min lesson stays 30. Manual edit can still split any ≥60′ block via the calendar
+// context menu (parts must sum exactly; labeled · N′ slices stay separately draggable).
 // Two pieces of the same student×teacher may share a day only when they sit flush.
 const ONEONE_SNAP = 5;
 
