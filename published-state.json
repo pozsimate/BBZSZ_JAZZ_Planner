@@ -6240,15 +6240,6 @@
    "ST41": {
     "TEAC14": 0.5
    },
-   "ST42": {
-    "TEAC16": 0.5
-   },
-   "ST43": {
-    "TEAC21": 1
-   },
-   "ST44": {
-    "TEAC21": 1
-   },
    "ST45": {
     "TEAC18": 1
    },
@@ -6270,12 +6261,6 @@
    "ST70": {
     "TEAC18": 1
    },
-   "ST71": {
-    "TEAC17": 0.5
-   },
-   "ST72": {
-    "TEAC17": 0.5
-   },
    "ST73": {
     "TEAC14": 1
    },
@@ -6287,6 +6272,18 @@
    },
    "ST22": {
     "TEAC16": 1
+   },
+   "ST71": {
+    "TEAC16": 0.5
+   },
+   "ST42": {
+    "TEAC16": 0.5
+   },
+   "ST43": {
+    "TEAC17": 1
+   },
+   "ST44": {
+    "TEAC14": 1
    }
   },
   "hasRoomRow": false,
@@ -42819,8 +42816,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 4,
-      "_totalCols": 8
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC14-ST55",
@@ -42957,8 +42954,8 @@
       "room": "",
       "source": "oneone",
       "duration": 90,
-      "_col": 2,
-      "_totalCols": 8
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC22-ST19",
@@ -43072,8 +43069,8 @@
       "room": "",
       "source": "oneone",
       "duration": 90,
-      "_col": 5,
-      "_totalCols": 8
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC22-ST13",
@@ -43210,8 +43207,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 5,
-      "_totalCols": 8
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC22-ST17",
@@ -43555,8 +43552,8 @@
       "room": "",
       "source": "oneone",
       "duration": 180,
-      "_col": 6,
-      "_totalCols": 8
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC20-ST69",
@@ -43670,7 +43667,7 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 6,
+      "_col": 0,
       "_totalCols": 11
      },
      {
@@ -43808,8 +43805,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 4,
-      "_totalCols": 8
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC6-ST18",
@@ -43923,8 +43920,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 2,
-      "_totalCols": 11
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC13-ST46",
@@ -43992,8 +43989,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 2,
-      "_totalCols": 11
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC10-ST37-2",
@@ -44130,7 +44127,7 @@
       "room": "Drum",
       "source": "oneone",
       "duration": 120,
-      "_col": 4,
+      "_col": 2,
       "_totalCols": 11
      },
      {
@@ -44153,7 +44150,7 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 0,
+      "_col": 4,
       "_totalCols": 11
      },
      {
@@ -44199,7 +44196,7 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 9,
+      "_col": 0,
       "_totalCols": 11
      },
      {
@@ -44314,7 +44311,7 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 4,
+      "_col": 5,
       "_totalCols": 11
      },
      {
@@ -44337,7 +44334,7 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
+      "_col": 4,
       "_totalCols": 11
      },
      {
@@ -44360,7 +44357,7 @@
       "room": "",
       "source": "oneone",
       "duration": 90,
-      "_col": 5,
+      "_col": 6,
       "_totalCols": 11
      },
      {
@@ -44406,7 +44403,7 @@
       "room": "Drum",
       "source": "oneone",
       "duration": 60,
-      "_col": 9,
+      "_col": 7,
       "_totalCols": 11
      },
      {
@@ -44429,7 +44426,7 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 7,
+      "_col": 8,
       "_totalCols": 11
      },
      {
@@ -44452,7 +44449,7 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
+      "_col": 1,
       "_totalCols": 11
      },
      {
@@ -44521,7 +44518,7 @@
       "room": "Drum",
       "source": "oneone",
       "duration": 60,
-      "_col": 6,
+      "_col": 0,
       "_totalCols": 11
      },
      {
@@ -44544,7 +44541,7 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 8,
+      "_col": 7,
       "_totalCols": 11
      },
      {
@@ -44567,7 +44564,7 @@
       "room": "",
       "source": "oneone",
       "duration": 90,
-      "_col": 7,
+      "_col": 8,
       "_totalCols": 11
      },
      {
@@ -44590,7 +44587,7 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 5,
+      "_col": 6,
       "_totalCols": 11
      },
      {
@@ -44613,7 +44610,7 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 4,
+      "_col": 5,
       "_totalCols": 11
      },
      {
@@ -44636,7 +44633,7 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
+      "_col": 1,
       "_totalCols": 11
      },
      {
@@ -44682,7 +44679,7 @@
       "room": "Drum",
       "source": "oneone",
       "duration": 60,
-      "_col": 1,
+      "_col": 0,
       "_totalCols": 11
      },
      {
@@ -44705,8 +44702,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 9,
-      "_totalCols": 11
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC3-ST9",
@@ -44728,7 +44725,7 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 6,
+      "_col": 4,
       "_totalCols": 11
      },
      {
@@ -44751,7 +44748,7 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
+      "_col": 1,
       "_totalCols": 11
      },
      {
@@ -44820,7 +44817,7 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 0,
+      "_col": 1,
       "_totalCols": 11
      },
      {
@@ -44889,7 +44886,7 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 1,
+      "_col": 0,
       "_totalCols": 11
      },
      {
@@ -44912,7 +44909,7 @@
       "room": "Drum",
       "source": "oneone",
       "duration": 60,
-      "_col": 1,
+      "_col": 0,
       "_totalCols": 11
      },
      {
@@ -45004,8 +45001,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 3,
-      "_totalCols": 7
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC16-ST63",
@@ -45028,7 +45025,7 @@
       "source": "oneone",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 7
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC19-ST72",
@@ -45097,7 +45094,7 @@
       "source": "oneone",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 11
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC18-ST61",
@@ -45165,8 +45162,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 7,
-      "_totalCols": 11
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC19-ST66",
@@ -45234,8 +45231,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 4,
-      "_totalCols": 7
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC16-ST53",
@@ -45257,8 +45254,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 6,
-      "_totalCols": 7
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC4-ST12",
@@ -45303,8 +45300,8 @@
       "room": "",
       "source": "oneone",
       "duration": 120,
-      "_col": 4,
-      "_totalCols": 7
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC19-ST67",
@@ -45441,8 +45438,8 @@
       "room": "",
       "source": "oneone",
       "duration": 60,
-      "_col": 7,
-      "_totalCols": 11
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "O2O-TEAC9-ST28",
@@ -47485,29 +47482,6 @@
     "_totalCols": 8
    },
    {
-    "lessonId": "RP-TEAC17-ST72",
-    "name": "Molnar Torda piano",
-    "group": "piano",
-    "groupId": "",
-    "teacherId": "TEAC17",
-    "teacher": "Olah",
-    "day": "MON",
-    "start": 810,
-    "end": 840,
-    "studentCount": 1,
-    "studentNames": [
-     "Molnar Torda"
-    ],
-    "studentId": "ST72",
-    "studentIds": "ST72",
-    "roomId": "",
-    "room": "",
-    "source": "rpiano",
-    "duration": 30,
-    "_col": 1,
-    "_totalCols": 8
-   },
-   {
     "lessonId": "RP-TEAC17-ST34",
     "name": "Kos Annastella piano",
     "group": "piano",
@@ -47546,29 +47520,6 @@
     ],
     "studentId": "ST27",
     "studentIds": "ST27",
-    "roomId": "",
-    "room": "",
-    "source": "rpiano",
-    "duration": 30,
-    "_col": 0,
-    "_totalCols": 8
-   },
-   {
-    "lessonId": "RP-TEAC17-ST71",
-    "name": "Farkas Bendeguz piano",
-    "group": "piano",
-    "groupId": "",
-    "teacherId": "TEAC17",
-    "teacher": "Olah",
-    "day": "MON",
-    "start": 900,
-    "end": 930,
-    "studentCount": 1,
-    "studentNames": [
-     "Farkas Bendeguz"
-    ],
-    "studentId": "ST71",
-    "studentIds": "ST71",
     "roomId": "",
     "room": "",
     "source": "rpiano",
@@ -48106,29 +48057,6 @@
     "_totalCols": 4
    },
    {
-    "lessonId": "RP-TEAC21-ST43",
-    "name": "Koszta Eva piano",
-    "group": "piano",
-    "groupId": "",
-    "teacherId": "TEAC21",
-    "teacher": "Varallyay",
-    "day": "THU",
-    "start": 840,
-    "end": 900,
-    "studentCount": 1,
-    "studentNames": [
-     "Koszta Eva"
-    ],
-    "studentId": "ST43",
-    "studentIds": "ST43",
-    "roomId": "",
-    "room": "",
-    "source": "rpiano",
-    "duration": 60,
-    "_col": 1,
-    "_totalCols": 7
-   },
-   {
     "lessonId": "RP-TEAC15-ST19",
     "name": "Csaki Daniel piano",
     "group": "piano",
@@ -48172,29 +48100,6 @@
     "source": "rpiano",
     "duration": 60,
     "_col": 0,
-    "_totalCols": 7
-   },
-   {
-    "lessonId": "RP-TEAC21-ST44",
-    "name": "Fejer Orsolya piano",
-    "group": "piano",
-    "groupId": "",
-    "teacherId": "TEAC21",
-    "teacher": "Varallyay",
-    "day": "THU",
-    "start": 900,
-    "end": 960,
-    "studentCount": 1,
-    "studentNames": [
-     "Fejer Orsolya"
-    ],
-    "studentId": "ST44",
-    "studentIds": "ST44",
-    "roomId": "",
-    "room": "",
-    "source": "rpiano",
-    "duration": 60,
-    "_col": 2,
     "_totalCols": 7
    },
    {
@@ -48309,29 +48214,6 @@
     "room": "",
     "source": "rpiano",
     "duration": 60,
-    "_col": 0,
-    "_totalCols": 1
-   },
-   {
-    "lessonId": "RP-TEAC16-ST42",
-    "name": "Gonczi Simon piano",
-    "group": "piano",
-    "groupId": "",
-    "teacherId": "TEAC16",
-    "teacher": "Kapolcsi",
-    "day": "FRI",
-    "start": 750,
-    "end": 780,
-    "studentCount": 1,
-    "studentNames": [
-     "Gonczi Simon"
-    ],
-    "studentId": "ST42",
-    "studentIds": "ST42",
-    "roomId": "",
-    "room": "",
-    "source": "rpiano",
-    "duration": 30,
     "_col": 0,
     "_totalCols": 1
    },
@@ -48535,26 +48417,6 @@
     "note": ""
    },
    {
-    "lessonId": "RP-TEAC17-ST72",
-    "name": "Molnar Torda piano",
-    "kind": "piano",
-    "group": "piano",
-    "groupId": "",
-    "teacher": "Olah",
-    "teacherId": "TEAC17",
-    "day": "MON",
-    "start": "13:30",
-    "end": "14:00",
-    "duration": 30,
-    "roomId": "",
-    "room": "",
-    "studentCount": 1,
-    "students": "Molnar Torda",
-    "studentIds": "ST72",
-    "status": "scheduled",
-    "note": ""
-   },
-   {
     "lessonId": "RP-TEAC17-ST34",
     "name": "Kos Annastella piano",
     "kind": "piano",
@@ -48591,26 +48453,6 @@
     "studentCount": 1,
     "students": "Szecskay Hanna",
     "studentIds": "ST27",
-    "status": "scheduled",
-    "note": ""
-   },
-   {
-    "lessonId": "RP-TEAC17-ST71",
-    "name": "Farkas Bendeguz piano",
-    "kind": "piano",
-    "group": "piano",
-    "groupId": "",
-    "teacher": "Olah",
-    "teacherId": "TEAC17",
-    "day": "MON",
-    "start": "15:00",
-    "end": "15:30",
-    "duration": 30,
-    "roomId": "",
-    "room": "",
-    "studentCount": 1,
-    "students": "Farkas Bendeguz",
-    "studentIds": "ST71",
     "status": "scheduled",
     "note": ""
    },
@@ -49095,26 +48937,6 @@
     "note": ""
    },
    {
-    "lessonId": "RP-TEAC21-ST43",
-    "name": "Koszta Eva piano",
-    "kind": "piano",
-    "group": "piano",
-    "groupId": "",
-    "teacher": "Varallyay",
-    "teacherId": "TEAC21",
-    "day": "THU",
-    "start": "14:00",
-    "end": "15:00",
-    "duration": 60,
-    "roomId": "",
-    "room": "",
-    "studentCount": 1,
-    "students": "Koszta Eva",
-    "studentIds": "ST43",
-    "status": "scheduled",
-    "note": ""
-   },
-   {
     "lessonId": "RP-TEAC18-ST45",
     "name": "Ciuca Valentin piano",
     "kind": "piano",
@@ -49131,26 +48953,6 @@
     "studentCount": 1,
     "students": "Ciuca Valentin",
     "studentIds": "ST45",
-    "status": "scheduled",
-    "note": ""
-   },
-   {
-    "lessonId": "RP-TEAC21-ST44",
-    "name": "Fejer Orsolya piano",
-    "kind": "piano",
-    "group": "piano",
-    "groupId": "",
-    "teacher": "Varallyay",
-    "teacherId": "TEAC21",
-    "day": "THU",
-    "start": "15:00",
-    "end": "16:00",
-    "duration": 60,
-    "roomId": "",
-    "room": "",
-    "studentCount": 1,
-    "students": "Fejer Orsolya",
-    "studentIds": "ST44",
     "status": "scheduled",
     "note": ""
    },
@@ -49315,26 +49117,6 @@
     "note": ""
    },
    {
-    "lessonId": "RP-TEAC16-ST42",
-    "name": "Gonczi Simon piano",
-    "kind": "piano",
-    "group": "piano",
-    "groupId": "",
-    "teacher": "Kapolcsi",
-    "teacherId": "TEAC16",
-    "day": "FRI",
-    "start": "12:30",
-    "end": "13:00",
-    "duration": 30,
-    "roomId": "",
-    "room": "",
-    "studentCount": 1,
-    "students": "Gonczi Simon",
-    "studentIds": "ST42",
-    "status": "scheduled",
-    "note": ""
-   },
-   {
     "lessonId": "RP-TEAC18-ST14",
     "name": "Barcza Vince piano",
     "kind": "piano",
@@ -49471,29 +49253,6 @@
       "_totalCols": 8
      },
      {
-      "lessonId": "RP-TEAC17-ST72",
-      "name": "Molnar Torda piano",
-      "group": "piano",
-      "groupId": "",
-      "teacherId": "TEAC17",
-      "teacher": "Olah",
-      "day": "MON",
-      "start": 810,
-      "end": 840,
-      "studentCount": 1,
-      "studentNames": [
-       "Molnar Torda"
-      ],
-      "studentId": "ST72",
-      "studentIds": "ST72",
-      "roomId": "",
-      "room": "",
-      "source": "rpiano",
-      "duration": 30,
-      "_col": 1,
-      "_totalCols": 8
-     },
-     {
       "lessonId": "RP-TEAC17-ST34",
       "name": "Kos Annastella piano",
       "group": "piano",
@@ -49532,29 +49291,6 @@
       ],
       "studentId": "ST27",
       "studentIds": "ST27",
-      "roomId": "",
-      "room": "",
-      "source": "rpiano",
-      "duration": 30,
-      "_col": 0,
-      "_totalCols": 8
-     },
-     {
-      "lessonId": "RP-TEAC17-ST71",
-      "name": "Farkas Bendeguz piano",
-      "group": "piano",
-      "groupId": "",
-      "teacherId": "TEAC17",
-      "teacher": "Olah",
-      "day": "MON",
-      "start": 900,
-      "end": 930,
-      "studentCount": 1,
-      "studentNames": [
-       "Farkas Bendeguz"
-      ],
-      "studentId": "ST71",
-      "studentIds": "ST71",
       "roomId": "",
       "room": "",
       "source": "rpiano",
@@ -49835,7 +49571,7 @@
       "room": "",
       "source": "rpiano",
       "duration": 60,
-      "_col": 6,
+      "_col": 7,
       "_totalCols": 11
      },
      {
@@ -49858,7 +49594,7 @@
       "room": "",
       "source": "rpiano",
       "duration": 30,
-      "_col": 2,
+      "_col": 6,
       "_totalCols": 11
      },
      {
@@ -50019,7 +49755,7 @@
       "room": "",
       "source": "rpiano",
       "duration": 60,
-      "_col": 0,
+      "_col": 1,
       "_totalCols": 11
      },
      {
@@ -50042,7 +49778,7 @@
       "room": "",
       "source": "rpiano",
       "duration": 60,
-      "_col": 0,
+      "_col": 1,
       "_totalCols": 11
      },
      {
@@ -50092,29 +49828,6 @@
       "_totalCols": 4
      },
      {
-      "lessonId": "RP-TEAC21-ST43",
-      "name": "Koszta Eva piano",
-      "group": "piano",
-      "groupId": "",
-      "teacherId": "TEAC21",
-      "teacher": "Varallyay",
-      "day": "THU",
-      "start": 840,
-      "end": 900,
-      "studentCount": 1,
-      "studentNames": [
-       "Koszta Eva"
-      ],
-      "studentId": "ST43",
-      "studentIds": "ST43",
-      "roomId": "",
-      "room": "",
-      "source": "rpiano",
-      "duration": 60,
-      "_col": 1,
-      "_totalCols": 7
-     },
-     {
       "lessonId": "RP-TEAC15-ST19",
       "name": "Csaki Daniel piano",
       "group": "piano",
@@ -50161,29 +49874,6 @@
       "_totalCols": 7
      },
      {
-      "lessonId": "RP-TEAC21-ST44",
-      "name": "Fejer Orsolya piano",
-      "group": "piano",
-      "groupId": "",
-      "teacherId": "TEAC21",
-      "teacher": "Varallyay",
-      "day": "THU",
-      "start": 900,
-      "end": 960,
-      "studentCount": 1,
-      "studentNames": [
-       "Fejer Orsolya"
-      ],
-      "studentId": "ST44",
-      "studentIds": "ST44",
-      "roomId": "",
-      "room": "",
-      "source": "rpiano",
-      "duration": 60,
-      "_col": 2,
-      "_totalCols": 7
-     },
-     {
       "lessonId": "RP-TEAC16-ST75",
       "name": "Kele Andras piano",
       "group": "piano",
@@ -50204,7 +49894,7 @@
       "source": "rpiano",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 11
+      "_totalCols": 1
      },
      {
       "lessonId": "RP-TEAC18-ST16",
@@ -50295,31 +49985,8 @@
       "room": "",
       "source": "rpiano",
       "duration": 60,
-      "_col": 3,
-      "_totalCols": 7
-     },
-     {
-      "lessonId": "RP-TEAC16-ST42",
-      "name": "Gonczi Simon piano",
-      "group": "piano",
-      "groupId": "",
-      "teacherId": "TEAC16",
-      "teacher": "Kapolcsi",
-      "day": "FRI",
-      "start": 750,
-      "end": 780,
-      "studentCount": 1,
-      "studentNames": [
-       "Gonczi Simon"
-      ],
-      "studentId": "ST42",
-      "studentIds": "ST42",
-      "roomId": "",
-      "room": "",
-      "source": "rpiano",
-      "duration": 30,
-      "_col": 1,
-      "_totalCols": 11
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "RP-TEAC15-ST17",
@@ -50365,7 +50032,7 @@
       "source": "rpiano",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 11
+      "_totalCols": 1
      },
      {
       "lessonId": "RP-TEAC16-ST40",
@@ -50388,7 +50055,7 @@
       "source": "rpiano",
       "duration": 60,
       "_col": 0,
-      "_totalCols": 11
+      "_totalCols": 1
      },
      {
       "lessonId": "RP-TEAC16-ST22",
@@ -50410,8 +50077,8 @@
       "room": "",
       "source": "rpiano",
       "duration": 60,
-      "_col": 3,
-      "_totalCols": 11
+      "_col": 0,
+      "_totalCols": 1
      },
      {
       "lessonId": "RP-TEAC18-ST14",
@@ -50468,12 +50135,6 @@
     "end": 810
    },
    {
-    "lessonId": "RP-TEAC17-ST72",
-    "day": "MON",
-    "start": 810,
-    "end": 840
-   },
-   {
     "lessonId": "RP-TEAC17-ST34",
     "day": "MON",
     "start": 840,
@@ -50484,12 +50145,6 @@
     "day": "MON",
     "start": 870,
     "end": 900
-   },
-   {
-    "lessonId": "RP-TEAC17-ST71",
-    "day": "MON",
-    "start": 900,
-    "end": 930
    },
    {
     "lessonId": "RP-TEAC17-ST12",
@@ -50630,12 +50285,6 @@
     "end": 660
    },
    {
-    "lessonId": "RP-TEAC21-ST43",
-    "day": "THU",
-    "start": 840,
-    "end": 900
-   },
-   {
     "lessonId": "RP-TEAC15-ST19",
     "day": "THU",
     "start": 840,
@@ -50646,12 +50295,6 @@
     "day": "THU",
     "start": 870,
     "end": 930
-   },
-   {
-    "lessonId": "RP-TEAC21-ST44",
-    "day": "THU",
-    "start": 900,
-    "end": 960
    },
    {
     "lessonId": "RP-TEAC16-ST75",
@@ -50682,12 +50325,6 @@
     "day": "THU",
     "start": 1110,
     "end": 1170
-   },
-   {
-    "lessonId": "RP-TEAC16-ST42",
-    "day": "FRI",
-    "start": 750,
-    "end": 780
    },
    {
     "lessonId": "RP-TEAC15-ST17",
@@ -50721,7 +50358,7 @@
    }
   ],
   "dragUndo": [],
-  "acceptedAt": "2026-09-15T09:42:20.591Z"
+  "acceptedAt": "2026-09-24T18:44:39.580Z"
  },
- "publishedAt": "2026-09-15T10:45:02.614Z"
+ "publishedAt": "2026-09-24T18:44:47.976Z"
 }
